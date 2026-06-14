@@ -1,6 +1,22 @@
+---
+id: semantic-vat-build-script
+summary: Lossless source-unit coverage for the vat project build script.
+capability_refs:
+  - id: agent-native-gpu-native-dev-containers
+    role: primary
+    claim: local-agent-test-runner-protocol
+    coverage: partial
+    rationale: "The project build script is part of the local runner and release workflow for installing and verifying the vat binary."
+fill_sections: [text-source-unit, changes]
+---
+
+# Semantic TD: vat/build.sh
+
+## Source
+<!-- type: text-source-unit lang: bash -->
+
+```bash
 #!/usr/bin/env bash
-# SPEC-MANAGED: projects/vat/tech-design/semantic/vat-build-script.md#text-source-unit
-# CODEGEN-BEGIN
 set -euo pipefail
 
 usage() {
@@ -93,4 +109,17 @@ git tag -a "$TAG" -m "Release ${TAG}"
 
 echo ""
 echo "Build complete. vat ${TAG} installed and tagged."
-# CODEGEN-END
+```
+
+## Changes
+<!-- type: changes lang: yaml -->
+
+```yaml
+coverage_kind: semantic
+changes:
+  - path: "projects/vat/build.sh"
+    action: modify
+    section: text-source-unit
+    description: "Regenerate the vat project build script from a TD-owned text source unit."
+    impl_mode: codegen
+```

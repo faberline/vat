@@ -1,6 +1,22 @@
+---
+id: semantic-vat-install-script
+summary: Lossless source-unit coverage for the vat project install script.
+capability_refs:
+  - id: agent-native-gpu-native-dev-containers
+    role: primary
+    claim: local-agent-test-runner-protocol
+    coverage: partial
+    rationale: "The installer is part of the user-facing local runner workflow for acquiring and verifying the vat binary."
+fill_sections: [text-source-unit, changes]
+---
+
+# Semantic TD: vat/install.sh
+
+## Source
+<!-- type: text-source-unit lang: bash -->
+
+```bash
 #!/usr/bin/env sh
-# SPEC-MANAGED: projects/vat/tech-design/semantic/vat-install-script.md#text-source-unit
-# CODEGEN-BEGIN
 # vat installer — downloads the right prebuilt binary from GitHub
 # Releases and drops it on your PATH.
 #
@@ -160,4 +176,17 @@ if "${INSTALL_DIR}/vat" --version >/dev/null 2>&1; then
   ver="$("${INSTALL_DIR}/vat" --version 2>/dev/null || echo unknown)"
   say "ready: ${ver}"
 fi
-# CODEGEN-END
+```
+
+## Changes
+<!-- type: changes lang: yaml -->
+
+```yaml
+coverage_kind: semantic
+changes:
+  - path: "projects/vat/install.sh"
+    action: modify
+    section: text-source-unit
+    description: "Regenerate the vat installer script from a TD-owned text source unit."
+    impl_mode: codegen
+```
