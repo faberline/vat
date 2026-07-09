@@ -1,7 +1,7 @@
 ---
 id: vat-source-projects-vat-src-commands-snapshot-rs
 summary: >
-  rust-source-unit TD AST payload for projects/vat/src/commands/snapshot.rs.
+  rust-source-unit TD AST payload for apps/vat/src/commands/snapshot.rs.
 fill_sections: [overview, source, changes]
 capability_refs:
   - id: agent-native-gpu-native-dev-containers
@@ -11,19 +11,19 @@ capability_refs:
     rationale: "This rust-source-unit TD preserves vat source ownership while migrating #39 off group-level source replay."
 ---
 
-# Standardized projects/vat/src/commands/snapshot.rs
+# Standardized apps/vat/src/commands/snapshot.rs
 
 ## Overview
 <!-- type: overview lang: markdown -->
 
-Public API manifest for `projects/vat/src/commands/snapshot.rs` generated from AST during Score force-regeneration standardization.
+Public API manifest for `apps/vat/src/commands/snapshot.rs` generated from AST during Score force-regeneration standardization.
 
 ### Symbols
 
 | Name | Target | Kind | Visibility | Line | Signature |
 |------|--------|------|------------|------|-----------|
-| `fork` | projects/vat/src/commands/snapshot.rs | function | pub | 61 | fork(id: String, name: Option<String>) -> Result<ExitCode> |
-| `snapshot` | projects/vat/src/commands/snapshot.rs | function | pub | 54 | snapshot(id: String, name: Option<String>) -> Result<ExitCode> |
+| `fork` | apps/vat/src/commands/snapshot.rs | function | pub | 61 | fork(id: String, name: Option<String>) -> Result<ExitCode> |
+| `snapshot` | apps/vat/src/commands/snapshot.rs | function | pub | 54 | snapshot(id: String, name: Option<String>) -> Result<ExitCode> |
 ## Source
 <!-- type: rust-source-unit lang: rust -->
 
@@ -78,14 +78,14 @@ fn branch(parent_id: &str, name: Option<String>, freeze: bool) -> Result<store::
     Ok(child)
 }
 
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-commands-snapshot-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-commands-snapshot-rs.md#source
 pub fn snapshot(id: String, name: Option<String>) -> Result<ExitCode> {
     let child = branch(&id, name, true)?;
     println!("snapshot {} (frozen, from {id})", child.meta.id);
     Ok(ExitCode::SUCCESS)
 }
 
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-commands-snapshot-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-commands-snapshot-rs.md#source
 pub fn fork(id: String, name: Option<String>) -> Result<ExitCode> {
     let child = branch(&id, name, false)?;
     println!(
@@ -101,10 +101,10 @@ pub fn fork(id: String, name: Option<String>) -> Result<ExitCode> {
 
 ```yaml
 changes:
-  - path: projects/vat/src/commands/snapshot.rs
+  - path: apps/vat/src/commands/snapshot.rs
     action: modify
     section: rust-source-unit
     impl_mode: codegen
     description: |
-      rust-source-unit (td_ast) source for `projects/vat/src/commands/snapshot.rs` captured during #39 vat standardization.
+      rust-source-unit (td_ast) source for `apps/vat/src/commands/snapshot.rs` captured during #39 vat standardization.
 ```

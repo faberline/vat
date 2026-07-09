@@ -1,7 +1,7 @@
 ---
 id: projects-vat-src-emulator-pubsub-rs
 summary: >
-  rust-source-unit TD AST payload for projects/vat/src/emulator/pubsub.rs.
+  rust-source-unit TD AST payload for apps/vat/src/emulator/pubsub.rs.
 fill_sections: [overview, source, changes]
 capability_refs:
   - id: agent-native-gpu-native-dev-containers
@@ -11,19 +11,19 @@ capability_refs:
     rationale: "This rust-source-unit TD preserves vat source ownership while migrating #39 off group-level source replay."
 ---
 
-# Standardized projects/vat/src/emulator/pubsub.rs
+# Standardized apps/vat/src/emulator/pubsub.rs
 
 ## Overview
 <!-- type: overview lang: markdown -->
 
-Public API manifest for `projects/vat/src/emulator/pubsub.rs` generated from AST during Score force-regeneration standardization.
+Public API manifest for `apps/vat/src/emulator/pubsub.rs` generated from AST during Score force-regeneration standardization.
 
 ### Symbols
 
 | Name | Target | Kind | Visibility | Line | Signature |
 |------|--------|------|------------|------|-----------|
-| `pb` | projects/vat/src/emulator/pubsub.rs | module | pub | 22 |  |
-| `serve` | projects/vat/src/emulator/pubsub.rs | function | pub | 359 | serve(host_port: &str) -> Result<()> |
+| `pb` | apps/vat/src/emulator/pubsub.rs | module | pub | 22 |  |
+| `serve` | apps/vat/src/emulator/pubsub.rs | function | pub | 359 | serve(host_port: &str) -> Result<()> |
 ## Source
 <!-- type: rust-source-unit lang: rust -->
 
@@ -34,7 +34,7 @@ Public API manifest for `projects/vat/src/emulator/pubsub.rs` generated from AST
 //! local tests of the common path: topic/subscription admin, Publish, Pull,
 //! StreamingPull, and Acknowledge.
 //!
-//! @spec projects/vat/tech-design/logic/built-in-rust-emulators-pub-sub-firebase-auth.md#logic
+//! @spec apps/vat/tech-design/logic/built-in-rust-emulators-pub-sub-firebase-auth.md#logic
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::pin::Pin;
@@ -401,10 +401,10 @@ pub async fn serve(host_port: &str) -> Result<()> {
 
 ```yaml
 changes:
-  - path: projects/vat/src/emulator/pubsub.rs
+  - path: apps/vat/src/emulator/pubsub.rs
     action: modify
     section: rust-source-unit
     impl_mode: codegen
     description: |
-      rust-source-unit (td_ast) source for `projects/vat/src/emulator/pubsub.rs` captured during #39 vat standardization.
+      rust-source-unit (td_ast) source for `apps/vat/src/emulator/pubsub.rs` captured during #39 vat standardization.
 ```

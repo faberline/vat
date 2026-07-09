@@ -1,7 +1,7 @@
 ---
 id: vat-source-projects-vat-src-event-rs
 summary: >
-  rust-source-unit TD AST payload for projects/vat/src/event.rs.
+  rust-source-unit TD AST payload for apps/vat/src/event.rs.
 fill_sections: [overview, source, changes]
 capability_refs:
   - id: agent-native-gpu-native-dev-containers
@@ -11,28 +11,28 @@ capability_refs:
     rationale: "This rust-source-unit TD preserves vat source ownership while migrating #39 off group-level source replay."
 ---
 
-# Standardized projects/vat/src/event.rs
+# Standardized apps/vat/src/event.rs
 
 ## Overview
 <!-- type: overview lang: markdown -->
 
-Public API manifest for `projects/vat/src/event.rs` generated from AST during Score force-regeneration standardization.
+Public API manifest for `apps/vat/src/event.rs` generated from AST during Score force-regeneration standardization.
 
 ### Symbols
 
 | Name | Target | Kind | Visibility | Line | Signature |
 |------|--------|------|------------|------|-----------|
-| `Event` | projects/vat/src/event.rs | struct | pub | 21 |  |
-| `EventKind` | projects/vat/src/event.rs | enum | pub | 35 |  |
-| `append` | projects/vat/src/event.rs | function | pub | 64 | append(events_path: &Path, event: &Event) -> Result<()> |
-| `new` | projects/vat/src/event.rs | function | pub | 47 | new(kind: EventKind, message: impl Into<String>) -> Self |
-| `tail` | projects/vat/src/event.rs | function | pub | 79 | tail(events_path: &Path, n: usize) -> Result<Vec<Event>> |
-| `with_data` | projects/vat/src/event.rs | function | pub | 56 | with_data(mut self, data: serde_json::Value) -> Self |
+| `Event` | apps/vat/src/event.rs | struct | pub | 21 |  |
+| `EventKind` | apps/vat/src/event.rs | enum | pub | 35 |  |
+| `append` | apps/vat/src/event.rs | function | pub | 64 | append(events_path: &Path, event: &Event) -> Result<()> |
+| `new` | apps/vat/src/event.rs | function | pub | 47 | new(kind: EventKind, message: impl Into<String>) -> Self |
+| `tail` | apps/vat/src/event.rs | function | pub | 79 | tail(events_path: &Path, n: usize) -> Result<Vec<Event>> |
+| `with_data` | apps/vat/src/event.rs | function | pub | 56 | with_data(mut self, data: serde_json::Value) -> Self |
 ## Source
 <!-- type: rust-source-unit lang: rust -->
 
 ````rust
-// SPEC-MANAGED: projects/vat/tech-design/semantic/source/projects-vat-src-event-rs.md#rust-source-unit
+// SPEC-MANAGED: apps/vat/tech-design/semantic/source/projects-vat-src-event-rs.md#rust-source-unit
 // CODEGEN-BEGIN
 //! Append-only structured event log.
 //!
@@ -50,7 +50,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
 /// One logged event.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-event-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-event-rs.md#source
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Event {
     pub ts: DateTime<Utc>,
@@ -63,7 +63,7 @@ pub struct Event {
 }
 
 /// Closed set of event kinds. Keep it small and meaningful.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-event-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-event-rs.md#source
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum EventKind {
@@ -76,7 +76,7 @@ pub enum EventKind {
     Removed,
 }
 
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-event-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-event-rs.md#source
 impl Event {
     pub fn new(kind: EventKind, message: impl Into<String>) -> Self {
         Event {
@@ -94,7 +94,7 @@ impl Event {
 }
 
 /// Append one event to a vat's `events.jsonl`, creating it if needed.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-event-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-event-rs.md#source
 pub fn append(events_path: &Path, event: &Event) -> Result<()> {
     let line = serde_json::to_string(event).context("serialize event")?;
     let mut f = OpenOptions::new()
@@ -109,7 +109,7 @@ pub fn append(events_path: &Path, event: &Event) -> Result<()> {
 /// Read up to the last `n` events (chronological order). Malformed lines are
 /// skipped rather than failing the whole read — the log must stay legible
 /// even if a write was once torn.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-event-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-event-rs.md#source
 pub fn tail(events_path: &Path, n: usize) -> Result<Vec<Event>> {
     if !events_path.exists() {
         return Ok(Vec::new());
@@ -137,10 +137,10 @@ pub fn tail(events_path: &Path, n: usize) -> Result<Vec<Event>> {
 
 ```yaml
 changes:
-  - path: projects/vat/src/event.rs
+  - path: apps/vat/src/event.rs
     action: modify
     section: rust-source-unit
     impl_mode: codegen
     description: |
-      rust-source-unit (td_ast) source for `projects/vat/src/event.rs` captured during #39 vat standardization.
+      rust-source-unit (td_ast) source for `apps/vat/src/event.rs` captured during #39 vat standardization.
 ```

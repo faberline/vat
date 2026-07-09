@@ -1,4 +1,4 @@
-// SPEC-MANAGED: projects/vat/tech-design/logic/kind-like-local-kubernetes-clusters.md#vat-cluster-backend-unavailable-smoke
+// SPEC-MANAGED: apps/vat/tech-design/logic/kind-like-local-kubernetes-clusters.md#vat-cluster-backend-unavailable-smoke
 // CODEGEN-BEGIN
 // AW-EC-BEGIN
 // @ec vat-cluster-backend-unavailable-smoke

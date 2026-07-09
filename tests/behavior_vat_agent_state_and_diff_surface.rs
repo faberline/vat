@@ -1,4 +1,4 @@
-// SPEC-MANAGED: projects/vat/tech-design/logic/external-contracts.md#vat-agent-state-and-diff-surface
+// SPEC-MANAGED: apps/vat/tech-design/logic/external-contracts.md#vat-agent-state-and-diff-surface
 // CODEGEN-BEGIN
 // AW-EC-BEGIN
 // @ec vat-agent-state-and-diff-surface
@@ -7,7 +7,7 @@
 // @contract agent-legible-state-and-diff-surface
 // @category behavior
 // @required_for_production true
-// @command rg -n -e 'vat state' -e 'vat diff' -e '--json' -e structured projects/vat/README.md
+// @command rg -n -e 'vat state' -e 'vat diff' -e '--json' -e structured apps/vat/README.md
 // AW-EC-END
 
 // Contract: README exposes vat state and vat diff
@@ -16,7 +16,7 @@
 #[ignore = "AW EC gate: run via `aw health --verify-ec` or `cargo test -- --ignored`"]
 fn vat_agent_state_and_diff_surface() {
     let command =
-        "rg -n -e 'vat state' -e 'vat diff' -e '--json' -e structured projects/vat/README.md";
+        "rg -n -e 'vat state' -e 'vat diff' -e '--json' -e structured apps/vat/README.md";
     let id = "vat-agent-state-and-diff-surface";
     let mut root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     while !root.join(".aw").is_dir() {

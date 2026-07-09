@@ -1,7 +1,7 @@
 ---
 id: projects-vat-src-emulator-storage-rs
 summary: >
-  rust-source-unit TD AST payload for projects/vat/src/emulator/storage.rs.
+  rust-source-unit TD AST payload for apps/vat/src/emulator/storage.rs.
 fill_sections: [overview, source, changes]
 capability_refs:
   - id: agent-native-gpu-native-dev-containers
@@ -11,18 +11,18 @@ capability_refs:
     rationale: "This rust-source-unit TD preserves vat source ownership while migrating #39 off group-level source replay."
 ---
 
-# Standardized projects/vat/src/emulator/storage.rs
+# Standardized apps/vat/src/emulator/storage.rs
 
 ## Overview
 <!-- type: overview lang: markdown -->
 
-Public API manifest for `projects/vat/src/emulator/storage.rs` generated from AST during Score force-regeneration standardization.
+Public API manifest for `apps/vat/src/emulator/storage.rs` generated from AST during Score force-regeneration standardization.
 
 ### Symbols
 
 | Name | Target | Kind | Visibility | Line | Signature |
 |------|--------|------|------------|------|-----------|
-| `serve` | projects/vat/src/emulator/storage.rs | function | pub | 51 | serve(host_port: &str) -> Result<()> |
+| `serve` | apps/vat/src/emulator/storage.rs | function | pub | 51 | serve(host_port: &str) -> Result<()> |
 ## Source
 <!-- type: rust-source-unit lang: rust -->
 
@@ -35,7 +35,7 @@ Public API manifest for `projects/vat/src/emulator/storage.rs` generated from AS
 //! minimal resumable), download (`alt=media`), metadata, list (prefix), and
 //! delete. Blob state is in-memory and per-run.
 //!
-//! @spec projects/vat/tech-design/logic/built-in-cloud-storage-gcs-emulator.md#logic
+//! @spec apps/vat/tech-design/logic/built-in-cloud-storage-gcs-emulator.md#logic
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -465,10 +465,10 @@ mod tests {
 
 ```yaml
 changes:
-  - path: projects/vat/src/emulator/storage.rs
+  - path: apps/vat/src/emulator/storage.rs
     action: modify
     section: rust-source-unit
     impl_mode: codegen
     description: |
-      rust-source-unit (td_ast) source for `projects/vat/src/emulator/storage.rs` captured during #39 vat standardization.
+      rust-source-unit (td_ast) source for `apps/vat/src/emulator/storage.rs` captured during #39 vat standardization.
 ```

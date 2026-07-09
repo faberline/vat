@@ -1,4 +1,4 @@
-// SPEC-MANAGED: projects/vat/tech-design/semantic/source/projects-vat-src-emulator-mod-rs.md#rust-source-unit
+// SPEC-MANAGED: apps/vat/tech-design/semantic/source/projects-vat-src-emulator-mod-rs.md#rust-source-unit
 // CODEGEN-BEGIN
 //! vat's built-in Rust local-test emulators.
 //!
@@ -8,7 +8,7 @@
 //! the common client operations; the official emulators remain available as a
 //! `runtime = docker`/`native` fidelity fallback.
 //!
-//! @spec projects/vat/tech-design/logic/built-in-rust-emulators-pub-sub-firebase-auth.md#logic
+//! @spec apps/vat/tech-design/logic/built-in-rust-emulators-pub-sub-firebase-auth.md#logic
 
 pub mod auth;
 pub mod dispatch;
@@ -53,7 +53,7 @@ pub mod googleapis {
 use anyhow::Result;
 
 /// Which built-in emulator to serve.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-emulator-mod-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-emulator-mod-rs.md#source
 pub enum Kind {
     Pubsub,
     FirebaseAuth,
@@ -79,7 +79,7 @@ pub enum Kind {
 
 /// Serve the selected emulator on `host_port` (e.g. `127.0.0.1:8085`) until the
 /// process is killed.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-emulator-mod-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-emulator-mod-rs.md#source
 pub async fn serve(kind: Kind, host_port: &str) -> Result<()> {
     match kind {
         Kind::FirebaseAuth => auth::serve(host_port).await,

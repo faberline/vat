@@ -1,7 +1,7 @@
 ---
 id: vat-source-projects-vat-src-cli-rs
 summary: >
-  rust-source-unit TD AST payload for projects/vat/src/cli.rs.
+  rust-source-unit TD AST payload for apps/vat/src/cli.rs.
 fill_sections: [overview, source, changes]
 capability_refs:
   - id: agent-native-gpu-native-dev-containers
@@ -11,24 +11,24 @@ capability_refs:
     rationale: "This rust-source-unit TD preserves vat source ownership while migrating #39 off group-level source replay."
 ---
 
-# Standardized projects/vat/src/cli.rs
+# Standardized apps/vat/src/cli.rs
 
 ## Overview
 <!-- type: overview lang: markdown -->
 
-Public API manifest for `projects/vat/src/cli.rs` generated from AST during Score force-regeneration standardization.
+Public API manifest for `apps/vat/src/cli.rs` generated from AST during Score force-regeneration standardization.
 
 ### Symbols
 
 | Name | Target | Kind | Visibility | Line | Signature |
 |------|--------|------|------------|------|-----------|
-| `EmulatorKind` | projects/vat/src/cli.rs | enum | pub | 222 |  |
-| `run` | projects/vat/src/cli.rs | function | pub | 278 | run() -> Result<ExitCode> |
+| `EmulatorKind` | apps/vat/src/cli.rs | enum | pub | 222 |  |
+| `run` | apps/vat/src/cli.rs | function | pub | 278 | run() -> Result<ExitCode> |
 ## Source
 <!-- type: rust-source-unit lang: rust -->
 
 ````rust
-// SPEC-MANAGED: projects/vat/tech-design/semantic/source/projects-vat-src-cli-rs.md#rust-source-unit
+// SPEC-MANAGED: apps/vat/tech-design/semantic/source/projects-vat-src-cli-rs.md#rust-source-unit
 // CODEGEN-BEGIN
 //! CLI surface.
 //!
@@ -203,7 +203,7 @@ enum LlmFormat {
     Json,
 }
 
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-cli-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-cli-rs.md#source
 impl From<LlmFormat> for cli_std::llm::Format {
     fn from(format: LlmFormat) -> Self {
         match format {
@@ -247,7 +247,7 @@ enum IssueCmd {
 }
 
 /// Which built-in emulator to run.
-/// @spec projects/vat/tech-design/logic/built-in-rust-emulators-pub-sub-firebase-auth.md#cli
+/// @spec apps/vat/tech-design/logic/built-in-rust-emulators-pub-sub-firebase-auth.md#cli
 #[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
 pub enum EmulatorKind {
     Pubsub,
@@ -263,7 +263,7 @@ pub enum EmulatorKind {
 /// Standalone `vat cluster` verbs. Clusters created here outlive a single run;
 /// vat creates/lists/deletes them on explicit command but does not supervise
 /// them.
-/// @spec projects/vat/tech-design/logic/kind-like-local-kubernetes-clusters.md#cli
+/// @spec apps/vat/tech-design/logic/kind-like-local-kubernetes-clusters.md#cli
 #[derive(Subcommand)]
 enum ClusterCmd {
     /// Create a local Kubernetes cluster.
@@ -304,7 +304,7 @@ enum ClusterCmd {
 
 /// Parse argv and dispatch. Returns the process exit code (notably, `run`
 /// forwards the child command's code).
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-cli-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-cli-rs.md#source
 pub fn run() -> Result<ExitCode> {
     let cli = Cli::parse();
     match cli.cmd {
@@ -411,7 +411,7 @@ pub fn run() -> Result<ExitCode> {
 
 /// vat's identity + build provenance for the shared CLI-convention verbs
 /// (`llm` / `upgrade` / `issue`), per CONTRIBUTING.md. Stamps come from `build.rs`.
-/// @spec projects/vat/tech-design/interfaces/cli/migrate-upgrade-and-report-issue-to-the-shared-cli-std-crate.md#cli
+/// @spec apps/vat/tech-design/interfaces/cli/migrate-upgrade-and-report-issue-to-the-shared-cli-std-crate.md#cli
 // Used by the feature-gated upgrade/issue dispatch; unused in a lean build.
 #[cfg_attr(not(any(feature = "self-update", feature = "issue")), allow(dead_code))]
 const TOOL: cli_std::ToolInfo = cli_std::ToolInfo {
@@ -536,10 +536,10 @@ fn issue_cmd(_cmd: IssueCmd) -> Result<ExitCode> {
 
 ```yaml
 changes:
-  - path: projects/vat/src/cli.rs
+  - path: apps/vat/src/cli.rs
     action: modify
     section: rust-source-unit
     impl_mode: codegen
     description: |
-      rust-source-unit (td_ast) source for `projects/vat/src/cli.rs` captured during #39 vat standardization.
+      rust-source-unit (td_ast) source for `apps/vat/src/cli.rs` captured during #39 vat standardization.
 ```

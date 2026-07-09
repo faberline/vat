@@ -1,4 +1,4 @@
-// SPEC-MANAGED: projects/vat/tech-design/logic/built-in-rust-emulators-pub-sub-firebase-auth.md#vat-emulator-auth-rest-smoke
+// SPEC-MANAGED: apps/vat/tech-design/logic/built-in-rust-emulators-pub-sub-firebase-auth.md#vat-emulator-auth-rest-smoke
 // CODEGEN-BEGIN
 // AW-EC-BEGIN
 // @ec vat-emulator-auth-rest-smoke

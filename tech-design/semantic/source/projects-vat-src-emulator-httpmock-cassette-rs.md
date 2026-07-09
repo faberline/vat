@@ -1,7 +1,7 @@
 ---
 id: projects-vat-src-emulator-httpmock-cassette-rs
 summary: >
-  rust-source-unit TD AST payload for projects/vat/src/emulator/httpmock/cassette.rs.
+  rust-source-unit TD AST payload for apps/vat/src/emulator/httpmock/cassette.rs.
 fill_sections: [overview, source, changes]
 capability_refs:
   - id: agent-native-gpu-native-dev-containers
@@ -11,26 +11,26 @@ capability_refs:
     rationale: "This rust-source-unit TD preserves vat source ownership while migrating #39 off group-level source replay."
 ---
 
-# Standardized projects/vat/src/emulator/httpmock/cassette.rs
+# Standardized apps/vat/src/emulator/httpmock/cassette.rs
 
 ## Overview
 <!-- type: overview lang: markdown -->
 
-Public API manifest for `projects/vat/src/emulator/httpmock/cassette.rs` generated from AST during Score force-regeneration standardization.
+Public API manifest for `apps/vat/src/emulator/httpmock/cassette.rs` generated from AST during Score force-regeneration standardization.
 
 ### Symbols
 
 | Name | Target | Kind | Visibility | Line | Signature |
 |------|--------|------|------------|------|-----------|
-| `Cassettes` | projects/vat/src/emulator/httpmock/cassette.rs | struct | pub | 48 |  |
-| `Recording` | projects/vat/src/emulator/httpmock/cassette.rs | struct | pub | 22 |  |
-| `body` | projects/vat/src/emulator/httpmock/cassette.rs | function | pub | 39 | body(&self) -> Vec<u8> |
-| `get` | projects/vat/src/emulator/httpmock/cassette.rs | function | pub | 78 | get(&self, key: &str) -> Option<Recording> |
-| `key` | projects/vat/src/emulator/httpmock/cassette.rs | function | pub | 61 | key(method: &str, host: &str, path_and_query: &str, body: &[u8]) -> String |
-| `keys` | projects/vat/src/emulator/httpmock/cassette.rs | function | pub | 91 | keys(&self) -> Vec<String> |
-| `new` | projects/vat/src/emulator/httpmock/cassette.rs | function | pub | 31 | new(status: u16, headers: Vec<(String, String)>, body: &[u8]) -> Self |
-| `new` | projects/vat/src/emulator/httpmock/cassette.rs | function | pub | 54 | new(dir: impl Into<PathBuf>) -> Self |
-| `put` | projects/vat/src/emulator/httpmock/cassette.rs | function | pub | 84 | put(&self, key: &str, rec: &Recording) |
+| `Cassettes` | apps/vat/src/emulator/httpmock/cassette.rs | struct | pub | 48 |  |
+| `Recording` | apps/vat/src/emulator/httpmock/cassette.rs | struct | pub | 22 |  |
+| `body` | apps/vat/src/emulator/httpmock/cassette.rs | function | pub | 39 | body(&self) -> Vec<u8> |
+| `get` | apps/vat/src/emulator/httpmock/cassette.rs | function | pub | 78 | get(&self, key: &str) -> Option<Recording> |
+| `key` | apps/vat/src/emulator/httpmock/cassette.rs | function | pub | 61 | key(method: &str, host: &str, path_and_query: &str, body: &[u8]) -> String |
+| `keys` | apps/vat/src/emulator/httpmock/cassette.rs | function | pub | 91 | keys(&self) -> Vec<String> |
+| `new` | apps/vat/src/emulator/httpmock/cassette.rs | function | pub | 31 | new(status: u16, headers: Vec<(String, String)>, body: &[u8]) -> Self |
+| `new` | apps/vat/src/emulator/httpmock/cassette.rs | function | pub | 54 | new(dir: impl Into<PathBuf>) -> Self |
+| `put` | apps/vat/src/emulator/httpmock/cassette.rs | function | pub | 84 | put(&self, key: &str, rec: &Recording) |
 ## Source
 <!-- type: rust-source-unit lang: rust -->
 
@@ -43,7 +43,7 @@ Public API manifest for `projects/vat/src/emulator/httpmock/cassette.rs` generat
 //! offline and deterministically. Bodies are base64 (always) so non-UTF8 payloads
 //! round-trip.
 //!
-//! @spec projects/vat/tech-design/logic/built-in-http-mock-record-replay-proxy.md#logic
+//! @spec apps/vat/tech-design/logic/built-in-http-mock-record-replay-proxy.md#logic
 
 use std::path::PathBuf;
 
@@ -175,10 +175,10 @@ mod tests {
 
 ```yaml
 changes:
-  - path: projects/vat/src/emulator/httpmock/cassette.rs
+  - path: apps/vat/src/emulator/httpmock/cassette.rs
     action: modify
     section: rust-source-unit
     impl_mode: codegen
     description: |
-      rust-source-unit (td_ast) source for `projects/vat/src/emulator/httpmock/cassette.rs` captured during #39 vat standardization.
+      rust-source-unit (td_ast) source for `apps/vat/src/emulator/httpmock/cassette.rs` captured during #39 vat standardization.
 ```

@@ -1,4 +1,4 @@
-// SPEC-MANAGED: projects/vat/tech-design/logic/external-contracts.md#vat-resource-isolation-boundary
+// SPEC-MANAGED: apps/vat/tech-design/logic/external-contracts.md#vat-resource-isolation-boundary
 // CODEGEN-BEGIN
 // AW-EC-BEGIN
 // @ec vat-resource-isolation-boundary
@@ -7,7 +7,7 @@
 // @contract resource-isolation-boundary
 // @category behavior
 // @required_for_production true
-// @command rg -n -e sandbox -e isolation -e seatbelt projects/vat/README.md projects/vat/src/sandbox
+// @command rg -n -e sandbox -e isolation -e seatbelt apps/vat/README.md apps/vat/src/sandbox
 // AW-EC-END
 
 // Contract: vat documents resource isolation as its responsibility
@@ -16,7 +16,7 @@
 #[ignore = "AW EC gate: run via `aw health --verify-ec` or `cargo test -- --ignored`"]
 fn vat_resource_isolation_boundary() {
     let command =
-        "rg -n -e sandbox -e isolation -e seatbelt projects/vat/README.md projects/vat/src/sandbox";
+        "rg -n -e sandbox -e isolation -e seatbelt apps/vat/README.md apps/vat/src/sandbox";
     let id = "vat-resource-isolation-boundary";
     let mut root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     while !root.join(".aw").is_dir() {

@@ -1,4 +1,4 @@
-// SPEC-MANAGED: projects/vat/tech-design/interfaces/cli/vat-upgrade-and-report-issue-subcommands-for-the-mandatory-cli-c.md#vat-cli-convention-lean-build
+// SPEC-MANAGED: apps/vat/tech-design/interfaces/cli/vat-upgrade-and-report-issue-subcommands-for-the-mandatory-cli-c.md#vat-cli-convention-lean-build
 // CODEGEN-BEGIN
 // AW-EC-BEGIN
 // @ec vat-cli-convention-lean-build

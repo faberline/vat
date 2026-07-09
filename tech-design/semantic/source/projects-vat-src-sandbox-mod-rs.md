@@ -1,7 +1,7 @@
 ---
 id: vat-source-projects-vat-src-sandbox-mod-rs
 summary: >
-  rust-source-unit TD AST payload for projects/vat/src/sandbox/mod.rs.
+  rust-source-unit TD AST payload for apps/vat/src/sandbox/mod.rs.
 fill_sections: [overview, source, changes]
 capability_refs:
   - id: agent-native-gpu-native-dev-containers
@@ -11,25 +11,25 @@ capability_refs:
     rationale: "This rust-source-unit TD preserves vat source ownership while migrating #39 off group-level source replay."
 ---
 
-# Standardized projects/vat/src/sandbox/mod.rs
+# Standardized apps/vat/src/sandbox/mod.rs
 
 ## Overview
 <!-- type: overview lang: markdown -->
 
-Public API manifest for `projects/vat/src/sandbox/mod.rs` generated from AST during Score force-regeneration standardization.
+Public API manifest for `apps/vat/src/sandbox/mod.rs` generated from AST during Score force-regeneration standardization.
 
 ### Symbols
 
 | Name | Target | Kind | Visibility | Line | Signature |
 |------|--------|------|------------|------|-----------|
-| `pick` | projects/vat/src/sandbox/mod.rs | function | pub | 46 | pick(spec: &EnvSpec) -> Box<dyn Sandbox> |
-| `process` | projects/vat/src/sandbox/mod.rs | module | pub | 20 |  |
-| `seatbelt` | projects/vat/src/sandbox/mod.rs | module | pub | 21 |  |
+| `pick` | apps/vat/src/sandbox/mod.rs | function | pub | 46 | pick(spec: &EnvSpec) -> Box<dyn Sandbox> |
+| `process` | apps/vat/src/sandbox/mod.rs | module | pub | 20 |  |
+| `seatbelt` | apps/vat/src/sandbox/mod.rs | module | pub | 21 |  |
 ## Source
 <!-- type: rust-source-unit lang: rust -->
 
 ````rust
-// SPEC-MANAGED: projects/vat/tech-design/semantic/source/projects-vat-src-sandbox-mod-rs.md#rust-source-unit
+// SPEC-MANAGED: apps/vat/tech-design/semantic/source/projects-vat-src-sandbox-mod-rs.md#rust-source-unit
 // CODEGEN-BEGIN
 //! Pluggable isolation backends.
 //!
@@ -58,7 +58,7 @@ use crate::spec::{EgressPolicy, EnvSpec, Isolation};
 /// An isolation backend resolves the user's command into the *actual* program
 /// + argv to exec (e.g. seatbelt wraps it in `sandbox-exec`). The caller then
 /// runs that resolved command inside the vat workspace with the spec env.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-sandbox-mod-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-sandbox-mod-rs.md#source
 pub trait Sandbox {
     /// Short stable name, surfaced in events/state (`"process"`, `"seatbelt"`).
     fn name(&self) -> &'static str;
@@ -73,7 +73,7 @@ pub trait Sandbox {
 /// platform that doesn't support the requested isolation, after warning —
 /// the workspace clone still applies, so the vat is never *less* isolated than
 /// plain `cd` + run.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-sandbox-mod-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-sandbox-mod-rs.md#source
 pub fn pick(spec: &EnvSpec) -> Box<dyn Sandbox> {
     match spec.isolation {
         Isolation::None => {
@@ -114,10 +114,10 @@ pub fn pick(spec: &EnvSpec) -> Box<dyn Sandbox> {
 
 ```yaml
 changes:
-  - path: projects/vat/src/sandbox/mod.rs
+  - path: apps/vat/src/sandbox/mod.rs
     action: modify
     section: rust-source-unit
     impl_mode: codegen
     description: |
-      rust-source-unit (td_ast) source for `projects/vat/src/sandbox/mod.rs` captured during #39 vat standardization.
+      rust-source-unit (td_ast) source for `apps/vat/src/sandbox/mod.rs` captured during #39 vat standardization.
 ```

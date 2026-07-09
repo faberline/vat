@@ -1,7 +1,7 @@
 ---
 id: projects-vat-tests-vat_emulator_auth-rs
 summary: >
-  rust-source-unit TD AST payload for projects/vat/tests/vat_emulator_auth.rs.
+  rust-source-unit TD AST payload for apps/vat/tests/vat_emulator_auth.rs.
 fill_sections: [overview, source, changes]
 capability_refs:
   - id: agent-native-gpu-native-dev-containers
@@ -11,12 +11,12 @@ capability_refs:
     rationale: "This rust-source-unit TD preserves vat source ownership while migrating #39 off group-level source replay."
 ---
 
-# Standardized projects/vat/tests/vat_emulator_auth.rs
+# Standardized apps/vat/tests/vat_emulator_auth.rs
 
 ## Overview
 <!-- type: overview lang: markdown -->
 
-Public API manifest for `projects/vat/tests/vat_emulator_auth.rs` generated from AST during Score force-regeneration standardization.
+Public API manifest for `apps/vat/tests/vat_emulator_auth.rs` generated from AST during Score force-regeneration standardization.
 
 ### Symbols
 
@@ -135,10 +135,10 @@ fn firebase_auth_emulator_signup_signin_lookup() {
 
 ```yaml
 changes:
-  - path: projects/vat/tests/vat_emulator_auth.rs
+  - path: apps/vat/tests/vat_emulator_auth.rs
     action: modify
     section: rust-source-unit
     impl_mode: codegen
     description: |
-      rust-source-unit (td_ast) source for `projects/vat/tests/vat_emulator_auth.rs` captured during #39 vat standardization.
+      rust-source-unit (td_ast) source for `apps/vat/tests/vat_emulator_auth.rs` captured during #39 vat standardization.
 ```

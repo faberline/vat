@@ -1,7 +1,7 @@
 ---
 id: projects-vat-src-commands-emulator-rs
 summary: >
-  rust-source-unit TD AST payload for projects/vat/src/commands/emulator.rs.
+  rust-source-unit TD AST payload for apps/vat/src/commands/emulator.rs.
 fill_sections: [overview, source, changes]
 capability_refs:
   - id: agent-native-gpu-native-dev-containers
@@ -11,24 +11,24 @@ capability_refs:
     rationale: "This rust-source-unit TD preserves vat source ownership while migrating #39 off group-level source replay."
 ---
 
-# Standardized projects/vat/src/commands/emulator.rs
+# Standardized apps/vat/src/commands/emulator.rs
 
 ## Overview
 <!-- type: overview lang: markdown -->
 
-Public API manifest for `projects/vat/src/commands/emulator.rs` generated from AST during Score force-regeneration standardization.
+Public API manifest for `apps/vat/src/commands/emulator.rs` generated from AST during Score force-regeneration standardization.
 
 ### Symbols
 
 | Name | Target | Kind | Visibility | Line | Signature |
 |------|--------|------|------------|------|-----------|
-| `exec` | projects/vat/src/commands/emulator.rs | function | pub | 19 | exec(     kind: EmulatorKind,     host_port: String,     ca_path: Option<String>,     cassette_dir: Option<String>,     spec: Option<String>,     route: Vec<String>,     no_forward: bool, ) -> Result<ExitCode> |
-| `exec` | projects/vat/src/commands/emulator.rs | function | pub | 69 | exec(     _kind: EmulatorKind,     _host_port: String,     _ca_path: Option<String>,     _cassette_dir: Option<String>,     _spec: Option<String>,     _route: Vec<String>,     _no_forward: bool, ) -> Result<ExitCode> |
+| `exec` | apps/vat/src/commands/emulator.rs | function | pub | 19 | exec(     kind: EmulatorKind,     host_port: String,     ca_path: Option<String>,     cassette_dir: Option<String>,     spec: Option<String>,     route: Vec<String>,     no_forward: bool, ) -> Result<ExitCode> |
+| `exec` | apps/vat/src/commands/emulator.rs | function | pub | 69 | exec(     _kind: EmulatorKind,     _host_port: String,     _ca_path: Option<String>,     _cassette_dir: Option<String>,     _spec: Option<String>,     _route: Vec<String>,     _no_forward: bool, ) -> Result<ExitCode> |
 ## Source
 <!-- type: rust-source-unit lang: rust -->
 
 ````rust
-// SPEC-MANAGED: projects/vat/tech-design/semantic/source/projects-vat-src-commands-emulator-rs.md#rust-source-unit
+// SPEC-MANAGED: apps/vat/tech-design/semantic/source/projects-vat-src-commands-emulator-rs.md#rust-source-unit
 // CODEGEN-BEGIN
 //! `vat emulator` — run one of vat's built-in Rust emulators.
 //!
@@ -44,7 +44,7 @@ use anyhow::Result;
 use crate::cli::EmulatorKind;
 
 /// Run the selected built-in emulator bound to `host_port`.
-/// @spec projects/vat/tech-design/logic/built-in-rust-emulators-pub-sub-firebase-auth.md#cli
+/// @spec apps/vat/tech-design/logic/built-in-rust-emulators-pub-sub-firebase-auth.md#cli
 #[cfg(feature = "emulator")]
 pub fn exec(
     kind: EmulatorKind,
@@ -94,7 +94,7 @@ fn parse_routes(routes: &[String]) -> Vec<(String, String)> {
 }
 
 /// Lean build (no `emulator` feature): the verb is present but inert.
-/// @spec projects/vat/tech-design/logic/built-in-rust-emulators-pub-sub-firebase-auth.md#cli
+/// @spec apps/vat/tech-design/logic/built-in-rust-emulators-pub-sub-firebase-auth.md#cli
 #[cfg(not(feature = "emulator"))]
 pub fn exec(
     _kind: EmulatorKind,
@@ -146,10 +146,10 @@ mod tests {
 
 ```yaml
 changes:
-  - path: projects/vat/src/commands/emulator.rs
+  - path: apps/vat/src/commands/emulator.rs
     action: modify
     section: rust-source-unit
     impl_mode: codegen
     description: |
-      rust-source-unit (td_ast) source for `projects/vat/src/commands/emulator.rs` captured during #39 vat standardization.
+      rust-source-unit (td_ast) source for `apps/vat/src/commands/emulator.rs` captured during #39 vat standardization.
 ```

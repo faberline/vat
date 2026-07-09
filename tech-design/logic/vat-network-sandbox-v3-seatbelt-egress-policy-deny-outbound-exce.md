@@ -164,52 +164,52 @@ e2e_tests:
 
 ```yaml
 changes:
-  - path: projects/vat/src/cli.rs
+  - path: apps/vat/src/cli.rs
     action: modify
     section: cli
     impl_mode: hand-written
     reason: "CLI section edge: vat run applies seatbelt egress policy while preserving runner command semantics."
-  - path: projects/vat/src/config.rs
+  - path: apps/vat/src/config.rs
     action: modify
     section: config
     impl_mode: hand-written
     reason: "Config section edge: runner/service configuration selects the localhost-only egress policy."
-  - path: projects/vat/src/sandbox/seatbelt.rs
+  - path: apps/vat/src/sandbox/seatbelt.rs
     action: modify
     section: logic
     impl_mode: hand-written
     reason: "Logic section edge: generate and apply the seatbelt policy that denies outbound network except localhost."
-  - path: projects/vat/src/sandbox/mod.rs
+  - path: apps/vat/src/sandbox/mod.rs
     action: modify
     section: schema
     impl_mode: hand-written
     reason: "Schema section edge: sandbox profile records the localhost allowlist and default deny contract."
-  - path: projects/vat/tests/vat_sandbox_egress.rs
+  - path: apps/vat/tests/vat_sandbox_egress.rs
     action: validate
     section: unit-test
     impl_mode: hand-written
     reason: "Unit-test section edge: egress tests verify localhost succeeds and external TCP is blocked."
-  - path: projects/vat/src/sandbox/seatbelt.rs
+  - path: apps/vat/src/sandbox/seatbelt.rs
     action: modify
     section: source
     impl_mode: hand-written
     reason: "profile_for takes an egress policy and appends the network lines: localhost-only → (deny network-outbound) + (allow network* (remote ip \"localhost:*\")) + unix sockets; deny → full outbound deny; open → unchanged. Thread the policy through resolve()/Sandbox."
-  - path: projects/vat/src/config.rs
+  - path: apps/vat/src/config.rs
     action: modify
     section: source
     impl_mode: hand-written
     reason: "Add the [network].egress enum (open | localhost-only | deny, default open) on NetworkConfig (alongside the v1 routes field)."
-  - path: projects/vat/src/sandbox/mod.rs
+  - path: apps/vat/src/sandbox/mod.rs
     action: modify
     section: source
     impl_mode: hand-written
     reason: "Plumb the egress policy into the Sandbox trait / seatbelt resolve call site."
-  - path: projects/vat/src/commands/run.rs
+  - path: apps/vat/src/commands/run.rs
     action: modify
     section: source
     impl_mode: hand-written
     reason: "Pass [network].egress to the seatbelt backend; warn once when a non-open policy is set with isolation != seatbelt."
-  - path: projects/vat/tests/vat_sandbox_egress.rs
+  - path: apps/vat/tests/vat_sandbox_egress.rs
     action: create
     section: e2e-test
     impl_mode: hand-written

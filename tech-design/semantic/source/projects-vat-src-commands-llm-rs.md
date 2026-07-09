@@ -1,7 +1,7 @@
 ---
 id: vat-source-projects-vat-src-commands-llm-rs
 summary: >
-  rust-source-unit TD AST payload for projects/vat/src/commands/llm.rs.
+  rust-source-unit TD AST payload for apps/vat/src/commands/llm.rs.
 fill_sections: [overview, source, changes]
 capability_refs:
   - id: agent-native-gpu-native-dev-containers
@@ -11,23 +11,23 @@ capability_refs:
     rationale: "This rust-source-unit TD preserves vat source ownership while migrating #39 off group-level source replay."
 ---
 
-# Standardized projects/vat/src/commands/llm.rs
+# Standardized apps/vat/src/commands/llm.rs
 
 ## Overview
 <!-- type: overview lang: markdown -->
 
-Public API manifest for `projects/vat/src/commands/llm.rs` generated from AST during Score force-regeneration standardization.
+Public API manifest for `apps/vat/src/commands/llm.rs` generated from AST during Score force-regeneration standardization.
 
 ### Symbols
 
 | Name | Target | Kind | Visibility | Line | Signature |
 |------|--------|------|------------|------|-----------|
-| `exec` | projects/vat/src/commands/llm.rs | function | pub | 254 | exec(topic: &str, format: cli_std::llm::Format) -> Result<ExitCode> |
+| `exec` | apps/vat/src/commands/llm.rs | function | pub | 254 | exec(topic: &str, format: cli_std::llm::Format) -> Result<ExitCode> |
 ## Source
 <!-- type: rust-source-unit lang: rust -->
 
 ````rust
-// SPEC-MANAGED: projects/vat/tech-design/semantic/source/projects-vat-src-commands-llm-rs.md#rust-source-unit
+// SPEC-MANAGED: apps/vat/tech-design/semantic/source/projects-vat-src-commands-llm-rs.md#rust-source-unit
 // CODEGEN-BEGIN
 //! `vat llm` — compact agent-facing usage contract.
 
@@ -36,7 +36,7 @@ use std::process::ExitCode;
 use anyhow::Result;
 
 /// Stable guide text intended for LLM/tool agents.
-/// @spec projects/vat/tech-design/logic/llm-agent-usage-guide.md#cli
+/// @spec apps/vat/tech-design/logic/llm-agent-usage-guide.md#cli
 const GUIDE: &str = r#"# vat LLM Guide
 
 vat is a local, ephemeral agent test runner. Use it to prepare a real local
@@ -279,7 +279,7 @@ const TOPICS: &[cli_std::llm::Topic] = &[cli_std::llm::Topic {
     body: GUIDE,
 }];
 
-/// @spec projects/vat/tech-design/logic/llm-agent-usage-guide.md#cli
+/// @spec apps/vat/tech-design/logic/llm-agent-usage-guide.md#cli
 pub fn exec(topic: &str, format: cli_std::llm::Format) -> Result<ExitCode> {
     let out = cli_std::llm::render("vat", crate::VERSION, TOPICS, topic, format)?;
     println!("{out}");
@@ -293,10 +293,10 @@ pub fn exec(topic: &str, format: cli_std::llm::Format) -> Result<ExitCode> {
 
 ```yaml
 changes:
-  - path: projects/vat/src/commands/llm.rs
+  - path: apps/vat/src/commands/llm.rs
     action: modify
     section: rust-source-unit
     impl_mode: codegen
     description: |
-      rust-source-unit (td_ast) source for `projects/vat/src/commands/llm.rs` captured during #39 vat standardization.
+      rust-source-unit (td_ast) source for `apps/vat/src/commands/llm.rs` captured during #39 vat standardization.
 ```

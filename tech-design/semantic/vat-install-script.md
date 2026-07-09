@@ -21,7 +21,7 @@ fill_sections: [text-source-unit, changes]
 # Releases and drops it on your PATH.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/chrischeng-c4/axiom/main/projects/vat/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/chrischeng-c4/axiom/main/apps/vat/install.sh | sh
 #
 # Env overrides:
 #   VAT_VERSION   tag to install (default: latest vat@* release, e.g. vat@1.0)
@@ -184,7 +184,7 @@ fi
 ```yaml
 coverage_kind: semantic
 changes:
-  - path: "projects/vat/install.sh"
+  - path: "apps/vat/install.sh"
     action: modify
     section: text-source-unit
     description: "Regenerate the vat installer script from a TD-owned text source unit."

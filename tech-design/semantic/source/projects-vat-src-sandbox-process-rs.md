@@ -1,7 +1,7 @@
 ---
 id: vat-source-projects-vat-src-sandbox-process-rs
 summary: >
-  rust-source-unit TD AST payload for projects/vat/src/sandbox/process.rs.
+  rust-source-unit TD AST payload for apps/vat/src/sandbox/process.rs.
 fill_sections: [overview, source, changes]
 capability_refs:
   - id: agent-native-gpu-native-dev-containers
@@ -11,23 +11,23 @@ capability_refs:
     rationale: "This rust-source-unit TD preserves vat source ownership while migrating #39 off group-level source replay."
 ---
 
-# Standardized projects/vat/src/sandbox/process.rs
+# Standardized apps/vat/src/sandbox/process.rs
 
 ## Overview
 <!-- type: overview lang: markdown -->
 
-Public API manifest for `projects/vat/src/sandbox/process.rs` generated from AST during Score force-regeneration standardization.
+Public API manifest for `apps/vat/src/sandbox/process.rs` generated from AST during Score force-regeneration standardization.
 
 ### Symbols
 
 | Name | Target | Kind | Visibility | Line | Signature |
 |------|--------|------|------------|------|-----------|
-| `ProcessBackend` | projects/vat/src/sandbox/process.rs | struct | pub | 18 |  |
+| `ProcessBackend` | apps/vat/src/sandbox/process.rs | struct | pub | 18 |  |
 ## Source
 <!-- type: rust-source-unit lang: rust -->
 
 ````rust
-// SPEC-MANAGED: projects/vat/tech-design/semantic/source/projects-vat-src-sandbox-process-rs.md#rust-source-unit
+// SPEC-MANAGED: apps/vat/tech-design/semantic/source/projects-vat-src-sandbox-process-rs.md#rust-source-unit
 // CODEGEN-BEGIN
 //! Host-process backend.
 //!
@@ -43,10 +43,10 @@ use std::path::Path;
 
 use crate::sandbox::Sandbox;
 
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-sandbox-process-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-sandbox-process-rs.md#source
 pub struct ProcessBackend;
 
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-sandbox-process-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-sandbox-process-rs.md#source
 impl Sandbox for ProcessBackend {
     fn name(&self) -> &'static str {
         "process"
@@ -65,10 +65,10 @@ impl Sandbox for ProcessBackend {
 
 ```yaml
 changes:
-  - path: projects/vat/src/sandbox/process.rs
+  - path: apps/vat/src/sandbox/process.rs
     action: modify
     section: rust-source-unit
     impl_mode: codegen
     description: |
-      rust-source-unit (td_ast) source for `projects/vat/src/sandbox/process.rs` captured during #39 vat standardization.
+      rust-source-unit (td_ast) source for `apps/vat/src/sandbox/process.rs` captured during #39 vat standardization.
 ```

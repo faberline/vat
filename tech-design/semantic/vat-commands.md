@@ -1,12 +1,12 @@
 ---
 id: semantic-vat-commands
-summary: Semantic coverage for "projects/vat/src/commands"
+summary: Semantic coverage for "apps/vat/src/commands"
 capability_refs:
   - id: "agent-native-gpu-native-dev-containers"
     role: primary
     claim: "host-process-execution-and-gpu-visibility"
     coverage: partial
-    rationale: "Semantic takeover coverage for existing source group `projects/vat/src/commands`."
+    rationale: "Semantic takeover coverage for existing source group `apps/vat/src/commands`."
 fill_sections: [schema, changes]
 ---
 
@@ -18,11 +18,11 @@ fill_sections: [schema, changes]
 ```yaml
 semantic_domain:
   key: "vat/commands"
-  source_group: "projects/vat/src/commands"
+  source_group: "apps/vat/src/commands"
   coverage_kind: semantic
   evidence:
     source_units:
-      - path: "projects/vat/src/commands/llm.rs"
+      - path: "apps/vat/src/commands/llm.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["config_surface", "service_method"]
@@ -38,8 +38,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src/commands"
-      - path: "projects/vat/src/commands/rm.rs"
+          domain: "apps/vat/src/commands"
+      - path: "apps/vat/src/commands/rm.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["service_method"]
@@ -52,8 +52,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src/commands"
-      - path: "projects/vat/src/commands/ls.rs"
+          domain: "apps/vat/src/commands"
+      - path: "apps/vat/src/commands/ls.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["service_method"]
@@ -69,8 +69,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src/commands"
-      - path: "projects/vat/src/commands/emulator.rs"
+          domain: "apps/vat/src/commands"
+      - path: "apps/vat/src/commands/emulator.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["service_method"]
@@ -92,8 +92,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src/commands"
-      - path: "projects/vat/src/commands/run.rs"
+          domain: "apps/vat/src/commands"
+      - path: "apps/vat/src/commands/run.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["data_model", "enum_model", "service_method"]
@@ -223,8 +223,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src/commands"
-      - path: "projects/vat/src/commands/mod.rs"
+          domain: "apps/vat/src/commands"
+      - path: "apps/vat/src/commands/mod.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["service_method"]
@@ -270,8 +270,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src/commands"
-      - path: "projects/vat/src/commands/state.rs"
+          domain: "apps/vat/src/commands"
+      - path: "apps/vat/src/commands/state.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["service_method"]
@@ -284,8 +284,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src/commands"
-      - path: "projects/vat/src/commands/snapshot.rs"
+          domain: "apps/vat/src/commands"
+      - path: "apps/vat/src/commands/snapshot.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["service_method"]
@@ -304,8 +304,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src/commands"
-      - path: "projects/vat/src/commands/gpu.rs"
+          domain: "apps/vat/src/commands"
+      - path: "apps/vat/src/commands/gpu.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["service_method"]
@@ -318,8 +318,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src/commands"
-      - path: "projects/vat/src/commands/diff.rs"
+          domain: "apps/vat/src/commands"
+      - path: "apps/vat/src/commands/diff.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["service_method"]
@@ -332,8 +332,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src/commands"
-      - path: "projects/vat/src/commands/cluster.rs"
+          domain: "apps/vat/src/commands"
+      - path: "apps/vat/src/commands/cluster.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["config_surface", "data_model", "service_method"]
@@ -370,8 +370,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src/commands"
-      - path: "projects/vat/src/commands/logs.rs"
+          domain: "apps/vat/src/commands"
+      - path: "apps/vat/src/commands/logs.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["service_method"]
@@ -390,7 +390,7 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src/commands"
+          domain: "apps/vat/src/commands"
 ```
 
 ## Changes
@@ -399,73 +399,73 @@ semantic_domain:
 ```yaml
 coverage_kind: semantic
 changes:
-  - path: "projects/vat/src/commands/llm.rs"
+  - path: "apps/vat/src/commands/llm.rs"
     action: modify
     section: schema
     description: |
       Existing source behavior is covered by this feature/domain semantic TD.
     impl_mode: hand-written
-  - path: "projects/vat/src/commands/rm.rs"
+  - path: "apps/vat/src/commands/rm.rs"
     action: modify
     section: schema
     description: |
       Existing source behavior is covered by this feature/domain semantic TD.
     impl_mode: hand-written
-  - path: "projects/vat/src/commands/ls.rs"
+  - path: "apps/vat/src/commands/ls.rs"
     action: modify
     section: schema
     description: |
       Existing source behavior is covered by this feature/domain semantic TD.
     impl_mode: hand-written
-  - path: "projects/vat/src/commands/emulator.rs"
+  - path: "apps/vat/src/commands/emulator.rs"
     action: modify
     section: schema
     description: |
       Existing source behavior is covered by this feature/domain semantic TD.
     impl_mode: hand-written
-  - path: "projects/vat/src/commands/run.rs"
+  - path: "apps/vat/src/commands/run.rs"
     action: modify
     section: schema
     description: |
       Existing source behavior is covered by this feature/domain semantic TD.
     impl_mode: hand-written
-  - path: "projects/vat/src/commands/mod.rs"
+  - path: "apps/vat/src/commands/mod.rs"
     action: modify
     section: schema
     description: |
       Existing source behavior is covered by this feature/domain semantic TD.
     impl_mode: hand-written
-  - path: "projects/vat/src/commands/state.rs"
+  - path: "apps/vat/src/commands/state.rs"
     action: modify
     section: schema
     description: |
       Existing source behavior is covered by this feature/domain semantic TD.
     impl_mode: hand-written
-  - path: "projects/vat/src/commands/snapshot.rs"
+  - path: "apps/vat/src/commands/snapshot.rs"
     action: modify
     section: schema
     description: |
       Existing source behavior is covered by this feature/domain semantic TD.
     impl_mode: hand-written
-  - path: "projects/vat/src/commands/gpu.rs"
+  - path: "apps/vat/src/commands/gpu.rs"
     action: modify
     section: schema
     description: |
       Existing source behavior is covered by this feature/domain semantic TD.
     impl_mode: hand-written
-  - path: "projects/vat/src/commands/diff.rs"
+  - path: "apps/vat/src/commands/diff.rs"
     action: modify
     section: schema
     description: |
       Existing source behavior is covered by this feature/domain semantic TD.
     impl_mode: hand-written
-  - path: "projects/vat/src/commands/cluster.rs"
+  - path: "apps/vat/src/commands/cluster.rs"
     action: modify
     section: schema
     description: |
       Existing source behavior is covered by this feature/domain semantic TD.
     impl_mode: hand-written
-  - path: "projects/vat/src/commands/logs.rs"
+  - path: "apps/vat/src/commands/logs.rs"
     action: modify
     section: schema
     description: |

@@ -1,7 +1,7 @@
 ---
 id: projects-vat-src-emulator-openapi-rs
 summary: >
-  rust-source-unit TD AST payload for projects/vat/src/emulator/openapi.rs.
+  rust-source-unit TD AST payload for apps/vat/src/emulator/openapi.rs.
 fill_sections: [overview, source, changes]
 capability_refs:
   - id: agent-native-gpu-native-dev-containers
@@ -11,33 +11,33 @@ capability_refs:
     rationale: "This rust-source-unit TD preserves vat source ownership while migrating #39 off group-level source replay."
 ---
 
-# Standardized projects/vat/src/emulator/openapi.rs
+# Standardized apps/vat/src/emulator/openapi.rs
 
 ## Overview
 <!-- type: overview lang: markdown -->
 
-Public API manifest for `projects/vat/src/emulator/openapi.rs` generated from AST during Score force-regeneration standardization.
+Public API manifest for `apps/vat/src/emulator/openapi.rs` generated from AST during Score force-regeneration standardization.
 
 ### Symbols
 
 | Name | Target | Kind | Visibility | Line | Signature |
 |------|--------|------|------------|------|-----------|
-| `MockResponse` | projects/vat/src/emulator/openapi.rs | struct | pub | 29 |  |
-| `OpenApiSpec` | projects/vat/src/emulator/openapi.rs | struct | pub | 37 |  |
-| `Registration` | projects/vat/src/emulator/openapi.rs | struct | pub | 317 |  |
-| `SpecRegistry` | projects/vat/src/emulator/openapi.rs | struct | pub | 280 |  |
-| `add` | projects/vat/src/emulator/openapi.rs | function | pub | 287 | add(&self, host: Option<String>, spec: OpenApiSpec) |
-| `clear` | projects/vat/src/emulator/openapi.rs | function | pub | 294 | clear(&self) |
-| `from_str` | projects/vat/src/emulator/openapi.rs | function | pub | 45 | from_str(text: &str) -> Result<Self> |
-| `load` | projects/vat/src/emulator/openapi.rs | function | pub | 51 | load(path: &str) -> Result<Self> |
-| `respond` | projects/vat/src/emulator/openapi.rs | function | pub | 58 | respond(&self, method: &str, path: &str) -> Option<MockResponse> |
-| `respond` | projects/vat/src/emulator/openapi.rs | function | pub | 301 | respond(&self, host: &str, method: &str, path: &str) -> Option<MockResponse> |
-| `serve` | projects/vat/src/emulator/openapi.rs | function | pub | 330 | serve(host_port: &str, spec_path: &str) -> Result<()> |
+| `MockResponse` | apps/vat/src/emulator/openapi.rs | struct | pub | 29 |  |
+| `OpenApiSpec` | apps/vat/src/emulator/openapi.rs | struct | pub | 37 |  |
+| `Registration` | apps/vat/src/emulator/openapi.rs | struct | pub | 317 |  |
+| `SpecRegistry` | apps/vat/src/emulator/openapi.rs | struct | pub | 280 |  |
+| `add` | apps/vat/src/emulator/openapi.rs | function | pub | 287 | add(&self, host: Option<String>, spec: OpenApiSpec) |
+| `clear` | apps/vat/src/emulator/openapi.rs | function | pub | 294 | clear(&self) |
+| `from_str` | apps/vat/src/emulator/openapi.rs | function | pub | 45 | from_str(text: &str) -> Result<Self> |
+| `load` | apps/vat/src/emulator/openapi.rs | function | pub | 51 | load(path: &str) -> Result<Self> |
+| `respond` | apps/vat/src/emulator/openapi.rs | function | pub | 58 | respond(&self, method: &str, path: &str) -> Option<MockResponse> |
+| `respond` | apps/vat/src/emulator/openapi.rs | function | pub | 301 | respond(&self, host: &str, method: &str, path: &str) -> Option<MockResponse> |
+| `serve` | apps/vat/src/emulator/openapi.rs | function | pub | 330 | serve(host_port: &str, spec_path: &str) -> Result<()> |
 ## Source
 <!-- type: rust-source-unit lang: rust -->
 
 ````rust
-// SPEC-MANAGED: projects/vat/tech-design/semantic/source/projects-vat-src-emulator-openapi-rs.md#rust-source-unit
+// SPEC-MANAGED: apps/vat/tech-design/semantic/source/projects-vat-src-emulator-openapi-rs.md#rust-source-unit
 // CODEGEN-BEGIN
 //! OpenAPI-driven mock HTTP service — read a spec, serve its responses.
 //!
@@ -51,7 +51,7 @@ Public API manifest for `projects/vat/src/emulator/openapi.rs` generated from AS
 //! validation, no auth — enough to stand up a working fake. Never panics on bad
 //! input: an unmatched path is `None` (404), a malformed spec degrades to `{}`.
 //!
-//! @spec projects/vat/tech-design/interfaces/rest/openapi-driven-mock-http-service.md#logic
+//! @spec apps/vat/tech-design/interfaces/rest/openapi-driven-mock-http-service.md#logic
 
 use std::sync::{Arc, Mutex};
 
@@ -64,7 +64,7 @@ use serde::Deserialize;
 use serde_json::{json, Value};
 
 /// A response generated from the spec for a matched operation.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-emulator-openapi-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-emulator-openapi-rs.md#source
 pub struct MockResponse {
     pub status: u16,
     pub content_type: String,
@@ -72,12 +72,12 @@ pub struct MockResponse {
 }
 
 /// A parsed OpenAPI document, walked as a generic value.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-emulator-openapi-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-emulator-openapi-rs.md#source
 pub struct OpenApiSpec {
     doc: Value,
 }
 
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-emulator-openapi-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-emulator-openapi-rs.md#source
 impl OpenApiSpec {
     /// Parse a spec from YAML or JSON text (YAML is a JSON superset, so one path).
     #[allow(clippy::should_implement_trait)]
@@ -315,12 +315,12 @@ fn path_matches(tmpl: &str, path: &str) -> bool {
 
 /// A set of registered specs, optionally host-bound, used by the http-mock proxy.
 #[derive(Default)]
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-emulator-openapi-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-emulator-openapi-rs.md#source
 pub struct SpecRegistry {
     specs: Mutex<Vec<(Option<String>, OpenApiSpec)>>,
 }
 
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-emulator-openapi-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-emulator-openapi-rs.md#source
 impl SpecRegistry {
     /// Register a spec, optionally bound to a host (else consulted for any host).
     pub fn add(&self, host: Option<String>, spec: OpenApiSpec) {
@@ -352,7 +352,7 @@ impl SpecRegistry {
 
 /// Registration payload for the http-mock proxy's `/__admin/openapi` route.
 #[derive(Deserialize)]
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-emulator-openapi-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-emulator-openapi-rs.md#source
 pub struct Registration {
     #[serde(default)]
     pub host: Option<String>,
@@ -365,7 +365,7 @@ struct AppState {
 }
 
 /// Serve the standalone OpenAPI mock server until the process is killed.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-emulator-openapi-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-emulator-openapi-rs.md#source
 pub async fn serve(host_port: &str, spec_path: &str) -> Result<()> {
     let spec = Arc::new(OpenApiSpec::load(spec_path)?);
     let app = Router::new()
@@ -517,10 +517,10 @@ components:
 
 ```yaml
 changes:
-  - path: projects/vat/src/emulator/openapi.rs
+  - path: apps/vat/src/emulator/openapi.rs
     action: modify
     section: rust-source-unit
     impl_mode: codegen
     description: |
-      rust-source-unit (td_ast) source for `projects/vat/src/emulator/openapi.rs` captured during #39 vat standardization.
+      rust-source-unit (td_ast) source for `apps/vat/src/emulator/openapi.rs` captured during #39 vat standardization.
 ```

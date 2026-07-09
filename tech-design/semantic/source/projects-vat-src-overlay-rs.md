@@ -1,7 +1,7 @@
 ---
 id: vat-source-projects-vat-src-overlay-rs
 summary: >
-  rust-source-unit TD AST payload for projects/vat/src/overlay.rs.
+  rust-source-unit TD AST payload for apps/vat/src/overlay.rs.
 fill_sections: [overview, source, changes]
 capability_refs:
   - id: agent-native-gpu-native-dev-containers
@@ -11,29 +11,29 @@ capability_refs:
     rationale: "This rust-source-unit TD preserves vat source ownership while migrating #39 off group-level source replay."
 ---
 
-# Standardized projects/vat/src/overlay.rs
+# Standardized apps/vat/src/overlay.rs
 
 ## Overview
 <!-- type: overview lang: markdown -->
 
-Public API manifest for `projects/vat/src/overlay.rs` generated from AST during Score force-regeneration standardization.
+Public API manifest for `apps/vat/src/overlay.rs` generated from AST during Score force-regeneration standardization.
 
 ### Symbols
 
 | Name | Target | Kind | Visibility | Line | Signature |
 |------|--------|------|------------|------|-----------|
-| `FileStat` | projects/vat/src/overlay.rs | struct | pub | 28 |  |
-| `Manifest` | projects/vat/src/overlay.rs | type | pub | 36 |  |
-| `clone_tree` | projects/vat/src/overlay.rs | function | pub | 40 | clone_tree(src: &Path, dst: &Path) -> Result<()> |
-| `diff` | projects/vat/src/overlay.rs | function | pub | 205 | diff(base: &Manifest, now: &Manifest) -> ChangeSet |
-| `load_manifest` | projects/vat/src/overlay.rs | function | pub | 232 | load_manifest(path: &Path) -> Result<Manifest> |
-| `manifest_of` | projects/vat/src/overlay.rs | function | pub | 172 | manifest_of(root: &Path) -> Result<Manifest> |
-| `save_manifest` | projects/vat/src/overlay.rs | function | pub | 224 | save_manifest(path: &Path, m: &Manifest) -> Result<()> |
+| `FileStat` | apps/vat/src/overlay.rs | struct | pub | 28 |  |
+| `Manifest` | apps/vat/src/overlay.rs | type | pub | 36 |  |
+| `clone_tree` | apps/vat/src/overlay.rs | function | pub | 40 | clone_tree(src: &Path, dst: &Path) -> Result<()> |
+| `diff` | apps/vat/src/overlay.rs | function | pub | 205 | diff(base: &Manifest, now: &Manifest) -> ChangeSet |
+| `load_manifest` | apps/vat/src/overlay.rs | function | pub | 232 | load_manifest(path: &Path) -> Result<Manifest> |
+| `manifest_of` | apps/vat/src/overlay.rs | function | pub | 172 | manifest_of(root: &Path) -> Result<Manifest> |
+| `save_manifest` | apps/vat/src/overlay.rs | function | pub | 224 | save_manifest(path: &Path, m: &Manifest) -> Result<()> |
 ## Source
 <!-- type: rust-source-unit lang: rust -->
 
 ````rust
-// SPEC-MANAGED: projects/vat/tech-design/semantic/source/projects-vat-src-overlay-rs.md#rust-source-unit
+// SPEC-MANAGED: apps/vat/tech-design/semantic/source/projects-vat-src-overlay-rs.md#rust-source-unit
 // CODEGEN-BEGIN
 //! Copy-on-write workspace + filesystem diffing.
 //!
@@ -58,7 +58,7 @@ use walkdir::WalkDir;
 use crate::state::ChangeSet;
 
 /// Per-file stat used for cheap change detection.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-overlay-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-overlay-rs.md#source
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct FileStat {
     pub size: u64,
@@ -67,11 +67,11 @@ pub struct FileStat {
 }
 
 /// Map of rootfs-relative path → stat. Sorted for stable diffs and output.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-overlay-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-overlay-rs.md#source
 pub type Manifest = BTreeMap<String, FileStat>;
 
 /// Copy-on-write clone of `src` into `dst`. `dst` must not already exist.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-overlay-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-overlay-rs.md#source
 pub fn clone_tree(src: &Path, dst: &Path) -> Result<()> {
     if dst.exists() {
         bail!("clone target already exists: {}", dst.display());
@@ -209,7 +209,7 @@ fn has_ignored_workspace_component(path: &Path) -> bool {
 /// Walk `root` and record a stat manifest of every regular file. Symlinks are
 /// not followed (we record the link's own stat); directories are implied by
 /// their files.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-overlay-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-overlay-rs.md#source
 pub fn manifest_of(root: &Path) -> Result<Manifest> {
     let mut m = Manifest::new();
     for entry in WalkDir::new(root)
@@ -253,7 +253,7 @@ pub fn manifest_of(root: &Path) -> Result<Manifest> {
 }
 
 /// Diff a current manifest against the captured baseline.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-overlay-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-overlay-rs.md#source
 pub fn diff(base: &Manifest, now: &Manifest) -> ChangeSet {
     let mut cs = ChangeSet::default();
     for (path, stat) in now {
@@ -272,7 +272,7 @@ pub fn diff(base: &Manifest, now: &Manifest) -> ChangeSet {
 }
 
 /// Persist a manifest as pretty JSON.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-overlay-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-overlay-rs.md#source
 pub fn save_manifest(path: &Path, m: &Manifest) -> Result<()> {
     let json = serde_json::to_vec_pretty(m).context("serialize manifest")?;
     std::fs::write(path, json).with_context(|| format!("write {}", path.display()))?;
@@ -280,7 +280,7 @@ pub fn save_manifest(path: &Path, m: &Manifest) -> Result<()> {
 }
 
 /// Load a previously saved manifest.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-overlay-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-overlay-rs.md#source
 pub fn load_manifest(path: &Path) -> Result<Manifest> {
     let bytes = std::fs::read(path).with_context(|| format!("read {}", path.display()))?;
     serde_json::from_slice(&bytes).context("parse manifest")
@@ -378,10 +378,10 @@ mod tests {
 
 ```yaml
 changes:
-  - path: projects/vat/src/overlay.rs
+  - path: apps/vat/src/overlay.rs
     action: modify
     section: rust-source-unit
     impl_mode: codegen
     description: |
-      rust-source-unit (td_ast) source for `projects/vat/src/overlay.rs` captured during #39 vat standardization.
+      rust-source-unit (td_ast) source for `apps/vat/src/overlay.rs` captured during #39 vat standardization.
 ```

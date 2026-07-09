@@ -1,4 +1,4 @@
-// SPEC-MANAGED: projects/vat/tech-design/semantic/source/projects-vat-tests-vat_toml_runner-rs.md#rust-source-unit
+// SPEC-MANAGED: apps/vat/tech-design/semantic/source/projects-vat-tests-vat_toml_runner-rs.md#rust-source-unit
 // CODEGEN-BEGIN
 use std::net::TcpListener;
 use std::process::Command;

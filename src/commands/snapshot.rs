@@ -1,4 +1,4 @@
-// SPEC-MANAGED: projects/vat/tech-design/semantic/source/projects-vat-src-commands-snapshot-rs.md#rust-source-unit
+// SPEC-MANAGED: apps/vat/tech-design/semantic/source/projects-vat-src-commands-snapshot-rs.md#rust-source-unit
 // CODEGEN-BEGIN
 //! `vat snapshot <id>` and `vat fork <id>` — branch a running environment.
 //!
@@ -50,14 +50,14 @@ fn branch(parent_id: &str, name: Option<String>, freeze: bool) -> Result<store::
     Ok(child)
 }
 
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-commands-snapshot-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-commands-snapshot-rs.md#source
 pub fn snapshot(id: String, name: Option<String>) -> Result<ExitCode> {
     let child = branch(&id, name, true)?;
     println!("snapshot {} (frozen, from {id})", child.meta.id);
     Ok(ExitCode::SUCCESS)
 }
 
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-commands-snapshot-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-commands-snapshot-rs.md#source
 pub fn fork(id: String, name: Option<String>) -> Result<ExitCode> {
     let child = branch(&id, name, false)?;
     println!(

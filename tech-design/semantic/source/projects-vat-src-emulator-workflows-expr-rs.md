@@ -1,7 +1,7 @@
 ---
 id: projects-vat-src-emulator-workflows-expr-rs
 summary: >
-  rust-source-unit TD AST payload for projects/vat/src/emulator/workflows/expr.rs.
+  rust-source-unit TD AST payload for apps/vat/src/emulator/workflows/expr.rs.
 fill_sections: [overview, source, changes]
 capability_refs:
   - id: agent-native-gpu-native-dev-containers
@@ -11,21 +11,21 @@ capability_refs:
     rationale: "This rust-source-unit TD preserves vat source ownership while migrating #39 off group-level source replay."
 ---
 
-# Standardized projects/vat/src/emulator/workflows/expr.rs
+# Standardized apps/vat/src/emulator/workflows/expr.rs
 
 ## Overview
 <!-- type: overview lang: markdown -->
 
-Public API manifest for `projects/vat/src/emulator/workflows/expr.rs` generated from AST during Score force-regeneration standardization.
+Public API manifest for `apps/vat/src/emulator/workflows/expr.rs` generated from AST during Score force-regeneration standardization.
 
 ### Symbols
 
 | Name | Target | Kind | Visibility | Line | Signature |
 |------|--------|------|------------|------|-----------|
-| `Scope` | projects/vat/src/emulator/workflows/expr.rs | type | pub | 18 |  |
-| `eval_expr` | projects/vat/src/emulator/workflows/expr.rs | function | pub | 109 | eval_expr(src: &str, scope: &Scope) -> Result<Value, String> |
-| `eval_value` | projects/vat/src/emulator/workflows/expr.rs | function | pub | 24 | eval_value(v: &Value, scope: &Scope) -> Result<Value, String> |
-| `to_text` | projects/vat/src/emulator/workflows/expr.rs | function | pub | 555 | to_text(v: &Value) -> String |
+| `Scope` | apps/vat/src/emulator/workflows/expr.rs | type | pub | 18 |  |
+| `eval_expr` | apps/vat/src/emulator/workflows/expr.rs | function | pub | 109 | eval_expr(src: &str, scope: &Scope) -> Result<Value, String> |
+| `eval_value` | apps/vat/src/emulator/workflows/expr.rs | function | pub | 24 | eval_value(v: &Value, scope: &Scope) -> Result<Value, String> |
+| `to_text` | apps/vat/src/emulator/workflows/expr.rs | function | pub | 555 | to_text(v: &Value) -> String |
 ## Source
 <!-- type: rust-source-unit lang: rust -->
 
@@ -39,7 +39,7 @@ Public API manifest for `projects/vat/src/emulator/workflows/expr.rs` generated 
 //! string interpolation. Anything unsupported returns an `Err(String)` that the
 //! interpreter turns into a workflow error — never a panic.
 //!
-//! @spec projects/vat/tech-design/logic/built-in-cloud-workflows-emulator.md#logic
+//! @spec apps/vat/tech-design/logic/built-in-cloud-workflows-emulator.md#logic
 
 use serde_json::{Map, Value};
 
@@ -716,10 +716,10 @@ mod tests {
 
 ```yaml
 changes:
-  - path: projects/vat/src/emulator/workflows/expr.rs
+  - path: apps/vat/src/emulator/workflows/expr.rs
     action: modify
     section: rust-source-unit
     impl_mode: codegen
     description: |
-      rust-source-unit (td_ast) source for `projects/vat/src/emulator/workflows/expr.rs` captured during #39 vat standardization.
+      rust-source-unit (td_ast) source for `apps/vat/src/emulator/workflows/expr.rs` captured during #39 vat standardization.
 ```

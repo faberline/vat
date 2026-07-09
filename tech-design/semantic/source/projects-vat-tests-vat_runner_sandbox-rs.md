@@ -10,12 +10,12 @@ capability_refs:
     rationale: "This rust-source-unit TD preserves vat e2e test source behavior for the local agent test runner protocol."
 ---
 
-# Standardized projects/vat/tests/vat_runner_sandbox.rs
+# Standardized apps/vat/tests/vat_runner_sandbox.rs
 
 ## Overview
 <!-- type: overview lang: markdown -->
 
-Public API manifest for `projects/vat/tests/vat_runner_sandbox.rs` generated from AST during Score force-regeneration standardization.
+Public API manifest for `apps/vat/tests/vat_runner_sandbox.rs` generated from AST during Score force-regeneration standardization.
 
 ### Symbols
 
@@ -166,10 +166,10 @@ cmd = ["/bin/bash", "-c", "exec 3<>/dev/tcp/1.1.1.1/80"]
 
 ```yaml
 changes:
-  - path: projects/vat/tests/vat_runner_sandbox.rs
+  - path: apps/vat/tests/vat_runner_sandbox.rs
     action: modify
     section: rust-source-unit
     impl_mode: codegen
     description: |
-      rust-source-unit (td_ast) source for `projects/vat/tests/vat_runner_sandbox.rs` captured during vat standardization.
+      rust-source-unit (td_ast) source for `apps/vat/tests/vat_runner_sandbox.rs` captured during vat standardization.
 ```

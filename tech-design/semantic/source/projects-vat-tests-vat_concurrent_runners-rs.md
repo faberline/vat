@@ -10,12 +10,12 @@ capability_refs:
     rationale: "This source replay TD preserves the concurrent-runner contract of the local agent test runner protocol: a shared workspace and service union, side-by-side runner execution, and worst-wins exit folding."
 ---
 
-# Standardized projects/vat/tests/vat_concurrent_runners.rs
+# Standardized apps/vat/tests/vat_concurrent_runners.rs
 
 ## Overview
 <!-- type: overview lang: markdown -->
 
-Public API manifest for `projects/vat/tests/vat_concurrent_runners.rs` generated from AST during Score force-regeneration standardization.
+Public API manifest for `apps/vat/tests/vat_concurrent_runners.rs` generated from AST during Score force-regeneration standardization.
 
 ### Symbols
 
@@ -189,11 +189,11 @@ fn single_runner_keeps_legacy_log_names_and_result_shape() {
 
 ```yaml
 changes:
-  - path: projects/vat/tests/vat_concurrent_runners.rs
+  - path: apps/vat/tests/vat_concurrent_runners.rs
     action: modify
     section: rust-source-unit
     impl_mode: codegen
     description: |
-      rust-source-unit (td_ast) source for `projects/vat/tests/vat_concurrent_runners.rs` captured during vat
+      rust-source-unit (td_ast) source for `apps/vat/tests/vat_concurrent_runners.rs` captured during vat
       standardization.
 ```

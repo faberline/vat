@@ -1,7 +1,7 @@
 ---
 id: projects-vat-build-rs
 summary: >
-  rust-source-unit TD AST payload for projects/vat/build.rs.
+  rust-source-unit TD AST payload for apps/vat/build.rs.
 fill_sections: [overview, source, changes]
 capability_refs:
   - id: agent-native-gpu-native-dev-containers
@@ -11,12 +11,12 @@ capability_refs:
     rationale: "This rust-source-unit TD preserves vat source ownership while migrating #39 off group-level source replay."
 ---
 
-# Standardized projects/vat/build.rs
+# Standardized apps/vat/build.rs
 
 ## Overview
 <!-- type: overview lang: markdown -->
 
-Public API manifest for `projects/vat/build.rs` generated from AST during Score force-regeneration standardization.
+Public API manifest for `apps/vat/build.rs` generated from AST during Score force-regeneration standardization.
 
 ### Symbols
 
@@ -45,7 +45,7 @@ fn main() {
 /// for build scripts.
 fn stamp_provenance() {
     // Re-run when HEAD moves so the stamped sha stays current. The workspace
-    // `.git` lives 2 levels up from projects/vat/; in a linked worktree `.git`
+    // `.git` lives 2 levels up from apps/vat/; in a linked worktree `.git`
     // is a file rather than a dir, so guard the rerun hint.
     if std::path::Path::new("../../.git/HEAD").exists() {
         println!("cargo:rerun-if-changed=../../.git/HEAD");
@@ -125,10 +125,10 @@ fn compile_pubsub_proto() {
 
 ```yaml
 changes:
-  - path: projects/vat/build.rs
+  - path: apps/vat/build.rs
     action: modify
     section: rust-source-unit
     impl_mode: codegen
     description: |
-      rust-source-unit (td_ast) source for `projects/vat/build.rs` captured during #39 vat standardization.
+      rust-source-unit (td_ast) source for `apps/vat/build.rs` captured during #39 vat standardization.
 ```

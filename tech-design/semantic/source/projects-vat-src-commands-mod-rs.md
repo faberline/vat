@@ -1,7 +1,7 @@
 ---
 id: vat-source-projects-vat-src-commands-mod-rs
 summary: >
-  rust-source-unit TD AST payload for projects/vat/src/commands/mod.rs.
+  rust-source-unit TD AST payload for apps/vat/src/commands/mod.rs.
 fill_sections: [overview, source, changes]
 capability_refs:
   - id: agent-native-gpu-native-dev-containers
@@ -11,29 +11,29 @@ capability_refs:
     rationale: "This rust-source-unit TD preserves vat source ownership while migrating #39 off group-level source replay."
 ---
 
-# Standardized projects/vat/src/commands/mod.rs
+# Standardized apps/vat/src/commands/mod.rs
 
 ## Overview
 <!-- type: overview lang: markdown -->
 
-Public API manifest for `projects/vat/src/commands/mod.rs` generated from AST during Score force-regeneration standardization.
+Public API manifest for `apps/vat/src/commands/mod.rs` generated from AST during Score force-regeneration standardization.
 
 ### Symbols
 
 | Name | Target | Kind | Visibility | Line | Signature |
 |------|--------|------|------------|------|-----------|
-| `cluster` | projects/vat/src/commands/mod.rs | module | pub | 10 |  |
-| `diff` | projects/vat/src/commands/mod.rs | module | pub | 11 |  |
-| `emulator` | projects/vat/src/commands/mod.rs | module | pub | 12 |  |
-| `gpu` | projects/vat/src/commands/mod.rs | module | pub | 13 |  |
-| `llm` | projects/vat/src/commands/mod.rs | module | pub | 14 |  |
-| `logs` | projects/vat/src/commands/mod.rs | module | pub | 15 |  |
-| `ls` | projects/vat/src/commands/mod.rs | module | pub | 16 |  |
-| `print_json` | projects/vat/src/commands/mod.rs | function | pub | 27 | print_json(value: &T, compact: bool) -> Result<()> |
-| `rm` | projects/vat/src/commands/mod.rs | module | pub | 17 |  |
-| `run` | projects/vat/src/commands/mod.rs | module | pub | 18 |  |
-| `snapshot` | projects/vat/src/commands/mod.rs | module | pub | 19 |  |
-| `state` | projects/vat/src/commands/mod.rs | module | pub | 20 |  |
+| `cluster` | apps/vat/src/commands/mod.rs | module | pub | 10 |  |
+| `diff` | apps/vat/src/commands/mod.rs | module | pub | 11 |  |
+| `emulator` | apps/vat/src/commands/mod.rs | module | pub | 12 |  |
+| `gpu` | apps/vat/src/commands/mod.rs | module | pub | 13 |  |
+| `llm` | apps/vat/src/commands/mod.rs | module | pub | 14 |  |
+| `logs` | apps/vat/src/commands/mod.rs | module | pub | 15 |  |
+| `ls` | apps/vat/src/commands/mod.rs | module | pub | 16 |  |
+| `print_json` | apps/vat/src/commands/mod.rs | function | pub | 27 | print_json(value: &T, compact: bool) -> Result<()> |
+| `rm` | apps/vat/src/commands/mod.rs | module | pub | 17 |  |
+| `run` | apps/vat/src/commands/mod.rs | module | pub | 18 |  |
+| `snapshot` | apps/vat/src/commands/mod.rs | module | pub | 19 |  |
+| `state` | apps/vat/src/commands/mod.rs | module | pub | 20 |  |
 ## Source
 <!-- type: rust-source-unit lang: rust -->
 
@@ -61,7 +61,7 @@ use anyhow::Result;
 
 /// Print a value as JSON to stdout — pretty by default, single-line when
 /// `compact`. Used wherever a verb has a machine-readable mode.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-commands-mod-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-commands-mod-rs.md#source
 pub fn print_json<T: serde::Serialize>(value: &T, compact: bool) -> Result<()> {
     let s = if compact {
         serde_json::to_string(value)?
@@ -78,10 +78,10 @@ pub fn print_json<T: serde::Serialize>(value: &T, compact: bool) -> Result<()> {
 
 ```yaml
 changes:
-  - path: projects/vat/src/commands/mod.rs
+  - path: apps/vat/src/commands/mod.rs
     action: modify
     section: rust-source-unit
     impl_mode: codegen
     description: |
-      rust-source-unit (td_ast) source for `projects/vat/src/commands/mod.rs` captured during #39 vat standardization.
+      rust-source-unit (td_ast) source for `apps/vat/src/commands/mod.rs` captured during #39 vat standardization.
 ```

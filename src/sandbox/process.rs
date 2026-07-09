@@ -1,4 +1,4 @@
-// SPEC-MANAGED: projects/vat/tech-design/semantic/source/projects-vat-src-sandbox-process-rs.md#rust-source-unit
+// SPEC-MANAGED: apps/vat/tech-design/semantic/source/projects-vat-src-sandbox-process-rs.md#rust-source-unit
 // CODEGEN-BEGIN
 //! Host-process backend.
 //!
@@ -14,10 +14,10 @@ use std::path::Path;
 
 use crate::sandbox::Sandbox;
 
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-sandbox-process-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-sandbox-process-rs.md#source
 pub struct ProcessBackend;
 
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-sandbox-process-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-sandbox-process-rs.md#source
 impl Sandbox for ProcessBackend {
     fn name(&self) -> &'static str {
         "process"

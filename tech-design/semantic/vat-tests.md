@@ -1,12 +1,12 @@
 ---
 id: semantic-vat-tests
-summary: Semantic coverage for "projects/vat/tests"
+summary: Semantic coverage for "apps/vat/tests"
 capability_refs:
   - id: "agent-native-gpu-native-dev-containers"
     role: primary
     claim: "host-process-execution-and-gpu-visibility"
     coverage: partial
-    rationale: "Semantic takeover coverage for existing source group `projects/vat/tests`."
+    rationale: "Semantic takeover coverage for existing source group `apps/vat/tests`."
 fill_sections: [schema, unit-test, changes]
 ---
 
@@ -18,11 +18,11 @@ fill_sections: [schema, unit-test, changes]
 ```yaml
 semantic_domain:
   key: "vat/tests"
-  source_group: "projects/vat/tests"
+  source_group: "apps/vat/tests"
   coverage_kind: semantic
   evidence:
     source_units:
-      - path: "projects/vat/tests/vat_emulator_storage.rs"
+      - path: "apps/vat/tests/vat_emulator_storage.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["data_model", "service_method", "test_case"]
@@ -53,8 +53,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "test"
           section_type: "unit-test"
-          domain: "projects/vat/tests"
-      - path: "projects/vat/tests/vat_emulator_auth.rs"
+          domain: "apps/vat/tests"
+      - path: "apps/vat/tests/vat_emulator_auth.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["data_model", "service_method", "test_case"]
@@ -85,8 +85,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "test"
           section_type: "unit-test"
-          domain: "projects/vat/tests"
-      - path: "projects/vat/tests/vat_emulator_grpc_mitm_routing.rs"
+          domain: "apps/vat/tests"
+      - path: "apps/vat/tests/vat_emulator_grpc_mitm_routing.rs"
         language: "rust"
         ownership_state: "handwrite"
         generator_primitives: ["data_model", "service_method", "test_case"]
@@ -123,8 +123,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "test"
           section_type: "unit-test"
-          domain: "projects/vat/tests"
-      - path: "projects/vat/tests/vat_emulator_tasks_grpc.rs"
+          domain: "apps/vat/tests"
+      - path: "apps/vat/tests/vat_emulator_tasks_grpc.rs"
         language: "rust"
         ownership_state: "handwrite"
         generator_primitives: ["data_model", "service_method", "test_case"]
@@ -155,8 +155,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "test"
           section_type: "unit-test"
-          domain: "projects/vat/tests"
-      - path: "projects/vat/tests/vat_toml_runner.rs"
+          domain: "apps/vat/tests"
+      - path: "apps/vat/tests/vat_toml_runner.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["service_method", "test_case"]
@@ -202,8 +202,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "test"
           section_type: "unit-test"
-          domain: "projects/vat/tests"
-      - path: "projects/vat/tests/behavior_vat_copy_on_write_lifecycle.rs"
+          domain: "apps/vat/tests"
+      - path: "apps/vat/tests/behavior_vat_copy_on_write_lifecycle.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["service_method", "test_case"]
@@ -216,8 +216,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "test"
           section_type: "unit-test"
-          domain: "projects/vat/tests"
-      - path: "projects/vat/tests/behavior_vat_agent_state_and_diff_surface.rs"
+          domain: "apps/vat/tests"
+      - path: "apps/vat/tests/behavior_vat_agent_state_and_diff_surface.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["service_method", "test_case"]
@@ -230,8 +230,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "test"
           section_type: "unit-test"
-          domain: "projects/vat/tests"
-      - path: "projects/vat/tests/vat_emulator_tasks.rs"
+          domain: "apps/vat/tests"
+      - path: "apps/vat/tests/vat_emulator_tasks.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["data_model", "service_method", "test_case"]
@@ -262,8 +262,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "test"
           section_type: "unit-test"
-          domain: "projects/vat/tests"
-      - path: "projects/vat/tests/vat_emulator_httpmock_routing.rs"
+          domain: "apps/vat/tests"
+      - path: "apps/vat/tests/vat_emulator_httpmock_routing.rs"
         language: "rust"
         ownership_state: "handwrite"
         generator_primitives: ["data_model", "service_method", "test_case"]
@@ -303,8 +303,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "test"
           section_type: "unit-test"
-          domain: "projects/vat/tests"
-      - path: "projects/vat/tests/vat_cluster.rs"
+          domain: "apps/vat/tests"
+      - path: "apps/vat/tests/vat_cluster.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["service_method", "test_case"]
@@ -341,8 +341,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "test"
           section_type: "unit-test"
-          domain: "projects/vat/tests"
-      - path: "projects/vat/tests/vat_emulator_pubsub.rs"
+          domain: "apps/vat/tests"
+      - path: "apps/vat/tests/vat_emulator_pubsub.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["config_surface", "data_model", "service_method", "test_case"]
@@ -376,8 +376,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "test"
           section_type: "unit-test"
-          domain: "projects/vat/tests"
-      - path: "projects/vat/tests/vat_emulator_scheduler_grpc.rs"
+          domain: "apps/vat/tests"
+      - path: "apps/vat/tests/vat_emulator_scheduler_grpc.rs"
         language: "rust"
         ownership_state: "handwrite"
         generator_primitives: ["data_model", "service_method", "test_case"]
@@ -408,8 +408,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "test"
           section_type: "unit-test"
-          domain: "projects/vat/tests"
-      - path: "projects/vat/tests/vat_cli_convention.rs"
+          domain: "apps/vat/tests"
+      - path: "apps/vat/tests/vat_cli_convention.rs"
         language: "rust"
         ownership_state: "handwrite"
         generator_primitives: ["service_method", "test_case"]
@@ -431,8 +431,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "test"
           section_type: "unit-test"
-          domain: "projects/vat/tests"
-      - path: "projects/vat/tests/behavior_vat_resource_isolation_boundary.rs"
+          domain: "apps/vat/tests"
+      - path: "apps/vat/tests/behavior_vat_resource_isolation_boundary.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["service_method", "test_case"]
@@ -445,8 +445,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "test"
           section_type: "unit-test"
-          domain: "projects/vat/tests"
-      - path: "projects/vat/tests/behavior_vat_toml_runner_local_service_smoke.rs"
+          domain: "apps/vat/tests"
+      - path: "apps/vat/tests/behavior_vat_toml_runner_local_service_smoke.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["service_method", "test_case"]
@@ -459,8 +459,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "test"
           section_type: "unit-test"
-          domain: "projects/vat/tests"
-      - path: "projects/vat/tests/vat_emulator_workflows.rs"
+          domain: "apps/vat/tests"
+      - path: "apps/vat/tests/vat_emulator_workflows.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["data_model", "service_method", "test_case"]
@@ -494,8 +494,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "test"
           section_type: "unit-test"
-          domain: "projects/vat/tests"
-      - path: "projects/vat/tests/vat_emulator_scheduler.rs"
+          domain: "apps/vat/tests"
+      - path: "apps/vat/tests/vat_emulator_scheduler.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["data_model", "service_method", "test_case"]
@@ -526,8 +526,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "test"
           section_type: "unit-test"
-          domain: "projects/vat/tests"
-      - path: "projects/vat/tests/behavior_vat_llm_agent_usage_guide.rs"
+          domain: "apps/vat/tests"
+      - path: "apps/vat/tests/behavior_vat_llm_agent_usage_guide.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["service_method", "test_case"]
@@ -540,8 +540,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "test"
           section_type: "unit-test"
-          domain: "projects/vat/tests"
-      - path: "projects/vat/tests/behavior_vat_host_process_gpu_visibility.rs"
+          domain: "apps/vat/tests"
+      - path: "apps/vat/tests/behavior_vat_host_process_gpu_visibility.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["service_method", "test_case"]
@@ -554,8 +554,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "test"
           section_type: "unit-test"
-          domain: "projects/vat/tests"
-      - path: "projects/vat/tests/vat_emulator_httpmock.rs"
+          domain: "apps/vat/tests"
+      - path: "apps/vat/tests/vat_emulator_httpmock.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["data_model", "service_method", "test_case"]
@@ -586,8 +586,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "test"
           section_type: "unit-test"
-          domain: "projects/vat/tests"
-      - path: "projects/vat/tests/vat_emulators.rs"
+          domain: "apps/vat/tests"
+      - path: "apps/vat/tests/vat_emulators.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["service_method", "test_case"]
@@ -627,8 +627,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "test"
           section_type: "unit-test"
-          domain: "projects/vat/tests"
-      - path: "projects/vat/tests/vat_runner_sandbox.rs"
+          domain: "apps/vat/tests"
+      - path: "apps/vat/tests/vat_runner_sandbox.rs"
         language: "rust"
         ownership_state: "handwrite"
         generator_primitives: ["service_method", "test_case"]
@@ -650,8 +650,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "test"
           section_type: "unit-test"
-          domain: "projects/vat/tests"
-      - path: "projects/vat/tests/vat_emulator_openapi.rs"
+          domain: "apps/vat/tests"
+      - path: "apps/vat/tests/vat_emulator_openapi.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["config_surface", "data_model", "service_method", "test_case"]
@@ -682,8 +682,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "test"
           section_type: "unit-test"
-          domain: "projects/vat/tests"
-      - path: "projects/vat/tests/vat_concurrent_runners.rs"
+          domain: "apps/vat/tests"
+      - path: "apps/vat/tests/vat_concurrent_runners.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["service_method", "test_case"]
@@ -717,8 +717,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "test"
           section_type: "unit-test"
-          domain: "projects/vat/tests"
-      - path: "projects/vat/tests/vat_sandbox_egress.rs"
+          domain: "apps/vat/tests"
+      - path: "apps/vat/tests/vat_sandbox_egress.rs"
         language: "rust"
         ownership_state: "handwrite"
         generator_primitives: ["service_method", "test_case"]
@@ -743,7 +743,7 @@ semantic_domain:
           ecosystem: "rust"
           role: "test"
           section_type: "unit-test"
-          domain: "projects/vat/tests"
+          domain: "apps/vat/tests"
 ```
 
 ## Unit Test
@@ -756,31 +756,31 @@ coverage_kind: semantic
 strategy: preserve observed source behavior while semantic coverage is promoted toward generator primitives
 evidence:
   source_tests:
-    - path: "projects/vat/tests/vat_emulator_storage.rs"
-    - path: "projects/vat/tests/vat_emulator_auth.rs"
-    - path: "projects/vat/tests/vat_emulator_grpc_mitm_routing.rs"
-    - path: "projects/vat/tests/vat_emulator_tasks_grpc.rs"
-    - path: "projects/vat/tests/vat_toml_runner.rs"
-    - path: "projects/vat/tests/behavior_vat_copy_on_write_lifecycle.rs"
-    - path: "projects/vat/tests/behavior_vat_agent_state_and_diff_surface.rs"
-    - path: "projects/vat/tests/vat_emulator_tasks.rs"
-    - path: "projects/vat/tests/vat_emulator_httpmock_routing.rs"
-    - path: "projects/vat/tests/vat_cluster.rs"
-    - path: "projects/vat/tests/vat_emulator_pubsub.rs"
-    - path: "projects/vat/tests/vat_emulator_scheduler_grpc.rs"
-    - path: "projects/vat/tests/vat_cli_convention.rs"
-    - path: "projects/vat/tests/behavior_vat_resource_isolation_boundary.rs"
-    - path: "projects/vat/tests/behavior_vat_toml_runner_local_service_smoke.rs"
-    - path: "projects/vat/tests/vat_emulator_workflows.rs"
-    - path: "projects/vat/tests/vat_emulator_scheduler.rs"
-    - path: "projects/vat/tests/behavior_vat_llm_agent_usage_guide.rs"
-    - path: "projects/vat/tests/behavior_vat_host_process_gpu_visibility.rs"
-    - path: "projects/vat/tests/vat_emulator_httpmock.rs"
-    - path: "projects/vat/tests/vat_emulators.rs"
-    - path: "projects/vat/tests/vat_runner_sandbox.rs"
-    - path: "projects/vat/tests/vat_emulator_openapi.rs"
-    - path: "projects/vat/tests/vat_concurrent_runners.rs"
-    - path: "projects/vat/tests/vat_sandbox_egress.rs"
+    - path: "apps/vat/tests/vat_emulator_storage.rs"
+    - path: "apps/vat/tests/vat_emulator_auth.rs"
+    - path: "apps/vat/tests/vat_emulator_grpc_mitm_routing.rs"
+    - path: "apps/vat/tests/vat_emulator_tasks_grpc.rs"
+    - path: "apps/vat/tests/vat_toml_runner.rs"
+    - path: "apps/vat/tests/behavior_vat_copy_on_write_lifecycle.rs"
+    - path: "apps/vat/tests/behavior_vat_agent_state_and_diff_surface.rs"
+    - path: "apps/vat/tests/vat_emulator_tasks.rs"
+    - path: "apps/vat/tests/vat_emulator_httpmock_routing.rs"
+    - path: "apps/vat/tests/vat_cluster.rs"
+    - path: "apps/vat/tests/vat_emulator_pubsub.rs"
+    - path: "apps/vat/tests/vat_emulator_scheduler_grpc.rs"
+    - path: "apps/vat/tests/vat_cli_convention.rs"
+    - path: "apps/vat/tests/behavior_vat_resource_isolation_boundary.rs"
+    - path: "apps/vat/tests/behavior_vat_toml_runner_local_service_smoke.rs"
+    - path: "apps/vat/tests/vat_emulator_workflows.rs"
+    - path: "apps/vat/tests/vat_emulator_scheduler.rs"
+    - path: "apps/vat/tests/behavior_vat_llm_agent_usage_guide.rs"
+    - path: "apps/vat/tests/behavior_vat_host_process_gpu_visibility.rs"
+    - path: "apps/vat/tests/vat_emulator_httpmock.rs"
+    - path: "apps/vat/tests/vat_emulators.rs"
+    - path: "apps/vat/tests/vat_runner_sandbox.rs"
+    - path: "apps/vat/tests/vat_emulator_openapi.rs"
+    - path: "apps/vat/tests/vat_concurrent_runners.rs"
+    - path: "apps/vat/tests/vat_sandbox_egress.rs"
 ---
 requirementDiagram
 
@@ -800,151 +800,151 @@ changes:
     description: |
       Existing test behavior is covered by the Unit Test evidence section.
     impl_mode: hand-written
-  - path: "projects/vat/tests/vat_emulator_storage.rs"
+  - path: "apps/vat/tests/vat_emulator_storage.rs"
     action: modify
     section: schema
     description: |
       Existing source behavior is covered by this feature/domain semantic TD.
     impl_mode: hand-written
-  - path: "projects/vat/tests/vat_emulator_auth.rs"
+  - path: "apps/vat/tests/vat_emulator_auth.rs"
     action: modify
     section: schema
     description: |
       Existing source behavior is covered by this feature/domain semantic TD.
     impl_mode: hand-written
-  - path: "projects/vat/tests/vat_emulator_grpc_mitm_routing.rs"
+  - path: "apps/vat/tests/vat_emulator_grpc_mitm_routing.rs"
     action: modify
     section: schema
     description: |
       Existing source behavior is covered by this feature/domain semantic TD.
     impl_mode: hand-written
-  - path: "projects/vat/tests/vat_emulator_tasks_grpc.rs"
+  - path: "apps/vat/tests/vat_emulator_tasks_grpc.rs"
     action: modify
     section: schema
     description: |
       Existing source behavior is covered by this feature/domain semantic TD.
     impl_mode: hand-written
-  - path: "projects/vat/tests/vat_toml_runner.rs"
+  - path: "apps/vat/tests/vat_toml_runner.rs"
     action: modify
     section: schema
     description: |
       Existing source behavior is covered by this feature/domain semantic TD.
     impl_mode: hand-written
-  - path: "projects/vat/tests/behavior_vat_copy_on_write_lifecycle.rs"
+  - path: "apps/vat/tests/behavior_vat_copy_on_write_lifecycle.rs"
     action: modify
     section: schema
     description: |
       Existing source behavior is covered by this feature/domain semantic TD.
     impl_mode: hand-written
-  - path: "projects/vat/tests/behavior_vat_agent_state_and_diff_surface.rs"
+  - path: "apps/vat/tests/behavior_vat_agent_state_and_diff_surface.rs"
     action: modify
     section: schema
     description: |
       Existing source behavior is covered by this feature/domain semantic TD.
     impl_mode: hand-written
-  - path: "projects/vat/tests/vat_emulator_tasks.rs"
+  - path: "apps/vat/tests/vat_emulator_tasks.rs"
     action: modify
     section: schema
     description: |
       Existing source behavior is covered by this feature/domain semantic TD.
     impl_mode: hand-written
-  - path: "projects/vat/tests/vat_emulator_httpmock_routing.rs"
+  - path: "apps/vat/tests/vat_emulator_httpmock_routing.rs"
     action: modify
     section: schema
     description: |
       Existing source behavior is covered by this feature/domain semantic TD.
     impl_mode: hand-written
-  - path: "projects/vat/tests/vat_cluster.rs"
+  - path: "apps/vat/tests/vat_cluster.rs"
     action: modify
     section: schema
     description: |
       Existing source behavior is covered by this feature/domain semantic TD.
     impl_mode: hand-written
-  - path: "projects/vat/tests/vat_emulator_pubsub.rs"
+  - path: "apps/vat/tests/vat_emulator_pubsub.rs"
     action: modify
     section: schema
     description: |
       Existing source behavior is covered by this feature/domain semantic TD.
     impl_mode: hand-written
-  - path: "projects/vat/tests/vat_emulator_scheduler_grpc.rs"
+  - path: "apps/vat/tests/vat_emulator_scheduler_grpc.rs"
     action: modify
     section: schema
     description: |
       Existing source behavior is covered by this feature/domain semantic TD.
     impl_mode: hand-written
-  - path: "projects/vat/tests/vat_cli_convention.rs"
+  - path: "apps/vat/tests/vat_cli_convention.rs"
     action: modify
     section: schema
     description: |
       Existing source behavior is covered by this feature/domain semantic TD.
     impl_mode: hand-written
-  - path: "projects/vat/tests/behavior_vat_resource_isolation_boundary.rs"
+  - path: "apps/vat/tests/behavior_vat_resource_isolation_boundary.rs"
     action: modify
     section: schema
     description: |
       Existing source behavior is covered by this feature/domain semantic TD.
     impl_mode: hand-written
-  - path: "projects/vat/tests/behavior_vat_toml_runner_local_service_smoke.rs"
+  - path: "apps/vat/tests/behavior_vat_toml_runner_local_service_smoke.rs"
     action: modify
     section: schema
     description: |
       Existing source behavior is covered by this feature/domain semantic TD.
     impl_mode: hand-written
-  - path: "projects/vat/tests/vat_emulator_workflows.rs"
+  - path: "apps/vat/tests/vat_emulator_workflows.rs"
     action: modify
     section: schema
     description: |
       Existing source behavior is covered by this feature/domain semantic TD.
     impl_mode: hand-written
-  - path: "projects/vat/tests/vat_emulator_scheduler.rs"
+  - path: "apps/vat/tests/vat_emulator_scheduler.rs"
     action: modify
     section: schema
     description: |
       Existing source behavior is covered by this feature/domain semantic TD.
     impl_mode: hand-written
-  - path: "projects/vat/tests/behavior_vat_llm_agent_usage_guide.rs"
+  - path: "apps/vat/tests/behavior_vat_llm_agent_usage_guide.rs"
     action: modify
     section: schema
     description: |
       Existing source behavior is covered by this feature/domain semantic TD.
     impl_mode: hand-written
-  - path: "projects/vat/tests/behavior_vat_host_process_gpu_visibility.rs"
+  - path: "apps/vat/tests/behavior_vat_host_process_gpu_visibility.rs"
     action: modify
     section: schema
     description: |
       Existing source behavior is covered by this feature/domain semantic TD.
     impl_mode: hand-written
-  - path: "projects/vat/tests/vat_emulator_httpmock.rs"
+  - path: "apps/vat/tests/vat_emulator_httpmock.rs"
     action: modify
     section: schema
     description: |
       Existing source behavior is covered by this feature/domain semantic TD.
     impl_mode: hand-written
-  - path: "projects/vat/tests/vat_emulators.rs"
+  - path: "apps/vat/tests/vat_emulators.rs"
     action: modify
     section: schema
     description: |
       Existing source behavior is covered by this feature/domain semantic TD.
     impl_mode: hand-written
-  - path: "projects/vat/tests/vat_runner_sandbox.rs"
+  - path: "apps/vat/tests/vat_runner_sandbox.rs"
     action: modify
     section: schema
     description: |
       Existing source behavior is covered by this feature/domain semantic TD.
     impl_mode: hand-written
-  - path: "projects/vat/tests/vat_emulator_openapi.rs"
+  - path: "apps/vat/tests/vat_emulator_openapi.rs"
     action: modify
     section: schema
     description: |
       Existing source behavior is covered by this feature/domain semantic TD.
     impl_mode: hand-written
-  - path: "projects/vat/tests/vat_concurrent_runners.rs"
+  - path: "apps/vat/tests/vat_concurrent_runners.rs"
     action: modify
     section: schema
     description: |
       Existing source behavior is covered by this feature/domain semantic TD.
     impl_mode: hand-written
-  - path: "projects/vat/tests/vat_sandbox_egress.rs"
+  - path: "apps/vat/tests/vat_sandbox_egress.rs"
     action: modify
     section: schema
     description: |

@@ -1,7 +1,7 @@
 ---
 id: vat-source-projects-vat-src-commands-run-rs
 summary: >
-  rust-source-unit TD AST payload for projects/vat/src/commands/run.rs.
+  rust-source-unit TD AST payload for apps/vat/src/commands/run.rs.
 fill_sections: [overview, source, changes]
 capability_refs:
   - id: agent-native-gpu-native-dev-containers
@@ -11,26 +11,26 @@ capability_refs:
     rationale: "This rust-source-unit TD preserves vat source ownership while migrating #39 off group-level source replay."
 ---
 
-# Standardized projects/vat/src/commands/run.rs
+# Standardized apps/vat/src/commands/run.rs
 
 ## Overview
 <!-- type: overview lang: markdown -->
 
-Public API manifest for `projects/vat/src/commands/run.rs` generated from AST during Score force-regeneration standardization.
+Public API manifest for `apps/vat/src/commands/run.rs` generated from AST during Score force-regeneration standardization.
 
 ### Symbols
 
 | Name | Target | Kind | Visibility | Line | Signature |
 |------|--------|------|------------|------|-----------|
-| `Args` | projects/vat/src/commands/run.rs | struct | pub | 42 |  |
-| `Target` | projects/vat/src/commands/run.rs | enum | pub | 58 |  |
-| `exec` | projects/vat/src/commands/run.rs | function | pub | 74 | exec(args: Args) -> Result<ExitCode> |
-| `sandbox_wrap` | projects/vat/src/commands/run.rs | function | pub | 946 | sandbox_wrap(     backend: &dyn sandbox::Sandbox,     rootfs: &Path,     cmd: &[String], ) -> Vec<String> |
+| `Args` | apps/vat/src/commands/run.rs | struct | pub | 42 |  |
+| `Target` | apps/vat/src/commands/run.rs | enum | pub | 58 |  |
+| `exec` | apps/vat/src/commands/run.rs | function | pub | 74 | exec(args: Args) -> Result<ExitCode> |
+| `sandbox_wrap` | apps/vat/src/commands/run.rs | function | pub | 946 | sandbox_wrap(     backend: &dyn sandbox::Sandbox,     rootfs: &Path,     cmd: &[String], ) -> Vec<String> |
 ## Source
 <!-- type: rust-source-unit lang: rust -->
 
 ````rust
-// SPEC-MANAGED: projects/vat/tech-design/semantic/source/projects-vat-src-commands-run-rs.md#rust-source-unit
+// SPEC-MANAGED: apps/vat/tech-design/semantic/source/projects-vat-src-commands-run-rs.md#rust-source-unit
 // CODEGEN-BEGIN
 //! `vat run` — direct command mode plus vat.toml runner mode.
 //!
@@ -69,8 +69,8 @@ use crate::state::{
 use crate::{id, store};
 
 /// Inputs for `vat run`, already parsed by the CLI layer.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-commands-run-rs.md#source
-/// @spec projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#cli
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-commands-run-rs.md#source
+/// @spec apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#cli
 pub struct Args {
     pub target: Target,
     /// Clone from this host directory (default: current directory).
@@ -86,7 +86,7 @@ pub struct Args {
     pub keep: Option<RetentionPolicy>,
 }
 
-/// @spec projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#cli
+/// @spec apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#cli
 pub enum Target {
     Direct {
         program: String,
@@ -101,8 +101,8 @@ pub enum Target {
     },
 }
 
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-commands-run-rs.md#source
-/// @spec projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#logic
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-commands-run-rs.md#source
+/// @spec apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#logic
 pub fn exec(args: Args) -> Result<ExitCode> {
     let Args {
         target,
@@ -974,7 +974,7 @@ struct RunnerProc {
 /// applying the `[network].egress` policy), while the process backend is a
 /// passthrough (returns the command verbatim). Services are spawned RAW (not via
 /// this) so they keep the network needed to serve/forward.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-commands-run-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-commands-run-rs.md#source
 pub(crate) fn sandbox_wrap(
     backend: &dyn sandbox::Sandbox,
     rootfs: &Path,
@@ -1266,7 +1266,7 @@ fn prepare_service(
 /// (a one-shot, minutes-long operation) and kept alive by a trivial child so it
 /// slots into the existing service start/stop machinery; the runner reaches it
 /// through the exported `KUBECONFIG`.
-/// @spec projects/vat/tech-design/logic/kind-like-local-kubernetes-clusters.md#logic
+/// @spec apps/vat/tech-design/logic/kind-like-local-kubernetes-clusters.md#logic
 fn prepare_cluster_service(
     vat: &store::Vat,
     service: &ServiceConfig,
@@ -1597,7 +1597,7 @@ enum ResolvedRuntime {
 /// Resolve a preset service's `runtime` against the host. `auto` prefers the
 /// native binary and falls back to Docker; `native`/`docker` force one path.
 /// On `auto` with neither available, emit a structured error and bail.
-/// @spec projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#logic
+/// @spec apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#logic
 fn resolve_preset_runtime(
     service: &ServiceConfig,
     preset: ServicePreset,
@@ -1652,7 +1652,7 @@ fn resolve_preset_runtime(
 /// Run a preset service from its official Docker image instead of the native
 /// binary. The exported connection env is identical to the native path — only
 /// the process behind the mapped host port differs.
-/// @spec projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#logic
+/// @spec apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#logic
 fn prepare_preset_docker_service(
     vat: &store::Vat,
     service: &ServiceConfig,
@@ -1703,7 +1703,7 @@ fn prepare_preset_docker_service(
 /// the first configured emulator (or the hub) for readiness. Native-only: there
 /// is no reliable official Docker image, so a missing firebase-tools is a
 /// structured unavailable error, not a silent Docker attempt.
-/// @spec projects/vat/tech-design/logic/gcp-firebase-emulator-service-presets.md#logic
+/// @spec apps/vat/tech-design/logic/gcp-firebase-emulator-service-presets.md#logic
 fn prepare_firebase_service(
     vat: &store::Vat,
     cfg: &VatConfig,
@@ -1792,7 +1792,7 @@ fn prepare_firebase_service(
 }
 
 /// The client-SDK host env var for a Firebase emulator, when one exists.
-/// @spec projects/vat/tech-design/logic/gcp-firebase-emulator-service-presets.md#config
+/// @spec apps/vat/tech-design/logic/gcp-firebase-emulator-service-presets.md#config
 fn firebase_emulator_host_var(emulator: &str) -> Option<&'static str> {
     match emulator {
         "firestore" => Some("FIRESTORE_EMULATOR_HOST"),
@@ -1805,7 +1805,7 @@ fn firebase_emulator_host_var(emulator: &str) -> Option<&'static str> {
 }
 
 /// The `vat emulator` kind name and the host env var for a built-in preset.
-/// @spec projects/vat/tech-design/logic/built-in-rust-emulators-pub-sub-firebase-auth.md#config
+/// @spec apps/vat/tech-design/logic/built-in-rust-emulators-pub-sub-firebase-auth.md#config
 fn builtin_emulator_info(preset: ServicePreset) -> (&'static str, &'static str) {
     match preset {
         ServicePreset::Pubsub => ("pubsub", "PUBSUB_EMULATOR_HOST"),
@@ -1831,7 +1831,7 @@ fn builtin_emulator_export_value(preset: ServicePreset, host_port: &str) -> Stri
 /// Prepare a built-in emulator service: vat spawns *itself* (`vat emulator
 /// <kind> --host-port`) as the service process — a pure Rust in-process server
 /// with no external tooling. The runner reaches it via the exported host var.
-/// @spec projects/vat/tech-design/logic/built-in-rust-emulators-pub-sub-firebase-auth.md#logic
+/// @spec apps/vat/tech-design/logic/built-in-rust-emulators-pub-sub-firebase-auth.md#logic
 /// The explicit `[network].routes` from vat.toml as `(host, target)` pairs. These
 /// seed the http-mock proxy's routing table at spawn (the targets are literal
 /// local base URLs); preset-derived routes are added by
@@ -2003,7 +2003,7 @@ fn prepare_builtin_service(
 /// outbound HTTP/S is intercepted), NO_PROXY (so the runner's other loopback
 /// emulators stay direct), and CA-trust vars for every common runtime (so the
 /// HTTPS MITM is trusted) — plus the admin host.
-/// @spec projects/vat/tech-design/logic/built-in-http-mock-record-replay-proxy.md#config
+/// @spec apps/vat/tech-design/logic/built-in-http-mock-record-replay-proxy.md#config
 fn http_mock_env(host_port: &str, ca_path: &str) -> BTreeMap<String, String> {
     let proxy = format!("http://{host_port}");
     let mut env = BTreeMap::new();
@@ -2034,7 +2034,7 @@ fn http_mock_env(host_port: &str, ca_path: &str) -> BTreeMap<String, String> {
 /// Run a Docker-only custom service (e.g. AlloyDB) declared with `image`.
 /// `export` values are templates: `{host}`/`{port}` are substituted with the
 /// mapped host endpoint. `VAT_SERVICE_<ID>_{HOST,PORT}` are always exported.
-/// @spec projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#logic
+/// @spec apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#logic
 fn prepare_image_service(
     vat: &store::Vat,
     service: &ServiceConfig,
@@ -2072,7 +2072,7 @@ fn prepare_image_service(
 /// Build a foreground `docker run` argv. `--rm` makes the container ephemeral;
 /// `--name` is deterministic so teardown can force-remove it; the port is bound
 /// to loopback only. Container env is emitted in sorted order (deterministic).
-/// @spec projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#logic
+/// @spec apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#logic
 fn docker_run_command(
     name: &str,
     image: &str,
@@ -2186,7 +2186,7 @@ fn preset_container_port(preset: ServicePreset) -> u16 {
 /// The emulator-start command appended after the image for GCP emulators on the
 /// cloud-cli image. Empty for images that start their server via their own
 /// entrypoint (datastore/broker official images, Spanner's dedicated image).
-/// @spec projects/vat/tech-design/logic/gcp-firebase-emulator-service-presets.md#logic
+/// @spec apps/vat/tech-design/logic/gcp-firebase-emulator-service-presets.md#logic
 fn preset_docker_command(preset: ServicePreset, container_port: u16) -> Vec<String> {
     let emulator = |name: &str, extra: &[&str]| {
         let mut cmd = vec![
@@ -2282,7 +2282,7 @@ fn docker_daemon_up() -> bool {
 
 /// Gate a Docker-backed service on a reachable daemon, emitting the structured
 /// `docker_unavailable` error (never a panic) when it is not.
-/// @spec projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#logic
+/// @spec apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#logic
 fn ensure_docker_available(service: &ServiceConfig) -> Result<()> {
     if which("docker").is_none() {
         emit_jsonl(serde_json::json!({
@@ -2626,7 +2626,7 @@ fn required_binaries(preset: ServicePreset) -> &'static [&'static str] {
 
 /// The gcloud component an emulator preset needs locally installed for the
 /// native path. `None` for non-gcloud presets (datastore/broker, firebase).
-/// @spec projects/vat/tech-design/logic/gcp-firebase-emulator-service-presets.md#config
+/// @spec apps/vat/tech-design/logic/gcp-firebase-emulator-service-presets.md#config
 fn gcloud_component(preset: ServicePreset) -> Option<&'static str> {
     match preset {
         ServicePreset::Firestore => Some("cloud-firestore-emulator"),
@@ -2662,7 +2662,7 @@ fn installed_gcloud_components() -> Vec<String> {
 
 /// Pure native-availability decision: all binaries present, and (for emulator
 /// presets) the required gcloud component locally installed.
-/// @spec projects/vat/tech-design/logic/gcp-firebase-emulator-service-presets.md#logic
+/// @spec apps/vat/tech-design/logic/gcp-firebase-emulator-service-presets.md#logic
 fn native_available(has_binaries: bool, component: Option<&str>, installed: &[String]) -> bool {
     has_binaries
         && match component {
@@ -2675,7 +2675,7 @@ fn native_available(has_binaries: bool, component: Option<&str>, installed: &[St
 /// this checks the gcloud component, not just the binary, so `runtime = auto`
 /// falls back to Docker when the component is missing rather than choosing
 /// native and failing to start.
-/// @spec projects/vat/tech-design/logic/gcp-firebase-emulator-service-presets.md#logic
+/// @spec apps/vat/tech-design/logic/gcp-firebase-emulator-service-presets.md#logic
 fn preset_native_available(preset: ServicePreset) -> bool {
     let has_binaries = required_binaries(preset)
         .iter()
@@ -4430,10 +4430,10 @@ fn print_summary(
 
 ```yaml
 changes:
-  - path: projects/vat/src/commands/run.rs
+  - path: apps/vat/src/commands/run.rs
     action: modify
     section: rust-source-unit
     impl_mode: codegen
     description: |
-      rust-source-unit (td_ast) source for `projects/vat/src/commands/run.rs` captured during #39 vat standardization.
+      rust-source-unit (td_ast) source for `apps/vat/src/commands/run.rs` captured during #39 vat standardization.
 ```

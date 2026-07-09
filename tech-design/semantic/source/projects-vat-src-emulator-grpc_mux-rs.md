@@ -10,18 +10,18 @@ capability_refs:
     rationale: "This rust-source-unit TD preserves the shared REST/gRPC emulator listener contract used by Cloud Tasks and Cloud Scheduler emulator presets."
 ---
 
-# Standardized projects/vat/src/emulator/grpc_mux.rs
+# Standardized apps/vat/src/emulator/grpc_mux.rs
 
 ## Overview
 <!-- type: overview lang: markdown -->
 
-Public API manifest for `projects/vat/src/emulator/grpc_mux.rs` generated from AST during Score force-regeneration standardization.
+Public API manifest for `apps/vat/src/emulator/grpc_mux.rs` generated from AST during Score force-regeneration standardization.
 
 ### Symbols
 
 | Name | Target | Kind | Visibility | Line | Signature |
 |------|--------|------|------------|------|-----------|
-| `serve` | projects/vat/src/emulator/grpc_mux.rs | function | pub | 26 | serve(host_port: &str, rest: Router, grpc: S) -> Result<()> |
+| `serve` | apps/vat/src/emulator/grpc_mux.rs | function | pub | 26 | serve(host_port: &str, rest: Router, grpc: S) -> Result<()> |
 ## Source
 <!-- type: rust-source-unit lang: rust -->
 
@@ -37,7 +37,7 @@ Public API manifest for `projects/vat/src/emulator/grpc_mux.rs` generated from A
 //! `CLOUD_TASKS_EMULATOR_HOST` / `CLOUD_SCHEDULER_EMULATOR_HOST` serves both
 //! protocols.
 //!
-//! @spec projects/vat/tech-design/logic/built-in-cloud-tasks-cloud-scheduler-emulators.md#logic
+//! @spec apps/vat/tech-design/logic/built-in-cloud-tasks-cloud-scheduler-emulators.md#logic
 
 use anyhow::{Context, Result};
 use axum::Router;
@@ -74,11 +74,11 @@ where
 
 ```yaml
 changes:
-  - path: projects/vat/src/emulator/grpc_mux.rs
+  - path: apps/vat/src/emulator/grpc_mux.rs
     action: modify
     section: rust-source-unit
     impl_mode: codegen
     description: |
-      rust-source-unit (td_ast) source for `projects/vat/src/emulator/grpc_mux.rs` captured during vat
+      rust-source-unit (td_ast) source for `apps/vat/src/emulator/grpc_mux.rs` captured during vat
       standardization.
 ```

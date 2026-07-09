@@ -1,4 +1,4 @@
-// SPEC-MANAGED: projects/vat/tech-design/semantic/source/projects-vat-src-sandbox-mod-rs.md#rust-source-unit
+// SPEC-MANAGED: apps/vat/tech-design/semantic/source/projects-vat-src-sandbox-mod-rs.md#rust-source-unit
 // CODEGEN-BEGIN
 //! Pluggable isolation backends.
 //!
@@ -27,7 +27,7 @@ use crate::spec::{EgressPolicy, EnvSpec, Isolation};
 /// An isolation backend resolves the user's command into the *actual* program
 /// + argv to exec (e.g. seatbelt wraps it in `sandbox-exec`). The caller then
 /// runs that resolved command inside the vat workspace with the spec env.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-sandbox-mod-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-sandbox-mod-rs.md#source
 pub trait Sandbox {
     /// Short stable name, surfaced in events/state (`"process"`, `"seatbelt"`).
     fn name(&self) -> &'static str;
@@ -42,7 +42,7 @@ pub trait Sandbox {
 /// platform that doesn't support the requested isolation, after warning —
 /// the workspace clone still applies, so the vat is never *less* isolated than
 /// plain `cd` + run.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-sandbox-mod-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-sandbox-mod-rs.md#source
 pub fn pick(spec: &EnvSpec) -> Box<dyn Sandbox> {
     match spec.isolation {
         Isolation::None => {

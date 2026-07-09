@@ -147,57 +147,57 @@ e2e_tests:
 
 ```yaml
 changes:
-  - path: projects/vat/src/cli.rs
+  - path: apps/vat/src/cli.rs
     action: modify
     section: cli
     impl_mode: hand-written
     reason: "CLI section edge: expose full-hermetic http-mock no-forward mode through emulator/run options."
-  - path: projects/vat/src/config.rs
+  - path: apps/vat/src/config.rs
     action: modify
     section: config
     impl_mode: hand-written
     reason: "Config section edge: no-forward mode is represented in vat service configuration."
-  - path: projects/vat/src/emulator/httpmock/mod.rs
+  - path: apps/vat/src/emulator/httpmock/mod.rs
     action: modify
     section: logic
     impl_mode: hand-written
     reason: "Logic section edge: unmatched outbound requests return a blocked response while registered stubs still serve."
-  - path: projects/vat/src/emulator/httpmock/stub.rs
+  - path: apps/vat/src/emulator/httpmock/stub.rs
     action: modify
     section: schema
     impl_mode: hand-written
     reason: "Schema section edge: stub matching remains the allowed request shape in full-hermetic mode."
-  - path: projects/vat/tests/vat_emulator_httpmock_hermetic.rs
+  - path: apps/vat/tests/vat_emulator_httpmock_hermetic.rs
     action: validate
     section: unit-test
     impl_mode: hand-written
     reason: "Unit-test section edge: hermetic proxy tests prove no-forward blocking and stub serving."
-  - path: projects/vat/src/emulator/httpmock/mod.rs
+  - path: apps/vat/src/emulator/httpmock/mod.rs
     action: modify
     section: source
     impl_mode: hand-written
     reason: "Add forward: bool to Proxy (seeded from serve()); gate the handle() forward step (4) — when off, return the 502 hermetic error instead of connecting upstream / writing a cassette; the h2 non-grpc fallthrough that reaches handle() inherits it."
-  - path: projects/vat/src/emulator/mod.rs
+  - path: apps/vat/src/emulator/mod.rs
     action: modify
     section: source
     impl_mode: hand-written
     reason: "Thread a no_forward flag into Kind::HttpMock and httpmock::serve."
-  - path: projects/vat/src/cli.rs
+  - path: apps/vat/src/cli.rs
     action: modify
     section: source
     impl_mode: hand-written
     reason: "Add the --no-forward flag to the hidden `vat emulator` verb (http-mock only)."
-  - path: projects/vat/src/commands/emulator.rs
+  - path: apps/vat/src/commands/emulator.rs
     action: modify
     section: source
     impl_mode: hand-written
     reason: "Pass --no-forward through to httpmock::serve."
-  - path: projects/vat/src/commands/run.rs
+  - path: apps/vat/src/commands/run.rs
     action: modify
     section: source
     impl_mode: hand-written
     reason: "Spawn the http-mock proxy with --no-forward when [network].egress is localhost-only or deny."
-  - path: projects/vat/tests/vat_emulator_httpmock_hermetic.rs
+  - path: apps/vat/tests/vat_emulator_httpmock_hermetic.rs
     action: create
     section: e2e-test
     impl_mode: hand-written

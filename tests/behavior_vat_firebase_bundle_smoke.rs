@@ -1,4 +1,4 @@
-// SPEC-MANAGED: projects/vat/tech-design/logic/gcp-firebase-emulator-service-presets.md#vat-firebase-bundle-smoke
+// SPEC-MANAGED: apps/vat/tech-design/logic/gcp-firebase-emulator-service-presets.md#vat-firebase-bundle-smoke
 // CODEGEN-BEGIN
 // AW-EC-BEGIN
 // @ec vat-firebase-bundle-smoke

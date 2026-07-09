@@ -149,57 +149,57 @@ e2e_tests:
 
 ```yaml
 changes:
-  - path: projects/vat/src/cli.rs
+  - path: apps/vat/src/cli.rs
     action: modify
     section: cli
     impl_mode: hand-written
     reason: "CLI section edge: parse llm/upgrade/issue flags and route them through the shared cli-std contract."
-  - path: projects/vat/Cargo.toml
+  - path: apps/vat/Cargo.toml
     action: modify
     section: config
     impl_mode: hand-written
     reason: "Config section edge: wire cli-std dependency and online features into vat's Cargo configuration."
-  - path: projects/vat/src/cli.rs
+  - path: apps/vat/src/cli.rs
     action: modify
     section: logic
     impl_mode: hand-written
     reason: "Logic section edge: build vat ToolInfo and dispatch standard verbs to cli_std::{llm,upgrade,issue}."
-  - path: projects/vat/src/cli.rs
+  - path: apps/vat/src/cli.rs
     action: modify
     section: schema
     impl_mode: hand-written
     reason: "Schema section edge: define the vat ToolInfo fields consumed by cli-std."
-  - path: projects/vat/tests/vat_cli_convention.rs
+  - path: apps/vat/tests/vat_cli_convention.rs
     action: validate
     section: unit-test
     impl_mode: hand-written
     reason: "Unit-test section edge: CLI convention smoke tests cover ToolInfo and standard verb parsing."
-  - path: projects/vat/Cargo.toml
+  - path: apps/vat/Cargo.toml
     action: modify
     section: source
     impl_mode: hand-written
     reason: "Add cli-std path dep; route self-update/issue features through cli-std/online."
-  - path: projects/vat/src/cli.rs
+  - path: apps/vat/src/cli.rs
     action: modify
     section: source
     impl_mode: hand-written
     reason: "Define vat's cli_std::ToolInfo; dispatch Upgrade/Issue to cli_std::{upgrade,issue} and route llm topic rendering through cli_std::llm."
-  - path: projects/vat/src/commands/mod.rs
+  - path: apps/vat/src/commands/mod.rs
     action: modify
     section: source
     impl_mode: hand-written
     reason: "Remove the old hand-rolled upgrade/report_issue module declarations."
-  - path: projects/vat/src/commands/upgrade.rs
+  - path: apps/vat/src/commands/upgrade.rs
     action: delete
     section: source
     impl_mode: hand-written
     reason: "Replaced by cli_std::upgrade."
-  - path: projects/vat/src/commands/report_issue.rs
+  - path: apps/vat/src/commands/report_issue.rs
     action: delete
     section: source
     impl_mode: hand-written
     reason: "Replaced by cli_std::issue."
-  - path: projects/vat/tests/vat_cli_convention.rs
+  - path: apps/vat/tests/vat_cli_convention.rs
     action: validate
     section: e2e-test
     impl_mode: hand-written

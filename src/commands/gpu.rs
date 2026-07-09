@@ -1,4 +1,4 @@
-// SPEC-MANAGED: projects/vat/tech-design/semantic/source/projects-vat-src-commands-gpu-rs.md#rust-source-unit
+// SPEC-MANAGED: apps/vat/tech-design/semantic/source/projects-vat-src-commands-gpu-rs.md#rust-source-unit
 // CODEGEN-BEGIN
 //! `vat gpu` — report the GPU every vat on this host can reach.
 //!
@@ -12,7 +12,7 @@ use anyhow::Result;
 
 use crate::gpu;
 
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-commands-gpu-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-commands-gpu-rs.md#source
 pub fn exec(json: bool) -> Result<ExitCode> {
     let info = gpu::detect();
     if json {

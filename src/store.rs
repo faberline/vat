@@ -1,4 +1,4 @@
-// SPEC-MANAGED: projects/vat/tech-design/semantic/source/projects-vat-src-store-rs.md#rust-source-unit
+// SPEC-MANAGED: apps/vat/tech-design/semantic/source/projects-vat-src-store-rs.md#rust-source-unit
 // CODEGEN-BEGIN
 //! The vat store: create, load, list, and remove vats on disk, and project a
 //! [`VatState`] from persisted [`VatMeta`] plus live computation.
@@ -22,13 +22,13 @@ const CHANGE_SAMPLE: usize = 20;
 const EVENTS_TAIL: usize = 12;
 
 /// A handle to one vat directory plus its loaded metadata.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-store-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-store-rs.md#source
 pub struct Vat {
     pub dir: PathBuf,
     pub meta: VatMeta,
 }
 
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-store-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-store-rs.md#source
 impl Vat {
     // --- paths -----------------------------------------------------------
 
@@ -111,7 +111,7 @@ impl Vat {
 /// rootfs; `None` creates an empty rootfs. `lineage` carries ancestor ids when
 /// forking. The base manifest is captured immediately so later diffs are
 /// relative to creation time.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-store-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-store-rs.md#source
 pub fn create(
     id: &str,
     name: Option<String>,
@@ -157,7 +157,7 @@ pub fn create(
 }
 
 /// Load a vat by id.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-store-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-store-rs.md#source
 pub fn load(id: &str) -> Result<Vat> {
     let dir = paths::vat_dir(id)?;
     let meta_path = dir.join(file::META);
@@ -171,7 +171,7 @@ pub fn load(id: &str) -> Result<Vat> {
 }
 
 /// List all vats (unsorted directory order; callers sort as needed).
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-store-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-store-rs.md#source
 pub fn list() -> Result<Vec<Vat>> {
     let dir = paths::vats_dir()?;
     if !dir.exists() {
@@ -194,7 +194,7 @@ pub fn list() -> Result<Vec<Vat>> {
 }
 
 /// Remove a vat directory entirely.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-store-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-store-rs.md#source
 pub fn remove(id: &str) -> Result<()> {
     let dir = paths::vat_dir(id)?;
     if !dir.exists() {

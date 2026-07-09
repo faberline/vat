@@ -236,32 +236,32 @@ e2e_tests:
 
 ```yaml
 changes:
-  - path: projects/vat/src/cli.rs
+  - path: apps/vat/src/cli.rs
     action: modify
     section: cli
     impl_mode: hand-written
     reason: "CLI section edge: expose the mandatory llm, upgrade, and issue subcommands in vat's top-level parser."
-  - path: projects/vat/Cargo.toml
+  - path: apps/vat/Cargo.toml
     action: modify
     section: config
     impl_mode: hand-written
     reason: "Config section edge: feature-gate online upgrade/issue behavior while keeping lean builds parseable."
-  - path: projects/vat/src/cli.rs
+  - path: apps/vat/src/cli.rs
     action: modify
     section: logic
     impl_mode: hand-written
     reason: "Logic section edge: select upgrade versions, assemble issue diagnostics, and dispatch the standard verbs."
-  - path: projects/vat/build.rs
+  - path: apps/vat/build.rs
     action: modify
     section: schema
     impl_mode: hand-written
     reason: "Schema section edge: stamp VAT_TARGET, VAT_GIT_SHA, and VAT_BUILT_AT used by upgrade and issue diagnostics."
-  - path: projects/vat/tests/vat_cli_convention.rs
+  - path: apps/vat/tests/vat_cli_convention.rs
     action: validate
     section: unit-test
     impl_mode: hand-written
     reason: "Unit-test section edge: standard CLI smoke tests cover help, upgrade check, and issue dry-run contracts."
-  - path: projects/vat/src/commands/upgrade.rs
+  - path: apps/vat/src/commands/upgrade.rs
     action: create
     section: source
     impl_mode: hand-written
@@ -271,27 +271,27 @@ changes:
     section: source
     impl_mode: hand-written
     reason: "Use the shared issue implementation for search/view/create, diagnostics, body assembly, GitHub API submit, and prefilled URL fallback."
-  - path: projects/vat/src/commands/mod.rs
+  - path: apps/vat/src/commands/mod.rs
     action: modify
     section: source
     impl_mode: hand-written
     reason: "No vat-local report_issue module is exported; issue routes through cli-std from cli.rs."
-  - path: projects/vat/src/cli.rs
+  - path: apps/vat/src/cli.rs
     action: modify
     section: source
     impl_mode: hand-written
     reason: "Add Upgrade and Issue subcommand variants + flags and dispatch them to cli-std-backed handlers."
-  - path: projects/vat/build.rs
+  - path: apps/vat/build.rs
     action: modify
     section: source
     impl_mode: hand-written
     reason: "Stamp VAT_TARGET (and VAT_GIT_SHA / VAT_BUILT_AT) for upgrade target detection and issue diagnostics."
-  - path: projects/vat/Cargo.toml
+  - path: apps/vat/Cargo.toml
     action: modify
     section: source
     impl_mode: hand-written
     reason: "Route self-update / issue features through cli-std/online."
-  - path: projects/vat/tests/vat_cli_convention.rs
+  - path: apps/vat/tests/vat_cli_convention.rs
     action: create
     section: e2e-test
     impl_mode: hand-written

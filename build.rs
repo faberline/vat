@@ -1,4 +1,4 @@
-// SPEC-MANAGED: projects/vat/tech-design/semantic/source/projects-vat-build-rs.md#rust-source-unit
+// SPEC-MANAGED: apps/vat/tech-design/semantic/source/projects-vat-build-rs.md#rust-source-unit
 // CODEGEN-BEGIN
 //! Build script: stamp provenance (`VAT_TARGET` / `VAT_GIT_SHA` /
 //! `VAT_BUILT_AT`) so `vat upgrade` can pick the matching release asset and
@@ -20,7 +20,7 @@ fn main() {
 /// for build scripts.
 fn stamp_provenance() {
     // Re-run when HEAD moves so the stamped sha stays current. The workspace
-    // `.git` lives 2 levels up from projects/vat/; in a linked worktree `.git`
+    // `.git` lives 2 levels up from apps/vat/; in a linked worktree `.git`
     // is a file rather than a dir, so guard the rerun hint.
     if std::path::Path::new("../../.git/HEAD").exists() {
         println!("cargo:rerun-if-changed=../../.git/HEAD");

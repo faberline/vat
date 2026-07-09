@@ -196,62 +196,62 @@ e2e_tests:
 
 ```yaml
 changes:
-  - path: projects/vat/src/emulator/mod.rs
+  - path: apps/vat/src/emulator/mod.rs
     action: modify
     section: cli
     impl_mode: hand-written
     reason: "CLI section edge: service preset startup exposes the dual REST/gRPC emulator endpoint to vat runners."
-  - path: projects/vat/Cargo.toml
+  - path: apps/vat/Cargo.toml
     action: modify
     section: config
     impl_mode: hand-written
     reason: "Config section edge: ensure tonic/protobuf and multiplexing dependencies are enabled for emulator builds."
-  - path: projects/vat/src/emulator/grpc_mux.rs
+  - path: apps/vat/src/emulator/grpc_mux.rs
     action: create
     section: logic
     impl_mode: hand-written
     reason: "Logic section edge: multiplex REST and gRPC traffic on one listener by content type."
-  - path: projects/vat/src/emulator/tasks.rs
+  - path: apps/vat/src/emulator/tasks.rs
     action: modify
     section: schema
     impl_mode: hand-written
     reason: "Schema section edge: implement generated Cloud Tasks request/response mapping over the shared task store."
-  - path: projects/vat/tests/vat_emulator_tasks_grpc.rs
+  - path: apps/vat/tests/vat_emulator_tasks_grpc.rs
     action: validate
     section: unit-test
     impl_mode: hand-written
     reason: "Unit-test section edge: gRPC task/scheduler smoke tests verify generated-client contracts."
-  - path: projects/vat/src/emulator/grpc_mux.rs
+  - path: apps/vat/src/emulator/grpc_mux.rs
     action: create
     section: source
     impl_mode: hand-written
     reason: "Shared helper: multiplex a tonic gRPC service and an axum REST router on one TcpListener, routing by the application/grpc content-type, served via hyper-util auto Builder (h1 + h2)."
-  - path: projects/vat/src/emulator/tasks.rs
+  - path: apps/vat/src/emulator/tasks.rs
     action: modify
     section: source
     impl_mode: hand-written
     reason: "Make the store/dispatcher protocol-agnostic; add the tonic CloudTasks service over it; serve gRPC + REST via grpc_mux."
-  - path: projects/vat/src/emulator/scheduler.rs
+  - path: apps/vat/src/emulator/scheduler.rs
     action: modify
     section: source
     impl_mode: hand-written
     reason: "Same for cloud-scheduler: protocol-agnostic store + tonic CloudScheduler service + multiplexed serve."
-  - path: projects/vat/src/emulator/mod.rs
+  - path: apps/vat/src/emulator/mod.rs
     action: modify
     section: source
     impl_mode: hand-written
     reason: "Declare the grpc_mux module and the generated google.cloud.{tasks.v2,scheduler.v1} proto modules."
-  - path: projects/vat/Cargo.toml
+  - path: apps/vat/Cargo.toml
     action: modify
     section: source
     impl_mode: hand-written
     reason: "Add tower (Steer/Service plumbing) if needed for the multiplex; ensure tonic server feature is available under the emulator feature."
-  - path: projects/vat/tests/vat_emulator_tasks_grpc.rs
+  - path: apps/vat/tests/vat_emulator_tasks_grpc.rs
     action: create
     section: e2e-test
     impl_mode: hand-written
     reason: "gRPC e2e: generated CloudTasks client → emulator → sink; REST coexists."
-  - path: projects/vat/tests/vat_emulator_scheduler_grpc.rs
+  - path: apps/vat/tests/vat_emulator_scheduler_grpc.rs
     action: create
     section: e2e-test
     impl_mode: hand-written

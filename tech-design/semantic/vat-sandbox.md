@@ -1,6 +1,6 @@
 ---
 id: semantic-vat-sandbox
-summary: Semantic coverage for "projects/vat/src/sandbox"
+summary: Semantic coverage for "apps/vat/src/sandbox"
 fill_sections: [schema, changes]
 capability_refs:
   - id: agent-native-gpu-native-dev-containers
@@ -19,11 +19,11 @@ capability_refs:
 ```yaml
 semantic_domain:
   key: "vat/sandbox"
-  source_group: "projects/vat/src/sandbox"
+  source_group: "apps/vat/src/sandbox"
   coverage_kind: semantic
   evidence:
     source_units:
-      - path: "projects/vat/src/sandbox/seatbelt.rs"
+      - path: "apps/vat/src/sandbox/seatbelt.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["data_model", "service_method"]
@@ -51,8 +51,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src/sandbox"
-      - path: "projects/vat/src/sandbox/mod.rs"
+          domain: "apps/vat/src/sandbox"
+      - path: "apps/vat/src/sandbox/mod.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["service_method"]
@@ -71,8 +71,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src/sandbox"
-      - path: "projects/vat/src/sandbox/process.rs"
+          domain: "apps/vat/src/sandbox"
+      - path: "apps/vat/src/sandbox/process.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["data_model", "service_method"]
@@ -91,7 +91,7 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src/sandbox"
+          domain: "apps/vat/src/sandbox"
 ```
 
 ## Changes
@@ -100,7 +100,7 @@ semantic_domain:
 ```yaml
 coverage_kind: semantic
 changes:
-  - path: "projects/vat/src/sandbox/mod.rs"
+  - path: "apps/vat/src/sandbox/mod.rs"
     action: modify
     section: schema
     description: |
@@ -136,7 +136,7 @@ changes:
       /// An isolation backend resolves the user's command into the *actual* program
       /// + argv to exec (e.g. seatbelt wraps it in `sandbox-exec`). The caller then
       /// runs that resolved command inside the vat workspace with the spec env.
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-sandbox-mod-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-sandbox-mod-rs.md#source
       pub trait Sandbox {
           /// Short stable name, surfaced in events/state (`"process"`, `"seatbelt"`).
           fn name(&self) -> &'static str;
@@ -151,7 +151,7 @@ changes:
       /// platform that doesn't support the requested isolation, after warning —
       /// the workspace clone still applies, so the vat is never *less* isolated than
       /// plain `cd` + run.
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-sandbox-mod-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-sandbox-mod-rs.md#source
       pub fn pick(spec: &EnvSpec) -> Box<dyn Sandbox> {
           match spec.isolation {
               Isolation::None => Box::new(process::ProcessBackend),
@@ -168,7 +168,7 @@ changes:
               }
           }
       }
-  - path: "projects/vat/src/sandbox/process.rs"
+  - path: "apps/vat/src/sandbox/process.rs"
     action: modify
     section: schema
     description: |
@@ -191,10 +191,10 @@ changes:
       
       use crate::sandbox::Sandbox;
       
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-sandbox-process-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-sandbox-process-rs.md#source
       pub struct ProcessBackend;
       
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-sandbox-process-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-sandbox-process-rs.md#source
       impl Sandbox for ProcessBackend {
           fn name(&self) -> &'static str {
               "process"
@@ -205,7 +205,7 @@ changes:
               (program.to_string(), args.to_vec())
           }
       }
-  - path: "projects/vat/src/sandbox/seatbelt.rs"
+  - path: "apps/vat/src/sandbox/seatbelt.rs"
     action: modify
     section: schema
     description: |
@@ -230,16 +230,16 @@ changes:
       
       use crate::sandbox::Sandbox;
       
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-sandbox-seatbelt-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-sandbox-seatbelt-rs.md#source
       pub struct SeatbeltBackend;
       
       /// Is `sandbox-exec` present on this host?
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-sandbox-seatbelt-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-sandbox-seatbelt-rs.md#source
       pub fn available() -> bool {
           which("sandbox-exec").is_some()
       }
       
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-sandbox-seatbelt-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-sandbox-seatbelt-rs.md#source
       impl Sandbox for SeatbeltBackend {
           fn name(&self) -> &'static str {
               "seatbelt"

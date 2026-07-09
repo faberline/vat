@@ -1,28 +1,28 @@
 ---
 id: semantic-vat-projects-vat
-summary: Semantic coverage for "projects/vat"
+summary: Semantic coverage for "apps/vat"
 capability_refs:
   - id: "agent-native-gpu-native-dev-containers"
     role: primary
     claim: "host-process-execution-and-gpu-visibility"
     coverage: partial
-    rationale: "Semantic takeover coverage for existing source group `projects/vat`."
+    rationale: "Semantic takeover coverage for existing source group `apps/vat`."
 fill_sections: [schema, changes]
 ---
 
-# Semantic TD: vat/projects/vat
+# Semantic TD: vat/apps/vat
 
 ## Schema
 <!-- type: schema lang: yaml -->
 
 ```yaml
 semantic_domain:
-  key: "vat/projects/vat"
-  source_group: "projects/vat"
+  key: "vat/apps/vat"
+  source_group: "apps/vat"
   coverage_kind: semantic
   evidence:
     source_units:
-      - path: "projects/vat/build.rs"
+      - path: "apps/vat/build.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["service_method"]
@@ -44,7 +44,7 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat"
+          domain: "apps/vat"
 ```
 
 ## Changes
@@ -53,7 +53,7 @@ semantic_domain:
 ```yaml
 coverage_kind: semantic
 changes:
-  - path: "projects/vat/build.rs"
+  - path: "apps/vat/build.rs"
     action: modify
     section: schema
     description: |

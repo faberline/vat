@@ -1,12 +1,12 @@
 ---
 id: semantic-vat-src
-summary: Semantic coverage for "projects/vat/src"
+summary: Semantic coverage for "apps/vat/src"
 capability_refs:
   - id: "agent-native-gpu-native-dev-containers"
     role: primary
     claim: "host-process-execution-and-gpu-visibility"
     coverage: partial
-    rationale: "Semantic takeover coverage for existing source group `projects/vat/src`."
+    rationale: "Semantic takeover coverage for existing source group `apps/vat/src`."
 fill_sections: [schema, changes]
 ---
 
@@ -18,11 +18,11 @@ fill_sections: [schema, changes]
 ```yaml
 semantic_domain:
   key: "vat/src"
-  source_group: "projects/vat/src"
+  source_group: "apps/vat/src"
   coverage_kind: semantic
   evidence:
     source_units:
-      - path: "projects/vat/src/spec.rs"
+      - path: "apps/vat/src/spec.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["data_model", "enum_model", "service_method"]
@@ -53,8 +53,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src"
-      - path: "projects/vat/src/id.rs"
+          domain: "apps/vat/src"
+      - path: "apps/vat/src/id.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["service_method"]
@@ -73,8 +73,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src"
-      - path: "projects/vat/src/config.rs"
+          domain: "apps/vat/src"
+      - path: "apps/vat/src/config.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["config_surface", "data_model", "enum_model", "service_method"]
@@ -159,8 +159,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src"
-      - path: "projects/vat/src/lib.rs"
+          domain: "apps/vat/src"
+      - path: "apps/vat/src/lib.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["config_surface"]
@@ -215,8 +215,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src"
-      - path: "projects/vat/src/paths.rs"
+          domain: "apps/vat/src"
+      - path: "apps/vat/src/paths.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["service_method"]
@@ -244,8 +244,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src"
-      - path: "projects/vat/src/overlay.rs"
+          domain: "apps/vat/src"
+      - path: "apps/vat/src/overlay.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["data_model", "service_method", "ts_type_surface"]
@@ -285,8 +285,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src"
-      - path: "projects/vat/src/store.rs"
+          domain: "apps/vat/src"
+      - path: "apps/vat/src/store.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["config_surface", "data_model", "service_method"]
@@ -344,8 +344,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src"
-      - path: "projects/vat/src/event.rs"
+          domain: "apps/vat/src"
+      - path: "apps/vat/src/event.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["data_model", "enum_model", "service_method"]
@@ -373,8 +373,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src"
-      - path: "projects/vat/src/state.rs"
+          domain: "apps/vat/src"
+      - path: "apps/vat/src/state.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["data_model", "enum_model", "service_method"]
@@ -438,8 +438,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src"
-      - path: "projects/vat/src/gpu.rs"
+          domain: "apps/vat/src"
+      - path: "apps/vat/src/gpu.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["data_model", "service_method"]
@@ -464,8 +464,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src"
-      - path: "projects/vat/src/main.rs"
+          domain: "apps/vat/src"
+      - path: "apps/vat/src/main.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["service_method"]
@@ -478,8 +478,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src"
-      - path: "projects/vat/src/cli.rs"
+          domain: "apps/vat/src"
+      - path: "apps/vat/src/cli.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["data_model", "enum_model", "service_method"]
@@ -504,8 +504,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src"
-      - path: "projects/vat/src/cluster.rs"
+          domain: "apps/vat/src"
+      - path: "apps/vat/src/cluster.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["data_model", "enum_model", "service_method"]
@@ -554,8 +554,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src"
-      - path: "projects/vat/build.rs"
+          domain: "apps/vat/src"
+      - path: "apps/vat/build.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["service_method"]
@@ -568,8 +568,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat"
-      - path: "projects/vat/src/emulator/mod.rs"
+          domain: "apps/vat"
+      - path: "apps/vat/src/emulator/mod.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["service_method", "enum_model"]
@@ -591,8 +591,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src/emulator"
-      - path: "projects/vat/src/emulator/auth.rs"
+          domain: "apps/vat/src/emulator"
+      - path: "apps/vat/src/emulator/auth.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["service_method", "data_model"]
@@ -617,8 +617,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src/emulator"
-      - path: "projects/vat/src/emulator/pubsub.rs"
+          domain: "apps/vat/src/emulator"
+      - path: "apps/vat/src/emulator/pubsub.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["service_method", "data_model"]
@@ -637,8 +637,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src/emulator"
-      - path: "projects/vat/src/emulator/dispatch.rs"
+          domain: "apps/vat/src/emulator"
+      - path: "apps/vat/src/emulator/dispatch.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["service_method", "data_model"]
@@ -666,8 +666,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src/emulator"
-      - path: "projects/vat/src/emulator/tasks.rs"
+          domain: "apps/vat/src/emulator"
+      - path: "apps/vat/src/emulator/tasks.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["service_method", "data_model"]
@@ -689,8 +689,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src/emulator"
-      - path: "projects/vat/src/emulator/scheduler.rs"
+          domain: "apps/vat/src/emulator"
+      - path: "apps/vat/src/emulator/scheduler.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["service_method", "data_model"]
@@ -715,8 +715,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src/emulator"
-      - path: "projects/vat/src/emulator/workflows/mod.rs"
+          domain: "apps/vat/src/emulator"
+      - path: "apps/vat/src/emulator/workflows/mod.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["service_method", "data_model"]
@@ -744,8 +744,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src/emulator/workflows"
-      - path: "projects/vat/src/emulator/workflows/expr.rs"
+          domain: "apps/vat/src/emulator/workflows"
+      - path: "apps/vat/src/emulator/workflows/expr.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["service_method", "data_model"]
@@ -773,8 +773,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src/emulator/workflows"
-      - path: "projects/vat/src/emulator/workflows/interp.rs"
+          domain: "apps/vat/src/emulator/workflows"
+      - path: "apps/vat/src/emulator/workflows/interp.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["service_method", "data_model"]
@@ -796,8 +796,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src/emulator/workflows"
-      - path: "projects/vat/src/emulator/storage.rs"
+          domain: "apps/vat/src/emulator/workflows"
+      - path: "apps/vat/src/emulator/storage.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["service_method", "data_model"]
@@ -825,8 +825,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src/emulator"
-      - path: "projects/vat/src/emulator/httpmock/mod.rs"
+          domain: "apps/vat/src/emulator"
+      - path: "apps/vat/src/emulator/httpmock/mod.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["service_method", "data_model"]
@@ -851,8 +851,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src/emulator/httpmock"
-      - path: "projects/vat/src/emulator/httpmock/ca.rs"
+          domain: "apps/vat/src/emulator/httpmock"
+      - path: "apps/vat/src/emulator/httpmock/ca.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["service_method", "data_model"]
@@ -865,8 +865,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src/emulator/httpmock"
-      - path: "projects/vat/src/emulator/httpmock/cassette.rs"
+          domain: "apps/vat/src/emulator/httpmock"
+      - path: "apps/vat/src/emulator/httpmock/cassette.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["service_method", "data_model"]
@@ -882,8 +882,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src/emulator/httpmock"
-      - path: "projects/vat/src/emulator/httpmock/stub.rs"
+          domain: "apps/vat/src/emulator/httpmock"
+      - path: "apps/vat/src/emulator/httpmock/stub.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["service_method", "data_model"]
@@ -905,8 +905,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src/emulator/httpmock"
-      - path: "projects/vat/src/emulator/openapi.rs"
+          domain: "apps/vat/src/emulator/httpmock"
+      - path: "apps/vat/src/emulator/openapi.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["service_method", "data_model"]
@@ -931,7 +931,7 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src/emulator"
+          domain: "apps/vat/src/emulator"
 ```
 
 ## Changes
@@ -940,7 +940,7 @@ semantic_domain:
 ```yaml
 coverage_kind: semantic
 changes:
-  - path: "projects/vat/src/spec.rs"
+  - path: "apps/vat/src/spec.rs"
     action: modify
     section: schema
     description: |
@@ -961,11 +961,11 @@ changes:
       use anyhow::{bail, Context, Result};
       use serde::{Deserialize, Serialize};
       
-      /// @spec projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#config
+      /// @spec apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#config
       pub const FILE_NAME: &str = "vat.toml";
       
       /// Parsed project-level vat contract.
-      /// @spec projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#config
+      /// @spec apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#config
       #[derive(Debug, Clone, Serialize, Deserialize)]
       pub struct VatConfig {
           pub version: u32,
@@ -993,7 +993,7 @@ changes:
       }
       
       /// Workspace defaults for one test run.
-      /// @spec projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#config
+      /// @spec apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#config
       #[derive(Debug, Clone, Serialize, Deserialize)]
       pub struct WorkspaceConfig {
           #[serde(default = "default_dot")]
@@ -1004,7 +1004,7 @@ changes:
           pub keep: RetentionPolicy,
       }
       
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-config-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-config-rs.md#source
       impl Default for WorkspaceConfig {
           fn default() -> Self {
               WorkspaceConfig {
@@ -1020,7 +1020,7 @@ changes:
       }
       
       /// Evidence retention policy after runner completion.
-      /// @spec projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#config
+      /// @spec apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#config
       #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
       #[serde(rename_all = "snake_case")]
       pub enum RetentionPolicy {
@@ -1031,7 +1031,7 @@ changes:
       }
       
       /// Setup command executed before services start.
-      /// @spec projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#config
+      /// @spec apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#config
       #[derive(Debug, Clone, Serialize, Deserialize)]
       pub struct SetupStep {
           pub id: String,
@@ -1041,7 +1041,7 @@ changes:
       }
       
       /// Run-scoped service required by a runner.
-      /// @spec projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#config
+      /// @spec apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#config
       #[derive(Debug, Clone, Serialize, Deserialize)]
       pub struct ServiceConfig {
           pub id: String,
@@ -1064,7 +1064,7 @@ changes:
       }
       
       /// Built-in local service presets.
-      /// @spec projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#config
+      /// @spec apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#config
       #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
       #[serde(rename_all = "kebab-case")]
       pub enum ServicePreset {
@@ -1077,7 +1077,7 @@ changes:
       }
       
       /// Port policy for a service. Presets default to `auto` to avoid conflicts.
-      /// @spec projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#config
+      /// @spec apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#config
       #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
       #[serde(untagged)]
       pub enum PortSpec {
@@ -1085,7 +1085,7 @@ changes:
           Fixed(u16),
       }
       
-      /// @spec projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#config
+      /// @spec apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#config
       impl Default for PortSpec {
           fn default() -> Self {
               PortSpec::Auto("auto".to_string())
@@ -1093,7 +1093,7 @@ changes:
       }
       
       /// Why `vat run` selected a runner.
-      /// @spec projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#config
+      /// @spec apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#config
       #[derive(Debug, Clone, Copy, PartialEq, Eq)]
       pub enum RunnerSelectionReason {
           Explicit,
@@ -1106,7 +1106,7 @@ changes:
       }
       
       /// Named runner an agent can invoke via `vat run <id>`.
-      /// @spec projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#config
+      /// @spec apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#config
       #[derive(Debug, Clone, Serialize, Deserialize)]
       pub struct RunnerConfig {
           pub id: String,
@@ -1120,7 +1120,7 @@ changes:
       }
       
       /// Load the nearest `vat.toml` from `start` or one of its ancestors.
-      /// @spec projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#logic
+      /// @spec apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#logic
       pub fn load_nearest(start: &Path) -> Result<VatConfig> {
           let mut dir = std::fs::canonicalize(start)
               .with_context(|| format!("resolve config search dir {}", start.display()))?;
@@ -1136,7 +1136,7 @@ changes:
       }
       
       /// Load and validate one `vat.toml` file.
-      /// @spec projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#config
+      /// @spec apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#config
       pub fn load_file(path: &Path) -> Result<VatConfig> {
           let bytes = std::fs::read(path).with_context(|| format!("read {}", path.display()))?;
           let text = std::str::from_utf8(&bytes).context("vat.toml is not valid UTF-8")?;
@@ -1156,7 +1156,7 @@ changes:
       }
       
       /// Validate ids, command arrays, and runner service references.
-      /// @spec projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#config
+      /// @spec apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#config
       pub fn validate(cfg: &VatConfig) -> Result<()> {
           let mut setup_ids = BTreeSet::new();
           for step in &cfg.setup {
@@ -1236,7 +1236,7 @@ changes:
           Ok(())
       }
       
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-config-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-config-rs.md#source
       impl VatConfig {
           pub fn select_runner(
               &self,
@@ -1279,7 +1279,7 @@ changes:
           }
       }
       
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-config-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-config-rs.md#source
       pub fn resolve_relative(root: &Path, path: &Path) -> PathBuf {
           if path.is_absolute() {
               path.to_path_buf()
@@ -1288,7 +1288,7 @@ changes:
           }
       }
       
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-config-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-config-rs.md#source
       pub fn should_run_setup(rootfs: &Path, step: &SetupStep) -> bool {
           match step.when.as_deref() {
               Some(when) if when.starts_with("missing:") => {
@@ -1380,7 +1380,7 @@ changes:
               assert!(validate(&cfg).is_err());
           }
       }
-  - path: "projects/vat/src/id.rs"
+  - path: "apps/vat/src/id.rs"
     action: modify
     section: schema
     description: |
@@ -1402,7 +1402,7 @@ changes:
       use std::time::{SystemTime, UNIX_EPOCH};
       
       /// Generate a fresh vat id, e.g. `vat-7f3k1q9`.
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-id-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-id-rs.md#source
       pub fn fresh() -> String {
           let nanos = SystemTime::now()
               .duration_since(UNIX_EPOCH)
@@ -1449,7 +1449,7 @@ changes:
               assert_eq!(base36(36), "10");
           }
       }
-  - path: "projects/vat/src/config.rs"
+  - path: "apps/vat/src/config.rs"
     action: modify
     section: schema
     description: |
@@ -1470,11 +1470,11 @@ changes:
       use anyhow::{bail, Context, Result};
       use serde::{Deserialize, Serialize};
       
-      /// @spec projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#config
+      /// @spec apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#config
       pub const FILE_NAME: &str = "vat.toml";
       
       /// Parsed project-level vat contract.
-      /// @spec projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#config
+      /// @spec apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#config
       #[derive(Debug, Clone, Serialize, Deserialize)]
       pub struct VatConfig {
           pub version: u32,
@@ -1500,7 +1500,7 @@ changes:
       }
       
       /// Workspace defaults for one test run.
-      /// @spec projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#config
+      /// @spec apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#config
       #[derive(Debug, Clone, Serialize, Deserialize)]
       pub struct WorkspaceConfig {
           #[serde(default = "default_dot")]
@@ -1511,7 +1511,7 @@ changes:
           pub keep: RetentionPolicy,
       }
       
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-config-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-config-rs.md#source
       impl Default for WorkspaceConfig {
           fn default() -> Self {
               WorkspaceConfig {
@@ -1527,7 +1527,7 @@ changes:
       }
       
       /// Evidence retention policy after runner completion.
-      /// @spec projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#config
+      /// @spec apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#config
       #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
       #[serde(rename_all = "snake_case")]
       pub enum RetentionPolicy {
@@ -1538,7 +1538,7 @@ changes:
       }
       
       /// Setup command executed before services start.
-      /// @spec projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#config
+      /// @spec apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#config
       #[derive(Debug, Clone, Serialize, Deserialize)]
       pub struct SetupStep {
           pub id: String,
@@ -1548,7 +1548,7 @@ changes:
       }
       
       /// Run-scoped service required by a runner.
-      /// @spec projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#config
+      /// @spec apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#config
       #[derive(Debug, Clone, Serialize, Deserialize)]
       pub struct ServiceConfig {
           pub id: String,
@@ -1564,7 +1564,7 @@ changes:
       }
       
       /// Named runner an agent can invoke via `vat run <id>`.
-      /// @spec projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#config
+      /// @spec apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#config
       #[derive(Debug, Clone, Serialize, Deserialize)]
       pub struct RunnerConfig {
           pub id: String,
@@ -1578,7 +1578,7 @@ changes:
       }
       
       /// Load the nearest `vat.toml` from `start` or one of its ancestors.
-      /// @spec projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#logic
+      /// @spec apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#logic
       pub fn load_nearest(start: &Path) -> Result<VatConfig> {
           let mut dir = std::fs::canonicalize(start)
               .with_context(|| format!("resolve config search dir {}", start.display()))?;
@@ -1594,7 +1594,7 @@ changes:
       }
       
       /// Load and validate one `vat.toml` file.
-      /// @spec projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#config
+      /// @spec apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#config
       pub fn load_file(path: &Path) -> Result<VatConfig> {
           let bytes = std::fs::read(path).with_context(|| format!("read {}", path.display()))?;
           let text = std::str::from_utf8(&bytes).context("vat.toml is not valid UTF-8")?;
@@ -1614,7 +1614,7 @@ changes:
       }
       
       /// Validate ids, command arrays, and runner service references.
-      /// @spec projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#config
+      /// @spec apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#config
       pub fn validate(cfg: &VatConfig) -> Result<()> {
           let mut setup_ids = BTreeSet::new();
           for step in &cfg.setup {
@@ -1676,7 +1676,7 @@ changes:
           Ok(())
       }
       
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-config-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-config-rs.md#source
       impl VatConfig {
           pub fn runner(&self, id: &str) -> Result<&RunnerConfig> {
               self.runners
@@ -1697,7 +1697,7 @@ changes:
           }
       }
       
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-config-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-config-rs.md#source
       pub fn resolve_relative(root: &Path, path: &Path) -> PathBuf {
           if path.is_absolute() {
               path.to_path_buf()
@@ -1706,7 +1706,7 @@ changes:
           }
       }
       
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-config-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-config-rs.md#source
       pub fn should_run_setup(rootfs: &Path, step: &SetupStep) -> bool {
           match step.when.as_deref() {
               Some(when) if when.starts_with("missing:") => {
@@ -1797,7 +1797,7 @@ changes:
               assert!(validate(&cfg).is_err());
           }
       }
-  - path: "projects/vat/src/lib.rs"
+  - path: "apps/vat/src/lib.rs"
     action: modify
     section: schema
     description: |
@@ -1853,7 +1853,7 @@ changes:
       
       /// Crate version, surfaced by `vat --version`.
       pub const VERSION: &str = env!("CARGO_PKG_VERSION");
-  - path: "projects/vat/src/paths.rs"
+  - path: "apps/vat/src/paths.rs"
     action: modify
     section: schema
     description: |
@@ -1884,7 +1884,7 @@ changes:
       use anyhow::{Context, Result};
       
       /// Root of all vat state. Honors `$VAT_HOME`, else `~/.vat`.
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-paths-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-paths-rs.md#source
       pub fn root() -> Result<PathBuf> {
           if let Some(custom) = std::env::var_os("VAT_HOME") {
               return Ok(PathBuf::from(custom));
@@ -1894,13 +1894,13 @@ changes:
       }
       
       /// Directory holding every vat (`<root>/vats`).
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-paths-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-paths-rs.md#source
       pub fn vats_dir() -> Result<PathBuf> {
           Ok(root()?.join("vats"))
       }
       
       /// Directory for a single vat (`<root>/vats/<id>`).
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-paths-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-paths-rs.md#source
       pub fn vat_dir(id: &str) -> Result<PathBuf> {
           Ok(vats_dir()?.join(id))
       }
@@ -1914,7 +1914,7 @@ changes:
           pub const ROOTFS: &str = "rootfs";
           pub const LOGS: &str = "logs";
       }
-  - path: "projects/vat/src/overlay.rs"
+  - path: "apps/vat/src/overlay.rs"
     action: modify
     section: schema
     description: |
@@ -1946,7 +1946,7 @@ changes:
       use crate::state::ChangeSet;
       
       /// Per-file stat used for cheap change detection.
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-overlay-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-overlay-rs.md#source
       #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
       pub struct FileStat {
           pub size: u64,
@@ -1955,11 +1955,11 @@ changes:
       }
       
       /// Map of rootfs-relative path → stat. Sorted for stable diffs and output.
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-overlay-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-overlay-rs.md#source
       pub type Manifest = BTreeMap<String, FileStat>;
       
       /// Copy-on-write clone of `src` into `dst`. `dst` must not already exist.
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-overlay-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-overlay-rs.md#source
       pub fn clone_tree(src: &Path, dst: &Path) -> Result<()> {
           if dst.exists() {
               bail!("clone target already exists: {}", dst.display());
@@ -2045,7 +2045,7 @@ changes:
       /// Walk `root` and record a stat manifest of every regular file. Symlinks are
       /// not followed (we record the link's own stat); directories are implied by
       /// their files.
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-overlay-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-overlay-rs.md#source
       pub fn manifest_of(root: &Path) -> Result<Manifest> {
           let mut m = Manifest::new();
           for entry in WalkDir::new(root).min_depth(1).follow_links(false) {
@@ -2078,7 +2078,7 @@ changes:
       }
       
       /// Diff a current manifest against the captured baseline.
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-overlay-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-overlay-rs.md#source
       pub fn diff(base: &Manifest, now: &Manifest) -> ChangeSet {
           let mut cs = ChangeSet::default();
           for (path, stat) in now {
@@ -2097,7 +2097,7 @@ changes:
       }
       
       /// Persist a manifest as pretty JSON.
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-overlay-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-overlay-rs.md#source
       pub fn save_manifest(path: &Path, m: &Manifest) -> Result<()> {
           let json = serde_json::to_vec_pretty(m).context("serialize manifest")?;
           std::fs::write(path, json).with_context(|| format!("write {}", path.display()))?;
@@ -2105,12 +2105,12 @@ changes:
       }
       
       /// Load a previously saved manifest.
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-overlay-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-overlay-rs.md#source
       pub fn load_manifest(path: &Path) -> Result<Manifest> {
           let bytes = std::fs::read(path).with_context(|| format!("read {}", path.display()))?;
           serde_json::from_slice(&bytes).context("parse manifest")
       }
-  - path: "projects/vat/src/store.rs"
+  - path: "apps/vat/src/store.rs"
     action: modify
     section: schema
     description: |
@@ -2141,13 +2141,13 @@ changes:
       const EVENTS_TAIL: usize = 12;
       
       /// A handle to one vat directory plus its loaded metadata.
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-store-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-store-rs.md#source
       pub struct Vat {
           pub dir: PathBuf,
           pub meta: VatMeta,
       }
       
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-store-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-store-rs.md#source
       impl Vat {
           // --- paths -----------------------------------------------------------
       
@@ -2230,7 +2230,7 @@ changes:
       /// rootfs; `None` creates an empty rootfs. `lineage` carries ancestor ids when
       /// forking. The base manifest is captured immediately so later diffs are
       /// relative to creation time.
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-store-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-store-rs.md#source
       pub fn create(
           id: &str,
           name: Option<String>,
@@ -2276,7 +2276,7 @@ changes:
       }
       
       /// Load a vat by id.
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-store-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-store-rs.md#source
       pub fn load(id: &str) -> Result<Vat> {
           let dir = paths::vat_dir(id)?;
           let meta_path = dir.join(file::META);
@@ -2290,7 +2290,7 @@ changes:
       }
       
       /// List all vats (unsorted directory order; callers sort as needed).
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-store-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-store-rs.md#source
       pub fn list() -> Result<Vec<Vat>> {
           let dir = paths::vats_dir()?;
           if !dir.exists() {
@@ -2313,7 +2313,7 @@ changes:
       }
       
       /// Remove a vat directory entirely.
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-store-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-store-rs.md#source
       pub fn remove(id: &str) -> Result<()> {
           let dir = paths::vat_dir(id)?;
           if !dir.exists() {
@@ -2322,7 +2322,7 @@ changes:
           std::fs::remove_dir_all(&dir).with_context(|| format!("remove {}", dir.display()))?;
           Ok(())
       }
-  - path: "projects/vat/src/event.rs"
+  - path: "apps/vat/src/event.rs"
     action: modify
     section: schema
     description: |
@@ -2347,7 +2347,7 @@ changes:
       use serde::{Deserialize, Serialize};
       
       /// One logged event.
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-event-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-event-rs.md#source
       #[derive(Debug, Clone, Serialize, Deserialize)]
       pub struct Event {
           pub ts: DateTime<Utc>,
@@ -2360,7 +2360,7 @@ changes:
       }
       
       /// Closed set of event kinds. Keep it small and meaningful.
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-event-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-event-rs.md#source
       #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
       #[serde(rename_all = "snake_case")]
       pub enum EventKind {
@@ -2373,7 +2373,7 @@ changes:
           Removed,
       }
       
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-event-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-event-rs.md#source
       impl Event {
           pub fn new(kind: EventKind, message: impl Into<String>) -> Self {
               Event {
@@ -2391,7 +2391,7 @@ changes:
       }
       
       /// Append one event to a vat's `events.jsonl`, creating it if needed.
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-event-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-event-rs.md#source
       pub fn append(events_path: &Path, event: &Event) -> Result<()> {
           let line = serde_json::to_string(event).context("serialize event")?;
           let mut f = OpenOptions::new()
@@ -2406,7 +2406,7 @@ changes:
       /// Read up to the last `n` events (chronological order). Malformed lines are
       /// skipped rather than failing the whole read — the log must stay legible
       /// even if a write was once torn.
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-event-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-event-rs.md#source
       pub fn tail(events_path: &Path, n: usize) -> Result<Vec<Event>> {
           if !events_path.exists() {
               return Ok(Vec::new());
@@ -2426,7 +2426,7 @@ changes:
           let start = all.len().saturating_sub(n);
           Ok(all.split_off(start))
       }
-  - path: "projects/vat/src/state.rs"
+  - path: "apps/vat/src/state.rs"
     action: modify
     section: schema
     description: |
@@ -2459,7 +2459,7 @@ changes:
       use crate::spec::EnvSpec;
       
       /// Lifecycle status of a vat.
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-state-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-state-rs.md#source
       #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
       #[serde(rename_all = "snake_case", tag = "state")]
       pub enum Status {
@@ -2474,7 +2474,7 @@ changes:
       }
       
       /// Persisted record of the most recent run.
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-state-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-state-rs.md#source
       #[derive(Debug, Clone, Serialize, Deserialize)]
       pub struct RunRecord {
           /// The program and its arguments, as invoked.
@@ -2489,7 +2489,7 @@ changes:
       }
       
       /// Persisted, on-disk record of a vat. Stored as `meta.json`.
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-state-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-state-rs.md#source
       #[derive(Debug, Clone, Serialize, Deserialize)]
       pub struct VatMeta {
           pub id: String,
@@ -2510,7 +2510,7 @@ changes:
       }
       
       /// vat.toml config reference captured for one runner invocation.
-      /// @spec projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#schema
+      /// @spec apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#schema
       #[derive(Debug, Clone, Serialize, Deserialize)]
       pub struct ConfigRef {
           pub path: String,
@@ -2518,7 +2518,7 @@ changes:
       }
       
       /// Captured service state for one run-scoped dependency process.
-      /// @spec projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#schema
+      /// @spec apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#schema
       #[derive(Debug, Clone, Serialize, Deserialize)]
       pub struct ServiceRunRecord {
           pub id: String,
@@ -2535,7 +2535,7 @@ changes:
       }
       
       /// Captured runner process state.
-      /// @spec projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#schema
+      /// @spec apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#schema
       #[derive(Debug, Clone, Serialize, Deserialize)]
       pub struct RunnerRunRecord {
           pub id: String,
@@ -2550,7 +2550,7 @@ changes:
       }
       
       /// Process status used inside test-run evidence.
-      /// @spec projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#schema
+      /// @spec apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#schema
       #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
       #[serde(rename_all = "snake_case")]
       pub enum ProcessStatus {
@@ -2563,7 +2563,7 @@ changes:
       }
       
       /// Artifact captured from a runner workspace.
-      /// @spec projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#schema
+      /// @spec apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#schema
       #[derive(Debug, Clone, Serialize, Deserialize)]
       pub struct ArtifactRecord {
           pub path: String,
@@ -2572,7 +2572,7 @@ changes:
       }
       
       /// Complete evidence bundle for one vat.toml runner invocation.
-      /// @spec projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#schema
+      /// @spec apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#schema
       #[derive(Debug, Clone, Serialize, Deserialize)]
       pub struct TestRunEvidence {
           pub config: ConfigRef,
@@ -2587,7 +2587,7 @@ changes:
       
       /// Filesystem changes vs. the base manifest. Full lists; the projection
       /// samples them for compactness.
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-state-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-state-rs.md#source
       #[derive(Debug, Clone, Default, Serialize, Deserialize)]
       pub struct ChangeSet {
           pub added: Vec<String>,
@@ -2595,7 +2595,7 @@ changes:
           pub deleted: Vec<String>,
       }
       
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-state-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-state-rs.md#source
       impl ChangeSet {
           pub fn total(&self) -> usize {
               self.added.len() + self.modified.len() + self.deleted.len()
@@ -2633,7 +2633,7 @@ changes:
       }
       
       /// Bounded change view embedded in [`VatState`].
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-state-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-state-rs.md#source
       #[derive(Debug, Clone, Serialize, Deserialize)]
       pub struct ChangeSummary {
           pub added: usize,
@@ -2648,7 +2648,7 @@ changes:
       }
       
       /// Workspace footprint.
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-state-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-state-rs.md#source
       #[derive(Debug, Clone, Serialize, Deserialize)]
       pub struct WorkspaceInfo {
           pub rootfs: String,
@@ -2658,7 +2658,7 @@ changes:
       
       /// The full, agent-legible projection of a vat. This is what `vat state`
       /// prints and what an agent should read to understand the environment.
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-state-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-state-rs.md#source
       #[derive(Debug, Clone, Serialize, Deserialize)]
       pub struct VatState {
           pub id: String,
@@ -2680,7 +2680,7 @@ changes:
           pub gpu: GpuInfo,
           pub events_tail: Vec<Event>,
       }
-  - path: "projects/vat/src/gpu.rs"
+  - path: "apps/vat/src/gpu.rs"
     action: modify
     section: schema
     description: |
@@ -2720,7 +2720,7 @@ changes:
       
       /// What GPU acceleration a vat can reach. This is host truth: on macOS every
       /// vat shares it because every vat is a host process.
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-gpu-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-gpu-rs.md#source
       #[derive(Debug, Clone, Serialize, Deserialize)]
       pub struct GpuInfo {
           /// `"apple"`, `"none"`, or another vendor on non-macOS hosts.
@@ -2738,7 +2738,7 @@ changes:
       
       /// Detect host GPU visibility. Cheap and side-effect free; safe to call per
       /// `vat state`.
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-gpu-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-gpu-rs.md#source
       pub fn detect() -> GpuInfo {
           #[cfg(target_os = "macos")]
           {
@@ -2818,7 +2818,7 @@ changes:
               Some(s)
           }
       }
-  - path: "projects/vat/src/main.rs"
+  - path: "apps/vat/src/main.rs"
     action: modify
     section: schema
     description: |
@@ -2840,7 +2840,7 @@ changes:
               }
           }
       }
-  - path: "projects/vat/src/cli.rs"
+  - path: "apps/vat/src/cli.rs"
     action: modify
     section: schema
     description: |
@@ -2951,7 +2951,7 @@ changes:
       
       /// Parse argv and dispatch. Returns the process exit code (notably, `run`
       /// forwards the child command's code).
-      /// @spec projects/vat/tech-design/semantic/source/projects-vat-src-cli-rs.md#source
+      /// @spec apps/vat/tech-design/semantic/source/projects-vat-src-cli-rs.md#source
       pub fn run() -> Result<ExitCode> {
           let cli = Cli::parse();
           match cli.cmd {

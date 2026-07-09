@@ -1,7 +1,7 @@
 ---
 id: vat-source-projects-vat-src-main-rs
 summary: >
-  rust-source-unit TD AST payload for projects/vat/src/main.rs.
+  rust-source-unit TD AST payload for apps/vat/src/main.rs.
 fill_sections: [overview, source, changes]
 capability_refs:
   - id: agent-native-gpu-native-dev-containers
@@ -11,12 +11,12 @@ capability_refs:
     rationale: "This rust-source-unit TD preserves vat source ownership while migrating #39 off group-level source replay."
 ---
 
-# Standardized projects/vat/src/main.rs
+# Standardized apps/vat/src/main.rs
 
 ## Overview
 <!-- type: overview lang: markdown -->
 
-Public API manifest for `projects/vat/src/main.rs` generated from AST during Score force-regeneration standardization.
+Public API manifest for `apps/vat/src/main.rs` generated from AST during Score force-regeneration standardization.
 
 ### Symbols
 
@@ -25,7 +25,7 @@ No public AST symbols.
 <!-- type: rust-source-unit lang: rust -->
 
 ````rust
-// SPEC-MANAGED: projects/vat/tech-design/semantic/source/projects-vat-src-main-rs.md#rust-source-unit
+// SPEC-MANAGED: apps/vat/tech-design/semantic/source/projects-vat-src-main-rs.md#rust-source-unit
 // CODEGEN-BEGIN
 use std::process::ExitCode;
 
@@ -48,10 +48,10 @@ fn main() -> ExitCode {
 
 ```yaml
 changes:
-  - path: projects/vat/src/main.rs
+  - path: apps/vat/src/main.rs
     action: modify
     section: rust-source-unit
     impl_mode: codegen
     description: |
-      rust-source-unit (td_ast) source for `projects/vat/src/main.rs` captured during #39 vat standardization.
+      rust-source-unit (td_ast) source for `apps/vat/src/main.rs` captured during #39 vat standardization.
 ```

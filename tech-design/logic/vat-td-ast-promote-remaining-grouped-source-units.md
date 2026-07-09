@@ -49,284 +49,284 @@ flowchart TD
 
 ```yaml
 changes:
-  - path: projects/vat/src/cli.rs
+  - path: apps/vat/src/cli.rs
     action: modify
     section: logic
     impl_mode: hand-written
     description: "Implement the migration logic by promoting grouped vat source units to per-file rust-source-unit TDs."
-  - path: projects/vat/build.rs
+  - path: apps/vat/build.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/build.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/src/cli.rs
+    description: "Promote `apps/vat/build.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/src/cli.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/src/cli.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/src/cluster.rs
+    description: "Promote `apps/vat/src/cli.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/src/cluster.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/src/cluster.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/src/commands/cluster.rs
+    description: "Promote `apps/vat/src/cluster.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/src/commands/cluster.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/src/commands/cluster.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/src/commands/diff.rs
+    description: "Promote `apps/vat/src/commands/cluster.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/src/commands/diff.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/src/commands/diff.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/src/commands/emulator.rs
+    description: "Promote `apps/vat/src/commands/diff.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/src/commands/emulator.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/src/commands/emulator.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/src/commands/gpu.rs
+    description: "Promote `apps/vat/src/commands/emulator.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/src/commands/gpu.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/src/commands/gpu.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/src/commands/llm.rs
+    description: "Promote `apps/vat/src/commands/gpu.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/src/commands/llm.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/src/commands/llm.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/src/commands/logs.rs
+    description: "Promote `apps/vat/src/commands/llm.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/src/commands/logs.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/src/commands/logs.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/src/commands/ls.rs
+    description: "Promote `apps/vat/src/commands/logs.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/src/commands/ls.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/src/commands/ls.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/src/commands/mod.rs
+    description: "Promote `apps/vat/src/commands/ls.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/src/commands/mod.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/src/commands/mod.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/src/commands/rm.rs
+    description: "Promote `apps/vat/src/commands/mod.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/src/commands/rm.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/src/commands/rm.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/src/commands/run.rs
+    description: "Promote `apps/vat/src/commands/rm.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/src/commands/run.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/src/commands/run.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/src/commands/snapshot.rs
+    description: "Promote `apps/vat/src/commands/run.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/src/commands/snapshot.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/src/commands/snapshot.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/src/commands/state.rs
+    description: "Promote `apps/vat/src/commands/snapshot.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/src/commands/state.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/src/commands/state.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/src/config.rs
+    description: "Promote `apps/vat/src/commands/state.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/src/config.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/src/config.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/src/emulator/auth.rs
+    description: "Promote `apps/vat/src/config.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/src/emulator/auth.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/src/emulator/auth.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/src/emulator/dispatch.rs
+    description: "Promote `apps/vat/src/emulator/auth.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/src/emulator/dispatch.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/src/emulator/dispatch.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/src/emulator/httpmock/ca.rs
+    description: "Promote `apps/vat/src/emulator/dispatch.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/src/emulator/httpmock/ca.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/src/emulator/httpmock/ca.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/src/emulator/httpmock/cassette.rs
+    description: "Promote `apps/vat/src/emulator/httpmock/ca.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/src/emulator/httpmock/cassette.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/src/emulator/httpmock/cassette.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/src/emulator/httpmock/mod.rs
+    description: "Promote `apps/vat/src/emulator/httpmock/cassette.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/src/emulator/httpmock/mod.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/src/emulator/httpmock/mod.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/src/emulator/httpmock/stub.rs
+    description: "Promote `apps/vat/src/emulator/httpmock/mod.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/src/emulator/httpmock/stub.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/src/emulator/httpmock/stub.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/src/emulator/mod.rs
+    description: "Promote `apps/vat/src/emulator/httpmock/stub.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/src/emulator/mod.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/src/emulator/mod.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/src/emulator/openapi.rs
+    description: "Promote `apps/vat/src/emulator/mod.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/src/emulator/openapi.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/src/emulator/openapi.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/src/emulator/pubsub.rs
+    description: "Promote `apps/vat/src/emulator/openapi.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/src/emulator/pubsub.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/src/emulator/pubsub.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/src/emulator/scheduler.rs
+    description: "Promote `apps/vat/src/emulator/pubsub.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/src/emulator/scheduler.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/src/emulator/scheduler.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/src/emulator/storage.rs
+    description: "Promote `apps/vat/src/emulator/scheduler.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/src/emulator/storage.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/src/emulator/storage.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/src/emulator/tasks.rs
+    description: "Promote `apps/vat/src/emulator/storage.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/src/emulator/tasks.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/src/emulator/tasks.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/src/emulator/workflows/expr.rs
+    description: "Promote `apps/vat/src/emulator/tasks.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/src/emulator/workflows/expr.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/src/emulator/workflows/expr.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/src/emulator/workflows/interp.rs
+    description: "Promote `apps/vat/src/emulator/workflows/expr.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/src/emulator/workflows/interp.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/src/emulator/workflows/interp.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/src/emulator/workflows/mod.rs
+    description: "Promote `apps/vat/src/emulator/workflows/interp.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/src/emulator/workflows/mod.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/src/emulator/workflows/mod.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/src/event.rs
+    description: "Promote `apps/vat/src/emulator/workflows/mod.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/src/event.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/src/event.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/src/gpu.rs
+    description: "Promote `apps/vat/src/event.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/src/gpu.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/src/gpu.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/src/id.rs
+    description: "Promote `apps/vat/src/gpu.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/src/id.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/src/id.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/src/lib.rs
+    description: "Promote `apps/vat/src/id.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/src/lib.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/src/lib.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/src/main.rs
+    description: "Promote `apps/vat/src/lib.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/src/main.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/src/main.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/src/overlay.rs
+    description: "Promote `apps/vat/src/main.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/src/overlay.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/src/overlay.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/src/paths.rs
+    description: "Promote `apps/vat/src/overlay.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/src/paths.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/src/paths.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/src/sandbox/mod.rs
+    description: "Promote `apps/vat/src/paths.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/src/sandbox/mod.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/src/sandbox/mod.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/src/sandbox/process.rs
+    description: "Promote `apps/vat/src/sandbox/mod.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/src/sandbox/process.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/src/sandbox/process.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/src/sandbox/seatbelt.rs
+    description: "Promote `apps/vat/src/sandbox/process.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/src/sandbox/seatbelt.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/src/sandbox/seatbelt.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/src/spec.rs
+    description: "Promote `apps/vat/src/sandbox/seatbelt.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/src/spec.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/src/spec.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/src/state.rs
+    description: "Promote `apps/vat/src/spec.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/src/state.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/src/state.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/src/store.rs
+    description: "Promote `apps/vat/src/state.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/src/store.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/src/store.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/tests/vat_cluster.rs
+    description: "Promote `apps/vat/src/store.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/tests/vat_cluster.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/tests/vat_cluster.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/tests/vat_emulator_auth.rs
+    description: "Promote `apps/vat/tests/vat_cluster.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/tests/vat_emulator_auth.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/tests/vat_emulator_auth.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/tests/vat_emulator_httpmock.rs
+    description: "Promote `apps/vat/tests/vat_emulator_auth.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/tests/vat_emulator_httpmock.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/tests/vat_emulator_httpmock.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/tests/vat_emulator_openapi.rs
+    description: "Promote `apps/vat/tests/vat_emulator_httpmock.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/tests/vat_emulator_openapi.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/tests/vat_emulator_openapi.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/tests/vat_emulator_pubsub.rs
+    description: "Promote `apps/vat/tests/vat_emulator_openapi.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/tests/vat_emulator_pubsub.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/tests/vat_emulator_pubsub.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/tests/vat_emulator_scheduler.rs
+    description: "Promote `apps/vat/tests/vat_emulator_pubsub.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/tests/vat_emulator_scheduler.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/tests/vat_emulator_scheduler.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/tests/vat_emulator_storage.rs
+    description: "Promote `apps/vat/tests/vat_emulator_scheduler.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/tests/vat_emulator_storage.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/tests/vat_emulator_storage.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/tests/vat_emulator_tasks.rs
+    description: "Promote `apps/vat/tests/vat_emulator_storage.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/tests/vat_emulator_tasks.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/tests/vat_emulator_tasks.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/tests/vat_emulator_workflows.rs
+    description: "Promote `apps/vat/tests/vat_emulator_tasks.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/tests/vat_emulator_workflows.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/tests/vat_emulator_workflows.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/tests/vat_emulators.rs
+    description: "Promote `apps/vat/tests/vat_emulator_workflows.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/tests/vat_emulators.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/tests/vat_emulators.rs` to per-file rust-source-unit TD ownership."
-  - path: projects/vat/tests/vat_toml_runner.rs
+    description: "Promote `apps/vat/tests/vat_emulators.rs` to per-file rust-source-unit TD ownership."
+  - path: apps/vat/tests/vat_toml_runner.rs
     action: modify
     section: rust-source-unit
     impl_mode: hand-written
-    description: "Promote `projects/vat/tests/vat_toml_runner.rs` to per-file rust-source-unit TD ownership."
+    description: "Promote `apps/vat/tests/vat_toml_runner.rs` to per-file rust-source-unit TD ownership."
 ```

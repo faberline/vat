@@ -1,4 +1,4 @@
-// SPEC-MANAGED: projects/vat/tech-design/logic/llm-agent-usage-guide.md#vat-llm-agent-usage-guide
+// SPEC-MANAGED: apps/vat/tech-design/logic/llm-agent-usage-guide.md#vat-llm-agent-usage-guide
 // CODEGEN-BEGIN
 // AW-EC-BEGIN
 // @ec vat-llm-agent-usage-guide

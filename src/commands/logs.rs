@@ -1,4 +1,4 @@
-// SPEC-MANAGED: projects/vat/tech-design/semantic/source/projects-vat-src-commands-logs-rs.md#rust-source-unit
+// SPEC-MANAGED: apps/vat/tech-design/semantic/source/projects-vat-src-commands-logs-rs.md#rust-source-unit
 // CODEGEN-BEGIN
 //! `vat logs` — print captured logs from a vat.toml runner invocation.
 
@@ -8,7 +8,7 @@ use anyhow::{bail, Context, Result};
 
 use crate::store;
 
-/// @spec projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#cli
+/// @spec apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#cli
 pub fn exec(id: String, source: Option<String>) -> Result<ExitCode> {
     let vat = store::load(&id)?;
     let Some(test_run) = vat.meta.test_run else {

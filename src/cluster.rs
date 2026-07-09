@@ -1,4 +1,4 @@
-// SPEC-MANAGED: projects/vat/tech-design/semantic/source/projects-vat-src-cluster-rs.md#rust-source-unit
+// SPEC-MANAGED: apps/vat/tech-design/semantic/source/projects-vat-src-cluster-rs.md#rust-source-unit
 // CODEGEN-BEGIN
 //! Local Kubernetes cluster drivers (kind / k3d / minikube) behind one enum.
 //!
@@ -21,7 +21,7 @@ use anyhow::{bail, Context, Result};
 use crate::config::ClusterBackend;
 
 /// A concrete cluster backend resolved against the host.
-/// @spec projects/vat/tech-design/logic/kind-like-local-kubernetes-clusters.md#logic
+/// @spec apps/vat/tech-design/logic/kind-like-local-kubernetes-clusters.md#logic
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ResolvedBackend {
     Kind,
@@ -29,7 +29,7 @@ pub enum ResolvedBackend {
     Minikube,
 }
 
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-cluster-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-cluster-rs.md#source
 impl ResolvedBackend {
     /// The three backends in `auto` preference order.
     pub const ALL: [ResolvedBackend; 3] = [Self::Kind, Self::K3d, Self::Minikube];
@@ -260,7 +260,7 @@ impl ResolvedBackend {
 }
 
 /// Desired cluster shape passed to a backend driver.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-cluster-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-cluster-rs.md#source
 pub struct ClusterSpec<'a> {
     pub name: &'a str,
     pub k8s_version: Option<&'a str>,
@@ -270,7 +270,7 @@ pub struct ClusterSpec<'a> {
 
 /// Result of creating or inspecting a cluster.
 #[derive(Debug, Clone)]
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-cluster-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-cluster-rs.md#source
 pub struct ClusterInfo {
     pub backend: &'static str,
     pub name: String,
@@ -280,7 +280,7 @@ pub struct ClusterInfo {
 
 /// Structured "no usable cluster backend" report — mirrors the shape of the
 /// `docker_unavailable` evidence the service path emits.
-/// @spec projects/vat/tech-design/logic/kind-like-local-kubernetes-clusters.md#logic
+/// @spec apps/vat/tech-design/logic/kind-like-local-kubernetes-clusters.md#logic
 #[derive(Debug, Clone)]
 pub struct BackendUnavailable {
     pub requested: ClusterBackend,
@@ -288,7 +288,7 @@ pub struct BackendUnavailable {
     pub docker: bool,
 }
 
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-cluster-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-cluster-rs.md#source
 impl BackendUnavailable {
     /// The requested backend as the token used in vat.toml / `--backend`.
     pub fn requested_name(&self) -> &'static str {
@@ -307,7 +307,7 @@ impl BackendUnavailable {
 }
 
 /// The token used for a requested backend in vat.toml and `--backend`.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-cluster-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-cluster-rs.md#source
 pub fn backend_token(backend: ClusterBackend) -> &'static str {
     match backend {
         ClusterBackend::Auto => "auto",
@@ -319,7 +319,7 @@ pub fn backend_token(backend: ClusterBackend) -> &'static str {
 
 /// Resolve a requested backend against the host: the requested (or, for `auto`,
 /// the first installed) backend whose Docker daemon is reachable.
-/// @spec projects/vat/tech-design/logic/kind-like-local-kubernetes-clusters.md#logic
+/// @spec apps/vat/tech-design/logic/kind-like-local-kubernetes-clusters.md#logic
 pub fn resolve_backend(
     requested: ClusterBackend,
 ) -> std::result::Result<ResolvedBackend, BackendUnavailable> {
@@ -365,7 +365,7 @@ fn pick_backend(
 /// Build a collision-resistant, backend-safe cluster name from a vat id and a
 /// service id. Lowercased, non-`[a-z0-9-]` mapped to `-`, length-capped so the
 /// stricter backends (and the Docker resource names they derive) stay legal.
-/// @spec projects/vat/tech-design/logic/kind-like-local-kubernetes-clusters.md#logic
+/// @spec apps/vat/tech-design/logic/kind-like-local-kubernetes-clusters.md#logic
 pub fn cluster_name(vat_id: &str, service_id: &str) -> String {
     let mut name: String = format!("vat-{vat_id}-{service_id}")
         .chars()

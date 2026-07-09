@@ -1,7 +1,7 @@
 ---
 id: projects-vat-src-cluster-rs
 summary: >
-  rust-source-unit TD AST payload for projects/vat/src/cluster.rs.
+  rust-source-unit TD AST payload for apps/vat/src/cluster.rs.
 fill_sections: [overview, source, changes]
 capability_refs:
   - id: agent-native-gpu-native-dev-containers
@@ -11,34 +11,34 @@ capability_refs:
     rationale: "This rust-source-unit TD preserves vat source ownership while migrating #39 off group-level source replay."
 ---
 
-# Standardized projects/vat/src/cluster.rs
+# Standardized apps/vat/src/cluster.rs
 
 ## Overview
 <!-- type: overview lang: markdown -->
 
-Public API manifest for `projects/vat/src/cluster.rs` generated from AST during Score force-regeneration standardization.
+Public API manifest for `apps/vat/src/cluster.rs` generated from AST during Score force-regeneration standardization.
 
 ### Symbols
 
 | Name | Target | Kind | Visibility | Line | Signature |
 |------|--------|------|------------|------|-----------|
-| `BackendUnavailable` | projects/vat/src/cluster.rs | struct | pub | 285 |  |
-| `ClusterInfo` | projects/vat/src/cluster.rs | struct | pub | 274 |  |
-| `ClusterSpec` | projects/vat/src/cluster.rs | struct | pub | 264 |  |
-| `ResolvedBackend` | projects/vat/src/cluster.rs | enum | pub | 26 |  |
-| `backend_token` | projects/vat/src/cluster.rs | function | pub | 311 | backend_token(backend: ClusterBackend) -> &'static str |
-| `binary` | projects/vat/src/cluster.rs | function | pub | 47 | binary(self) -> &'static str |
-| `cluster_name` | projects/vat/src/cluster.rs | function | pub | 369 | cluster_name(vat_id: &str, service_id: &str) -> String |
-| `create` | projects/vat/src/cluster.rs | function | pub | 80 | create(self, spec: &ClusterSpec, timeout: Duration) -> Result<ClusterInfo> |
-| `delete` | projects/vat/src/cluster.rs | function | pub | 172 | delete(self, name: &str) -> Result<()> |
-| `from_name` | projects/vat/src/cluster.rs | function | pub | 52 | from_name(name: &str) -> Option<Self> |
-| `installed` | projects/vat/src/cluster.rs | function | pub | 63 | installed(self) -> bool |
-| `list` | projects/vat/src/cluster.rs | function | pub | 202 | list(self) -> Result<Vec<String>> |
-| `message` | projects/vat/src/cluster.rs | function | pub | 299 | message(&self) -> String |
-| `name` | projects/vat/src/cluster.rs | function | pub | 38 | name(self) -> &'static str |
-| `ready_argv` | projects/vat/src/cluster.rs | function | pub | 68 | ready_argv(self, kubeconfig: &Path) -> Vec<String> |
-| `requested_name` | projects/vat/src/cluster.rs | function | pub | 294 | requested_name(&self) -> &'static str |
-| `resolve_backend` | projects/vat/src/cluster.rs | function | pub | 323 | resolve_backend(     requested: ClusterBackend, ) -> std::result::Result<ResolvedBackend, BackendUnavailable> |
+| `BackendUnavailable` | apps/vat/src/cluster.rs | struct | pub | 285 |  |
+| `ClusterInfo` | apps/vat/src/cluster.rs | struct | pub | 274 |  |
+| `ClusterSpec` | apps/vat/src/cluster.rs | struct | pub | 264 |  |
+| `ResolvedBackend` | apps/vat/src/cluster.rs | enum | pub | 26 |  |
+| `backend_token` | apps/vat/src/cluster.rs | function | pub | 311 | backend_token(backend: ClusterBackend) -> &'static str |
+| `binary` | apps/vat/src/cluster.rs | function | pub | 47 | binary(self) -> &'static str |
+| `cluster_name` | apps/vat/src/cluster.rs | function | pub | 369 | cluster_name(vat_id: &str, service_id: &str) -> String |
+| `create` | apps/vat/src/cluster.rs | function | pub | 80 | create(self, spec: &ClusterSpec, timeout: Duration) -> Result<ClusterInfo> |
+| `delete` | apps/vat/src/cluster.rs | function | pub | 172 | delete(self, name: &str) -> Result<()> |
+| `from_name` | apps/vat/src/cluster.rs | function | pub | 52 | from_name(name: &str) -> Option<Self> |
+| `installed` | apps/vat/src/cluster.rs | function | pub | 63 | installed(self) -> bool |
+| `list` | apps/vat/src/cluster.rs | function | pub | 202 | list(self) -> Result<Vec<String>> |
+| `message` | apps/vat/src/cluster.rs | function | pub | 299 | message(&self) -> String |
+| `name` | apps/vat/src/cluster.rs | function | pub | 38 | name(self) -> &'static str |
+| `ready_argv` | apps/vat/src/cluster.rs | function | pub | 68 | ready_argv(self, kubeconfig: &Path) -> Vec<String> |
+| `requested_name` | apps/vat/src/cluster.rs | function | pub | 294 | requested_name(&self) -> &'static str |
+| `resolve_backend` | apps/vat/src/cluster.rs | function | pub | 323 | resolve_backend(     requested: ClusterBackend, ) -> std::result::Result<ResolvedBackend, BackendUnavailable> |
 ## Source
 <!-- type: rust-source-unit lang: rust -->
 
@@ -64,7 +64,7 @@ use anyhow::{bail, Context, Result};
 use crate::config::ClusterBackend;
 
 /// A concrete cluster backend resolved against the host.
-/// @spec projects/vat/tech-design/logic/kind-like-local-kubernetes-clusters.md#logic
+/// @spec apps/vat/tech-design/logic/kind-like-local-kubernetes-clusters.md#logic
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ResolvedBackend {
     Kind,
@@ -320,7 +320,7 @@ pub struct ClusterInfo {
 
 /// Structured "no usable cluster backend" report — mirrors the shape of the
 /// `docker_unavailable` evidence the service path emits.
-/// @spec projects/vat/tech-design/logic/kind-like-local-kubernetes-clusters.md#logic
+/// @spec apps/vat/tech-design/logic/kind-like-local-kubernetes-clusters.md#logic
 #[derive(Debug, Clone)]
 pub struct BackendUnavailable {
     pub requested: ClusterBackend,
@@ -357,7 +357,7 @@ pub fn backend_token(backend: ClusterBackend) -> &'static str {
 
 /// Resolve a requested backend against the host: the requested (or, for `auto`,
 /// the first installed) backend whose Docker daemon is reachable.
-/// @spec projects/vat/tech-design/logic/kind-like-local-kubernetes-clusters.md#logic
+/// @spec apps/vat/tech-design/logic/kind-like-local-kubernetes-clusters.md#logic
 pub fn resolve_backend(
     requested: ClusterBackend,
 ) -> std::result::Result<ResolvedBackend, BackendUnavailable> {
@@ -403,7 +403,7 @@ fn pick_backend(
 /// Build a collision-resistant, backend-safe cluster name from a vat id and a
 /// service id. Lowercased, non-`[a-z0-9-]` mapped to `-`, length-capped so the
 /// stricter backends (and the Docker resource names they derive) stay legal.
-/// @spec projects/vat/tech-design/logic/kind-like-local-kubernetes-clusters.md#logic
+/// @spec apps/vat/tech-design/logic/kind-like-local-kubernetes-clusters.md#logic
 pub fn cluster_name(vat_id: &str, service_id: &str) -> String {
     let mut name: String = format!("vat-{vat_id}-{service_id}")
         .chars()
@@ -550,10 +550,10 @@ mod tests {
 
 ```yaml
 changes:
-  - path: projects/vat/src/cluster.rs
+  - path: apps/vat/src/cluster.rs
     action: modify
     section: rust-source-unit
     impl_mode: codegen
     description: |
-      rust-source-unit (td_ast) source for `projects/vat/src/cluster.rs` captured during #39 vat standardization.
+      rust-source-unit (td_ast) source for `apps/vat/src/cluster.rs` captured during #39 vat standardization.
 ```

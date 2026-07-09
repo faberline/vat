@@ -1,4 +1,4 @@
-// SPEC-MANAGED: projects/vat/tech-design/semantic/source/projects-vat-src-state-rs.md#rust-source-unit
+// SPEC-MANAGED: apps/vat/tech-design/semantic/source/projects-vat-src-state-rs.md#rust-source-unit
 // CODEGEN-BEGIN
 //! The state model — vat's reason to exist.
 //!
@@ -24,7 +24,7 @@ use crate::gpu::GpuInfo;
 use crate::spec::EnvSpec;
 
 /// Lifecycle status of a vat.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-state-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-state-rs.md#source
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "state")]
 pub enum Status {
@@ -39,7 +39,7 @@ pub enum Status {
 }
 
 /// Persisted record of the most recent run.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-state-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-state-rs.md#source
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RunRecord {
     /// The program and its arguments, as invoked.
@@ -54,7 +54,7 @@ pub struct RunRecord {
 }
 
 /// Persisted, on-disk record of a vat. Stored as `meta.json`.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-state-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-state-rs.md#source
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VatMeta {
     pub id: String,
@@ -75,7 +75,7 @@ pub struct VatMeta {
 }
 
 /// vat.toml config reference captured for one runner invocation.
-/// @spec projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#schema
+/// @spec apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#schema
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConfigRef {
     pub path: String,
@@ -83,7 +83,7 @@ pub struct ConfigRef {
 }
 
 /// Captured state of a local Kubernetes cluster backing a `cluster` service.
-/// @spec projects/vat/tech-design/logic/kind-like-local-kubernetes-clusters.md#schema
+/// @spec apps/vat/tech-design/logic/kind-like-local-kubernetes-clusters.md#schema
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClusterRunRecord {
     /// Backend that provisioned the cluster: "kind", "k3d", or "minikube".
@@ -100,7 +100,7 @@ pub struct ClusterRunRecord {
 }
 
 /// Captured service state for one run-scoped dependency process.
-/// @spec projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#schema
+/// @spec apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#schema
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServiceRunRecord {
     pub id: String,
@@ -138,7 +138,7 @@ pub struct ServiceRunRecord {
 }
 
 /// Captured runner process state.
-/// @spec projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#schema
+/// @spec apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#schema
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RunnerRunRecord {
     pub id: String,
@@ -153,7 +153,7 @@ pub struct RunnerRunRecord {
 }
 
 /// Route visible in a scenario topology report.
-/// @spec projects/vat/tech-design/logic/production-like-integration-scenarios.md#schema
+/// @spec apps/vat/tech-design/logic/production-like-integration-scenarios.md#schema
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RouteRecord {
     pub host: String,
@@ -162,7 +162,7 @@ pub struct RouteRecord {
 }
 
 /// Captured scenario topology for a production-like integration run.
-/// @spec projects/vat/tech-design/logic/production-like-integration-scenarios.md#schema
+/// @spec apps/vat/tech-design/logic/production-like-integration-scenarios.md#schema
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScenarioRunRecord {
     pub id: String,
@@ -176,7 +176,7 @@ pub struct ScenarioRunRecord {
 }
 
 /// Process status used inside test-run evidence.
-/// @spec projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#schema
+/// @spec apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#schema
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ProcessStatus {
@@ -189,7 +189,7 @@ pub enum ProcessStatus {
 }
 
 /// Artifact captured from a runner workspace.
-/// @spec projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#schema
+/// @spec apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#schema
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ArtifactRecord {
     pub path: String,
@@ -198,7 +198,7 @@ pub struct ArtifactRecord {
 }
 
 /// Complete evidence bundle for one vat.toml runner invocation.
-/// @spec projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#schema
+/// @spec apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#schema
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TestRunEvidence {
     pub config: ConfigRef,
@@ -221,7 +221,7 @@ pub struct TestRunEvidence {
 
 /// Filesystem changes vs. the base manifest. Full lists; the projection
 /// samples them for compactness.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-state-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-state-rs.md#source
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ChangeSet {
     pub added: Vec<String>,
@@ -229,7 +229,7 @@ pub struct ChangeSet {
     pub deleted: Vec<String>,
 }
 
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-state-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-state-rs.md#source
 impl ChangeSet {
     pub fn total(&self) -> usize {
         self.added.len() + self.modified.len() + self.deleted.len()
@@ -267,7 +267,7 @@ impl ChangeSet {
 }
 
 /// Bounded change view embedded in [`VatState`].
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-state-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-state-rs.md#source
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChangeSummary {
     pub added: usize,
@@ -282,7 +282,7 @@ pub struct ChangeSummary {
 }
 
 /// Workspace footprint.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-state-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-state-rs.md#source
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkspaceInfo {
     pub rootfs: String,
@@ -292,7 +292,7 @@ pub struct WorkspaceInfo {
 
 /// The full, agent-legible projection of a vat. This is what `vat state`
 /// prints and what an agent should read to understand the environment.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-state-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-state-rs.md#source
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VatState {
     pub id: String,

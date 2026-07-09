@@ -10,12 +10,12 @@ capability_refs:
     rationale: "This rust-source-unit TD preserves vat e2e test source behavior for the local agent test runner protocol."
 ---
 
-# Standardized projects/vat/tests/vat_emulator_tasks_grpc.rs
+# Standardized apps/vat/tests/vat_emulator_tasks_grpc.rs
 
 ## Overview
 <!-- type: overview lang: markdown -->
 
-Public API manifest for `projects/vat/tests/vat_emulator_tasks_grpc.rs` generated from AST during Score force-regeneration standardization.
+Public API manifest for `apps/vat/tests/vat_emulator_tasks_grpc.rs` generated from AST during Score force-regeneration standardization.
 
 ### Symbols
 
@@ -176,10 +176,10 @@ async fn cloud_tasks_grpc_dispatches_task_and_rest_coexists() {
 
 ```yaml
 changes:
-  - path: projects/vat/tests/vat_emulator_tasks_grpc.rs
+  - path: apps/vat/tests/vat_emulator_tasks_grpc.rs
     action: modify
     section: rust-source-unit
     impl_mode: codegen
     description: |
-      rust-source-unit (td_ast) source for `projects/vat/tests/vat_emulator_tasks_grpc.rs` captured during vat standardization.
+      rust-source-unit (td_ast) source for `apps/vat/tests/vat_emulator_tasks_grpc.rs` captured during vat standardization.
 ```

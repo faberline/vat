@@ -1,4 +1,4 @@
-// SPEC-MANAGED: projects/vat/tech-design/logic/built-in-cloud-workflows-emulator.md#vat-cloud-workflows-lean-build
+// SPEC-MANAGED: apps/vat/tech-design/logic/built-in-cloud-workflows-emulator.md#vat-cloud-workflows-lean-build
 // CODEGEN-BEGIN
 // AW-EC-BEGIN
 // @ec vat-cloud-workflows-lean-build

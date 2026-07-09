@@ -1,11 +1,11 @@
 #!/usr/bin/env sh
-# SPEC-MANAGED: projects/vat/tech-design/semantic/vat-install-script.md#text-source-unit
+# SPEC-MANAGED: apps/vat/tech-design/semantic/vat-install-script.md#text-source-unit
 # CODEGEN-BEGIN
 # vat installer — downloads the right prebuilt binary from GitHub
 # Releases and drops it on your PATH.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/chrischeng-c4/axiom/main/projects/vat/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/chrischeng-c4/axiom/main/apps/vat/install.sh | sh
 #
 # Env overrides:
 #   VAT_VERSION   tag to install (default: latest vat@* release, e.g. vat@1.0)

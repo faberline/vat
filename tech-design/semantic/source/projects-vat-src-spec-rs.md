@@ -1,7 +1,7 @@
 ---
 id: vat-source-projects-vat-src-spec-rs
 summary: >
-  rust-source-unit TD AST payload for projects/vat/src/spec.rs.
+  rust-source-unit TD AST payload for apps/vat/src/spec.rs.
 fill_sections: [overview, source, changes]
 capability_refs:
   - id: agent-native-gpu-native-dev-containers
@@ -11,28 +11,28 @@ capability_refs:
     rationale: "This rust-source-unit TD preserves vat source ownership while migrating #39 off group-level source replay."
 ---
 
-# Standardized projects/vat/src/spec.rs
+# Standardized apps/vat/src/spec.rs
 
 ## Overview
 <!-- type: overview lang: markdown -->
 
-Public API manifest for `projects/vat/src/spec.rs` generated from AST during Score force-regeneration standardization.
+Public API manifest for `apps/vat/src/spec.rs` generated from AST during Score force-regeneration standardization.
 
 ### Symbols
 
 | Name | Target | Kind | Visibility | Line | Signature |
 |------|--------|------|------------|------|-----------|
-| `Base` | projects/vat/src/spec.rs | enum | pub | 78 |  |
-| `EgressPolicy` | projects/vat/src/spec.rs | enum | pub | 105 |  |
-| `EnvSpec` | projects/vat/src/spec.rs | struct | pub | 18 |  |
-| `GpuRequest` | projects/vat/src/spec.rs | enum | pub | 122 |  |
-| `Isolation` | projects/vat/src/spec.rs | enum | pub | 89 |  |
-| `Limits` | projects/vat/src/spec.rs | struct | pub | 135 |  |
+| `Base` | apps/vat/src/spec.rs | enum | pub | 78 |  |
+| `EgressPolicy` | apps/vat/src/spec.rs | enum | pub | 105 |  |
+| `EnvSpec` | apps/vat/src/spec.rs | struct | pub | 18 |  |
+| `GpuRequest` | apps/vat/src/spec.rs | enum | pub | 122 |  |
+| `Isolation` | apps/vat/src/spec.rs | enum | pub | 89 |  |
+| `Limits` | apps/vat/src/spec.rs | struct | pub | 135 |  |
 ## Source
 <!-- type: rust-source-unit lang: rust -->
 
 ````rust
-// SPEC-MANAGED: projects/vat/tech-design/semantic/source/projects-vat-src-spec-rs.md#rust-source-unit
+// SPEC-MANAGED: apps/vat/tech-design/semantic/source/projects-vat-src-spec-rs.md#rust-source-unit
 // CODEGEN-BEGIN
 //! Declarative environment spec.
 //!
@@ -47,7 +47,7 @@ use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 
 /// Full declarative description of a vat's environment.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-spec-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-spec-rs.md#source
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EnvSpec {
     /// Where the workspace is cloned from. `None` for an empty workspace.
@@ -85,7 +85,7 @@ pub struct EnvSpec {
     pub limits: Limits,
 }
 
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-spec-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-spec-rs.md#source
 impl Default for EnvSpec {
     fn default() -> Self {
         EnvSpec {
@@ -106,7 +106,7 @@ fn default_workdir() -> PathBuf {
 }
 
 /// Source of a vat's initial workspace.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-spec-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-spec-rs.md#source
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", tag = "kind", content = "ref")]
 pub enum Base {
@@ -117,7 +117,7 @@ pub enum Base {
 }
 
 /// Process isolation strength. v1 ships `None` and `Seatbelt` (macOS).
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-spec-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-spec-rs.md#source
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, clap::ValueEnum)]
 #[serde(rename_all = "snake_case")]
 pub enum Isolation {
@@ -133,7 +133,7 @@ pub enum Isolation {
 /// Outbound network egress policy, enforced by the seatbelt backend
 /// (`sandbox-exec`). Only enforceable under `Isolation::Seatbelt`; with
 /// `Isolation::None` it is advisory (vat warns it cannot confine egress).
-/// @spec projects/vat/tech-design/logic/vat-network-sandbox-v3-seatbelt-egress-policy-deny-outbound-exce.md#schema
+/// @spec apps/vat/tech-design/logic/vat-network-sandbox-v3-seatbelt-egress-policy-deny-outbound-exce.md#schema
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum EgressPolicy {
@@ -150,7 +150,7 @@ pub enum EgressPolicy {
 /// Whether the vat wants the GPU. Vat never *removes* GPU access (it can't —
 /// the process is native); this only drives a pre-flight check and what the
 /// agent is told.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-spec-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-spec-rs.md#source
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, clap::ValueEnum)]
 #[serde(rename_all = "snake_case")]
 pub enum GpuRequest {
@@ -164,7 +164,7 @@ pub enum GpuRequest {
 }
 
 /// Advisory limits echoed in state for the agent or an external scheduler.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-spec-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-spec-rs.md#source
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Limits {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -180,10 +180,10 @@ pub struct Limits {
 
 ```yaml
 changes:
-  - path: projects/vat/src/spec.rs
+  - path: apps/vat/src/spec.rs
     action: modify
     section: rust-source-unit
     impl_mode: codegen
     description: |
-      rust-source-unit (td_ast) source for `projects/vat/src/spec.rs` captured during #39 vat standardization.
+      rust-source-unit (td_ast) source for `apps/vat/src/spec.rs` captured during #39 vat standardization.
 ```

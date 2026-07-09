@@ -543,7 +543,7 @@ additionalProperties: false
 
 ```yaml
 manifests:
-  - path: projects/vat/Cargo.toml
+  - path: apps/vat/Cargo.toml
     changes:
       - "Add TOML parsing dependency for vat.toml."
       - "Use libc as a normal dependency for process cleanup on Unix hosts."
@@ -636,139 +636,139 @@ e2e_tests:
 
 ```yaml
 changes:
-  - path: projects/vat/tech-design/logic/local-agent-test-runner-protocol.md
+  - path: apps/vat/tech-design/logic/local-agent-test-runner-protocol.md
     action: create
     section: changes
     impl_mode: hand-written
     reason: "Define the local agent test runner protocol TD."
-  - path: projects/vat/tech-design/logic/local-agent-test-runner-protocol.md
+  - path: apps/vat/tech-design/logic/local-agent-test-runner-protocol.md
     action: validate
     section: scenarios
     impl_mode: hand-written
     reason: "Record success, failure retention, readiness timeout, and direct-run compatibility scenarios."
-  - path: projects/vat/tech-design/logic/local-agent-test-runner-protocol.md
+  - path: apps/vat/tech-design/logic/local-agent-test-runner-protocol.md
     action: validate
     section: mindmap
     impl_mode: hand-written
     reason: "Record protocol, workspace, execution, evidence, and boundary concepts."
-  - path: projects/vat/tech-design/logic/local-agent-test-runner-protocol.md
+  - path: apps/vat/tech-design/logic/local-agent-test-runner-protocol.md
     action: validate
     section: state-machine
     impl_mode: hand-written
     reason: "Record the ephemeral runner lifecycle."
-  - path: projects/vat/tech-design/logic/local-agent-test-runner-protocol.md
+  - path: apps/vat/tech-design/logic/local-agent-test-runner-protocol.md
     action: validate
     section: interaction
     impl_mode: hand-written
     reason: "Record the agent, CLI, config, store, service, and runner interaction."
-  - path: projects/vat/tech-design/logic/local-agent-test-runner-protocol.md
+  - path: apps/vat/tech-design/logic/local-agent-test-runner-protocol.md
     action: validate
     section: dependency
     impl_mode: hand-written
     reason: "Record the config and evidence type relationships."
-  - path: projects/vat/tech-design/logic/local-agent-test-runner-protocol.md
+  - path: apps/vat/tech-design/logic/local-agent-test-runner-protocol.md
     action: validate
     section: db-model
     impl_mode: hand-written
     reason: "Record the persisted vat, test run, service run, runner run, and artifact relationships."
-  - path: projects/vat/tech-design/logic/local-agent-test-runner-protocol.md
+  - path: apps/vat/tech-design/logic/local-agent-test-runner-protocol.md
     action: validate
     section: rest-api
     impl_mode: hand-written
     reason: "Record non-applicability because this slice adds no REST API."
-  - path: projects/vat/tech-design/logic/local-agent-test-runner-protocol.md
+  - path: apps/vat/tech-design/logic/local-agent-test-runner-protocol.md
     action: validate
     section: rpc-api
     impl_mode: hand-written
     reason: "Record non-applicability because this slice adds no RPC API."
-  - path: projects/vat/tech-design/logic/local-agent-test-runner-protocol.md
+  - path: apps/vat/tech-design/logic/local-agent-test-runner-protocol.md
     action: validate
     section: async-api
     impl_mode: hand-written
     reason: "Record non-applicability because this slice adds no async API."
-  - path: projects/vat/tech-design/logic/local-agent-test-runner-protocol.md
+  - path: apps/vat/tech-design/logic/local-agent-test-runner-protocol.md
     action: validate
     section: wireframe
     impl_mode: hand-written
     reason: "Record non-applicability because this slice adds no UI surface."
-  - path: projects/vat/tech-design/logic/local-agent-test-runner-protocol.md
+  - path: apps/vat/tech-design/logic/local-agent-test-runner-protocol.md
     action: validate
     section: component
     impl_mode: hand-written
     reason: "Record non-applicability because this slice adds no component contract."
-  - path: projects/vat/tech-design/logic/local-agent-test-runner-protocol.md
+  - path: apps/vat/tech-design/logic/local-agent-test-runner-protocol.md
     action: validate
     section: design-token
     impl_mode: hand-written
     reason: "Record non-applicability because this slice adds no design tokens."
-  - path: projects/vat/tech-design/logic/local-agent-test-runner-protocol.md
+  - path: apps/vat/tech-design/logic/local-agent-test-runner-protocol.md
     action: validate
     section: runtime-image
     impl_mode: hand-written
     reason: "Record non-applicability because vat does not add Docker or OCI runtime behavior."
-  - path: projects/vat/tech-design/logic/local-agent-test-runner-protocol.md
+  - path: apps/vat/tech-design/logic/local-agent-test-runner-protocol.md
     action: validate
     section: deployment
     impl_mode: hand-written
     reason: "Record local CLI verification as the deployment impact."
-  - path: projects/vat/src/config.rs
+  - path: apps/vat/src/config.rs
     action: add
     section: config
     impl_mode: hand-written
     refs:
-      - "projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#config"
-      - "projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#schema"
+      - "apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#config"
+      - "apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#schema"
     summary: "Load, validate, and resolve vat.toml runner contracts."
-  - path: projects/vat/src/commands/run.rs
+  - path: apps/vat/src/commands/run.rs
     action: modify
     section: logic
     impl_mode: hand-written
     refs:
-      - "projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#logic"
-      - "projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#cli"
+      - "apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#logic"
+      - "apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#cli"
     summary: "Dispatch vat run <runner-id> through setup, services, readiness, runner execution, evidence, and cleanup."
-  - path: projects/vat/src/state.rs
+  - path: apps/vat/src/state.rs
     action: modify
     section: schema
     impl_mode: hand-written
     refs:
-      - "projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#schema"
+      - "apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#schema"
     summary: "Persist and project runner evidence metadata."
-  - path: projects/vat/src/commands/logs.rs
+  - path: apps/vat/src/commands/logs.rs
     action: add
     section: cli
     impl_mode: hand-written
     refs:
-      - "projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#cli"
+      - "apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#cli"
     summary: "Expose captured per-run logs."
-  - path: projects/vat/README.md
+  - path: apps/vat/README.md
     action: modify
     section: scenarios
     impl_mode: hand-written
     refs:
-      - "projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#scenarios"
+      - "apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#scenarios"
     summary: "Document vat as an ephemeral local agent test runner protocol."
-  - path: projects/vat/tests
+  - path: apps/vat/tests
     action: modify
     section: unit-test
     impl_mode: hand-written
     refs:
-      - "projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#unit-test"
-      - "projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#e2e-test"
+      - "apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#unit-test"
+      - "apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#e2e-test"
     summary: "Add parser and runner smoke coverage."
-  - path: projects/vat/tests
+  - path: apps/vat/tests
     action: modify
     section: e2e-test
     impl_mode: hand-written
     refs:
-      - "projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#e2e-test"
+      - "apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#e2e-test"
     summary: "Add vat.toml local service runner smoke coverage."
-  - path: projects/vat/Cargo.toml
+  - path: apps/vat/Cargo.toml
     action: modify
     section: manifest
     impl_mode: hand-written
     refs:
-      - "projects/vat/tech-design/logic/local-agent-test-runner-protocol.md#manifest"
+      - "apps/vat/tech-design/logic/local-agent-test-runner-protocol.md#manifest"
     summary: "Add TOML parsing and process cleanup dependencies."
 ```
 

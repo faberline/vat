@@ -1,7 +1,7 @@
 ---
 id: projects-vat-src-emulator-httpmock-mod-rs
 summary: >
-  rust-source-unit TD AST payload for projects/vat/src/emulator/httpmock/mod.rs.
+  rust-source-unit TD AST payload for apps/vat/src/emulator/httpmock/mod.rs.
 fill_sections: [overview, source, changes]
 capability_refs:
   - id: agent-native-gpu-native-dev-containers
@@ -11,26 +11,26 @@ capability_refs:
     rationale: "This rust-source-unit TD preserves vat source ownership while migrating #39 off group-level source replay."
 ---
 
-# Standardized projects/vat/src/emulator/httpmock/mod.rs
+# Standardized apps/vat/src/emulator/httpmock/mod.rs
 
 ## Overview
 <!-- type: overview lang: markdown -->
 
-Public API manifest for `projects/vat/src/emulator/httpmock/mod.rs` generated from AST during Score force-regeneration standardization.
+Public API manifest for `apps/vat/src/emulator/httpmock/mod.rs` generated from AST during Score force-regeneration standardization.
 
 ### Symbols
 
 | Name | Target | Kind | Visibility | Line | Signature |
 |------|--------|------|------------|------|-----------|
-| `ca` | projects/vat/src/emulator/httpmock/mod.rs | module | pub | 16 |  |
-| `cassette` | projects/vat/src/emulator/httpmock/mod.rs | module | pub | 17 |  |
-| `serve` | projects/vat/src/emulator/httpmock/mod.rs | function | pub | 95 | serve(     host_port: &str,     ca_path: &str,     cassette_dir: &str,     routes: &[(String, String)],     forward: bool, ) -> Result<()> |
-| `stub` | projects/vat/src/emulator/httpmock/mod.rs | module | pub | 18 |  |
+| `ca` | apps/vat/src/emulator/httpmock/mod.rs | module | pub | 16 |  |
+| `cassette` | apps/vat/src/emulator/httpmock/mod.rs | module | pub | 17 |  |
+| `serve` | apps/vat/src/emulator/httpmock/mod.rs | function | pub | 95 | serve(     host_port: &str,     ca_path: &str,     cassette_dir: &str,     routes: &[(String, String)],     forward: bool, ) -> Result<()> |
+| `stub` | apps/vat/src/emulator/httpmock/mod.rs | module | pub | 18 |  |
 ## Source
 <!-- type: rust-source-unit lang: rust -->
 
 ````rust
-// SPEC-MANAGED: projects/vat/tech-design/semantic/source/projects-vat-src-emulator-httpmock-mod-rs.md#rust-source-unit
+// SPEC-MANAGED: apps/vat/tech-design/semantic/source/projects-vat-src-emulator-httpmock-mod-rs.md#rust-source-unit
 // CODEGEN-BEGIN
 //! Built-in HTTP mock + record/replay proxy — the mock-killer.
 //!
@@ -43,7 +43,7 @@ Public API manifest for `projects/vat/src/emulator/httpmock/mod.rs` generated fr
 //! records. `/__admin/*` origin-form requests are the control API (stubs +
 //! `/__admin/openapi`). HTTP/1.1; never panics on bad input.
 //!
-//! @spec projects/vat/tech-design/logic/built-in-http-mock-record-replay-proxy.md#logic
+//! @spec apps/vat/tech-design/logic/built-in-http-mock-record-replay-proxy.md#logic
 
 pub mod ca;
 pub mod cassette;
@@ -123,7 +123,7 @@ fn json_resp(status: StatusCode, v: serde_json::Value) -> Response<BoxBody> {
 /// Serve the HTTP mock proxy until the process is killed. `routes` seeds the
 /// host-routing table (`(host, local base URL)` pairs). When `forward` is false
 /// (hermetic mode) an unmatched request is blocked instead of forwarded.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-emulator-httpmock-mod-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-emulator-httpmock-mod-rs.md#source
 pub async fn serve(
     host_port: &str,
     ca_path: &str,
@@ -172,7 +172,7 @@ pub async fn serve(
     }
 }
 
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-emulator-httpmock-mod-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-emulator-httpmock-mod-rs.md#source
 impl Proxy {
     /// Top-level routing by the request target form.
     async fn route(self: Arc<Self>, req: Request<Incoming>) -> Response<BoxBody> {
@@ -634,10 +634,10 @@ fn grpc_error(status: StatusCode, msg: String) -> Response<GrpcBody> {
 
 ```yaml
 changes:
-  - path: projects/vat/src/emulator/httpmock/mod.rs
+  - path: apps/vat/src/emulator/httpmock/mod.rs
     action: modify
     section: rust-source-unit
     impl_mode: codegen
     description: |
-      rust-source-unit (td_ast) source for `projects/vat/src/emulator/httpmock/mod.rs` captured during #39 vat standardization.
+      rust-source-unit (td_ast) source for `apps/vat/src/emulator/httpmock/mod.rs` captured during #39 vat standardization.
 ```

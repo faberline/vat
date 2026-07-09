@@ -1,4 +1,4 @@
-// SPEC-MANAGED: projects/vat/tech-design/interfaces/rest/openapi-driven-mock-http-service.md#vat-openapi-lean-build
+// SPEC-MANAGED: apps/vat/tech-design/interfaces/rest/openapi-driven-mock-http-service.md#vat-openapi-lean-build
 // CODEGEN-BEGIN
 // AW-EC-BEGIN
 // @ec vat-openapi-lean-build

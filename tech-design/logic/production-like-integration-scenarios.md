@@ -117,7 +117,7 @@ example:
 rust_types:
   ScenarioConfig:
     derives: ["Debug", "Clone", "Serialize", "Deserialize"]
-    location: "projects/vat/src/config.rs"
+    location: "apps/vat/src/config.rs"
     fields:
       id: String
       app: String
@@ -132,7 +132,7 @@ rust_types:
       Hermetic: "requires http-mock proxy participation"
   ScenarioRunRecord:
     derives: ["Debug", "Clone", "Serialize", "Deserialize"]
-    location: "projects/vat/src/state.rs"
+    location: "apps/vat/src/state.rs"
     fields:
       id: String
       app: String
@@ -143,7 +143,7 @@ rust_types:
       hermetic: bool
   RouteRecord:
     derives: ["Debug", "Clone", "Serialize", "Deserialize"]
-    location: "projects/vat/src/state.rs"
+    location: "apps/vat/src/state.rs"
     fields:
       host: String
       target: String
@@ -239,27 +239,27 @@ changes:
   - area: "config"
     section: config
     impl_mode: "codegen"
-    files: ["projects/vat/src/config.rs"]
+    files: ["apps/vat/src/config.rs"]
     summary: "Add ScenarioConfig, ScenarioNetworkMode, scenario lookup, and scenario validation."
   - area: "cli"
     section: cli
     impl_mode: "codegen"
-    files: ["projects/vat/src/cli.rs"]
+    files: ["apps/vat/src/cli.rs"]
     summary: "Add --scenario to vat run and dispatch Target::Scenario."
   - area: "runner-orchestration"
     section: logic
     impl_mode: "codegen"
-    files: ["projects/vat/src/commands/run.rs"]
+    files: ["apps/vat/src/commands/run.rs"]
     summary: "Resolve scenario service union, enforce hermetic proxy participation, run one selected runner, and persist scenario evidence."
   - area: "state"
     section: schema
     impl_mode: "codegen"
-    files: ["projects/vat/src/state.rs"]
+    files: ["apps/vat/src/state.rs"]
     summary: "Add ScenarioRunRecord and RouteRecord under TestRunEvidence."
   - area: "tests"
     section: e2e-test
     impl_mode: "codegen"
-    files: ["projects/vat/tests/vat_toml_runner.rs", "projects/vat/tests/vat_concurrent_runners.rs"]
+    files: ["apps/vat/tests/vat_toml_runner.rs", "apps/vat/tests/vat_concurrent_runners.rs"]
     summary: "Add scenario e2e tests and preserve runner/concurrency regressions."
 non_changes:
   - "No VM backend."

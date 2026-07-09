@@ -1,7 +1,7 @@
 ---
 id: vat-source-projects-vat-src-store-rs
 summary: >
-  rust-source-unit TD AST payload for projects/vat/src/store.rs.
+  rust-source-unit TD AST payload for apps/vat/src/store.rs.
 fill_sections: [overview, source, changes]
 capability_refs:
   - id: agent-native-gpu-native-dev-containers
@@ -11,36 +11,36 @@ capability_refs:
     rationale: "This rust-source-unit TD preserves vat source ownership while migrating #39 off group-level source replay."
 ---
 
-# Standardized projects/vat/src/store.rs
+# Standardized apps/vat/src/store.rs
 
 ## Overview
 <!-- type: overview lang: markdown -->
 
-Public API manifest for `projects/vat/src/store.rs` generated from AST during Score force-regeneration standardization.
+Public API manifest for `apps/vat/src/store.rs` generated from AST during Score force-regeneration standardization.
 
 ### Symbols
 
 | Name | Target | Kind | Visibility | Line | Signature |
 |------|--------|------|------------|------|-----------|
-| `Vat` | projects/vat/src/store.rs | struct | pub | 26 |  |
-| `base_manifest` | projects/vat/src/store.rs | function | pub | 64 | base_manifest(&self) -> Result<Manifest> |
-| `base_manifest_path` | projects/vat/src/store.rs | function | pub | 44 | base_manifest_path(&self) -> PathBuf |
-| `changes` | projects/vat/src/store.rs | function | pub | 71 | changes(&self) -> Result<ChangeSet> |
-| `create` | projects/vat/src/store.rs | function | pub | 115 | create(     id: &str,     name: Option<String>,     spec: EnvSpec,     rootfs_source: Option<&std::path::Path>,     lineage: Vec<String>, ) -> Result<Vat> |
-| `events_path` | projects/vat/src/store.rs | function | pub | 41 | events_path(&self) -> PathBuf |
-| `list` | projects/vat/src/store.rs | function | pub | 175 | list() -> Result<Vec<Vat>> |
-| `load` | projects/vat/src/store.rs | function | pub | 161 | load(id: &str) -> Result<Vat> |
-| `log` | projects/vat/src/store.rs | function | pub | 60 | log(&self, ev: Event) -> Result<()> |
-| `meta_path` | projects/vat/src/store.rs | function | pub | 38 | meta_path(&self) -> PathBuf |
-| `project` | projects/vat/src/store.rs | function | pub | 78 | project(&self) -> Result<VatState> |
-| `remove` | projects/vat/src/store.rs | function | pub | 198 | remove(id: &str) -> Result<()> |
-| `rootfs` | projects/vat/src/store.rs | function | pub | 35 | rootfs(&self) -> PathBuf |
-| `save` | projects/vat/src/store.rs | function | pub | 51 | save(&mut self) -> Result<()> |
+| `Vat` | apps/vat/src/store.rs | struct | pub | 26 |  |
+| `base_manifest` | apps/vat/src/store.rs | function | pub | 64 | base_manifest(&self) -> Result<Manifest> |
+| `base_manifest_path` | apps/vat/src/store.rs | function | pub | 44 | base_manifest_path(&self) -> PathBuf |
+| `changes` | apps/vat/src/store.rs | function | pub | 71 | changes(&self) -> Result<ChangeSet> |
+| `create` | apps/vat/src/store.rs | function | pub | 115 | create(     id: &str,     name: Option<String>,     spec: EnvSpec,     rootfs_source: Option<&std::path::Path>,     lineage: Vec<String>, ) -> Result<Vat> |
+| `events_path` | apps/vat/src/store.rs | function | pub | 41 | events_path(&self) -> PathBuf |
+| `list` | apps/vat/src/store.rs | function | pub | 175 | list() -> Result<Vec<Vat>> |
+| `load` | apps/vat/src/store.rs | function | pub | 161 | load(id: &str) -> Result<Vat> |
+| `log` | apps/vat/src/store.rs | function | pub | 60 | log(&self, ev: Event) -> Result<()> |
+| `meta_path` | apps/vat/src/store.rs | function | pub | 38 | meta_path(&self) -> PathBuf |
+| `project` | apps/vat/src/store.rs | function | pub | 78 | project(&self) -> Result<VatState> |
+| `remove` | apps/vat/src/store.rs | function | pub | 198 | remove(id: &str) -> Result<()> |
+| `rootfs` | apps/vat/src/store.rs | function | pub | 35 | rootfs(&self) -> PathBuf |
+| `save` | apps/vat/src/store.rs | function | pub | 51 | save(&mut self) -> Result<()> |
 ## Source
 <!-- type: rust-source-unit lang: rust -->
 
 ````rust
-// SPEC-MANAGED: projects/vat/tech-design/semantic/source/projects-vat-src-store-rs.md#rust-source-unit
+// SPEC-MANAGED: apps/vat/tech-design/semantic/source/projects-vat-src-store-rs.md#rust-source-unit
 // CODEGEN-BEGIN
 //! The vat store: create, load, list, and remove vats on disk, and project a
 //! [`VatState`] from persisted [`VatMeta`] plus live computation.
@@ -64,13 +64,13 @@ const CHANGE_SAMPLE: usize = 20;
 const EVENTS_TAIL: usize = 12;
 
 /// A handle to one vat directory plus its loaded metadata.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-store-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-store-rs.md#source
 pub struct Vat {
     pub dir: PathBuf,
     pub meta: VatMeta,
 }
 
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-store-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-store-rs.md#source
 impl Vat {
     // --- paths -----------------------------------------------------------
 
@@ -153,7 +153,7 @@ impl Vat {
 /// rootfs; `None` creates an empty rootfs. `lineage` carries ancestor ids when
 /// forking. The base manifest is captured immediately so later diffs are
 /// relative to creation time.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-store-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-store-rs.md#source
 pub fn create(
     id: &str,
     name: Option<String>,
@@ -199,7 +199,7 @@ pub fn create(
 }
 
 /// Load a vat by id.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-store-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-store-rs.md#source
 pub fn load(id: &str) -> Result<Vat> {
     let dir = paths::vat_dir(id)?;
     let meta_path = dir.join(file::META);
@@ -213,7 +213,7 @@ pub fn load(id: &str) -> Result<Vat> {
 }
 
 /// List all vats (unsorted directory order; callers sort as needed).
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-store-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-store-rs.md#source
 pub fn list() -> Result<Vec<Vat>> {
     let dir = paths::vats_dir()?;
     if !dir.exists() {
@@ -236,7 +236,7 @@ pub fn list() -> Result<Vec<Vat>> {
 }
 
 /// Remove a vat directory entirely.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-store-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-store-rs.md#source
 pub fn remove(id: &str) -> Result<()> {
     let dir = paths::vat_dir(id)?;
     if !dir.exists() {
@@ -253,10 +253,10 @@ pub fn remove(id: &str) -> Result<()> {
 
 ```yaml
 changes:
-  - path: projects/vat/src/store.rs
+  - path: apps/vat/src/store.rs
     action: modify
     section: rust-source-unit
     impl_mode: codegen
     description: |
-      rust-source-unit (td_ast) source for `projects/vat/src/store.rs` captured during #39 vat standardization.
+      rust-source-unit (td_ast) source for `apps/vat/src/store.rs` captured during #39 vat standardization.
 ```

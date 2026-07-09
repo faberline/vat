@@ -1,7 +1,7 @@
 ---
 id: vat-source-projects-vat-src-lib-rs
 summary: >
-  rust-source-unit TD AST payload for projects/vat/src/lib.rs.
+  rust-source-unit TD AST payload for apps/vat/src/lib.rs.
 fill_sections: [overview, source, changes]
 capability_refs:
   - id: agent-native-gpu-native-dev-containers
@@ -11,37 +11,37 @@ capability_refs:
     rationale: "This rust-source-unit TD preserves vat source ownership while migrating #39 off group-level source replay."
 ---
 
-# Standardized projects/vat/src/lib.rs
+# Standardized apps/vat/src/lib.rs
 
 ## Overview
 <!-- type: overview lang: markdown -->
 
-Public API manifest for `projects/vat/src/lib.rs` generated from AST during Score force-regeneration standardization.
+Public API manifest for `apps/vat/src/lib.rs` generated from AST during Score force-regeneration standardization.
 
 ### Symbols
 
 | Name | Target | Kind | Visibility | Line | Signature |
 |------|--------|------|------------|------|-----------|
-| `VERSION` | projects/vat/src/lib.rs | constant | pub | 52 |  |
-| `cli` | projects/vat/src/lib.rs | module | pub | 49 |  |
-| `cluster` | projects/vat/src/lib.rs | module | pub | 34 |  |
-| `commands` | projects/vat/src/lib.rs | module | pub | 35 |  |
-| `config` | projects/vat/src/lib.rs | module | pub | 36 |  |
-| `emulator` | projects/vat/src/lib.rs | module | pub | 38 |  |
-| `event` | projects/vat/src/lib.rs | module | pub | 39 |  |
-| `gpu` | projects/vat/src/lib.rs | module | pub | 40 |  |
-| `id` | projects/vat/src/lib.rs | module | pub | 41 |  |
-| `overlay` | projects/vat/src/lib.rs | module | pub | 42 |  |
-| `paths` | projects/vat/src/lib.rs | module | pub | 43 |  |
-| `sandbox` | projects/vat/src/lib.rs | module | pub | 44 |  |
-| `spec` | projects/vat/src/lib.rs | module | pub | 45 |  |
-| `state` | projects/vat/src/lib.rs | module | pub | 46 |  |
-| `store` | projects/vat/src/lib.rs | module | pub | 47 |  |
+| `VERSION` | apps/vat/src/lib.rs | constant | pub | 52 |  |
+| `cli` | apps/vat/src/lib.rs | module | pub | 49 |  |
+| `cluster` | apps/vat/src/lib.rs | module | pub | 34 |  |
+| `commands` | apps/vat/src/lib.rs | module | pub | 35 |  |
+| `config` | apps/vat/src/lib.rs | module | pub | 36 |  |
+| `emulator` | apps/vat/src/lib.rs | module | pub | 38 |  |
+| `event` | apps/vat/src/lib.rs | module | pub | 39 |  |
+| `gpu` | apps/vat/src/lib.rs | module | pub | 40 |  |
+| `id` | apps/vat/src/lib.rs | module | pub | 41 |  |
+| `overlay` | apps/vat/src/lib.rs | module | pub | 42 |  |
+| `paths` | apps/vat/src/lib.rs | module | pub | 43 |  |
+| `sandbox` | apps/vat/src/lib.rs | module | pub | 44 |  |
+| `spec` | apps/vat/src/lib.rs | module | pub | 45 |  |
+| `state` | apps/vat/src/lib.rs | module | pub | 46 |  |
+| `store` | apps/vat/src/lib.rs | module | pub | 47 |  |
 ## Source
 <!-- type: rust-source-unit lang: rust -->
 
 ````rust
-// SPEC-MANAGED: projects/vat/tech-design/semantic/source/projects-vat-src-lib-rs.md#rust-source-unit
+// SPEC-MANAGED: apps/vat/tech-design/semantic/source/projects-vat-src-lib-rs.md#rust-source-unit
 // CODEGEN-BEGIN
 //! vat — agent-native, GPU-native dev containers.
 //!
@@ -101,10 +101,10 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 ```yaml
 changes:
-  - path: projects/vat/src/lib.rs
+  - path: apps/vat/src/lib.rs
     action: modify
     section: rust-source-unit
     impl_mode: codegen
     description: |
-      rust-source-unit (td_ast) source for `projects/vat/src/lib.rs` captured during #39 vat standardization.
+      rust-source-unit (td_ast) source for `apps/vat/src/lib.rs` captured during #39 vat standardization.
 ```

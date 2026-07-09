@@ -1,7 +1,7 @@
 ---
 id: vat-source-projects-vat-src-gpu-rs
 summary: >
-  rust-source-unit TD AST payload for projects/vat/src/gpu.rs.
+  rust-source-unit TD AST payload for apps/vat/src/gpu.rs.
 fill_sections: [overview, source, changes]
 capability_refs:
   - id: agent-native-gpu-native-dev-containers
@@ -11,24 +11,24 @@ capability_refs:
     rationale: "This rust-source-unit TD preserves vat source ownership while migrating #39 off group-level source replay."
 ---
 
-# Standardized projects/vat/src/gpu.rs
+# Standardized apps/vat/src/gpu.rs
 
 ## Overview
 <!-- type: overview lang: markdown -->
 
-Public API manifest for `projects/vat/src/gpu.rs` generated from AST during Score force-regeneration standardization.
+Public API manifest for `apps/vat/src/gpu.rs` generated from AST during Score force-regeneration standardization.
 
 ### Symbols
 
 | Name | Target | Kind | Visibility | Line | Signature |
 |------|--------|------|------------|------|-----------|
-| `GpuInfo` | projects/vat/src/gpu.rs | struct | pub | 36 |  |
-| `detect` | projects/vat/src/gpu.rs | function | pub | 53 | detect() -> GpuInfo |
+| `GpuInfo` | apps/vat/src/gpu.rs | struct | pub | 36 |  |
+| `detect` | apps/vat/src/gpu.rs | function | pub | 53 | detect() -> GpuInfo |
 ## Source
 <!-- type: rust-source-unit lang: rust -->
 
 ````rust
-// SPEC-MANAGED: projects/vat/tech-design/semantic/source/projects-vat-src-gpu-rs.md#rust-source-unit
+// SPEC-MANAGED: apps/vat/tech-design/semantic/source/projects-vat-src-gpu-rs.md#rust-source-unit
 // CODEGEN-BEGIN
 //! GPU visibility — the reason vat exists for ML agents.
 //!
@@ -61,7 +61,7 @@ use serde::{Deserialize, Serialize};
 
 /// What GPU acceleration a vat can reach. This is host truth: on macOS every
 /// vat shares it because every vat is a host process.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-gpu-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-gpu-rs.md#source
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GpuInfo {
     /// `"apple"`, `"none"`, or another vendor on non-macOS hosts.
@@ -79,7 +79,7 @@ pub struct GpuInfo {
 
 /// Detect host GPU visibility. Cheap and side-effect free; safe to call per
 /// `vat state`.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-gpu-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-gpu-rs.md#source
 pub fn detect() -> GpuInfo {
     #[cfg(target_os = "macos")]
     {
@@ -167,10 +167,10 @@ fn sysctl(key: &str) -> Option<String> {
 
 ```yaml
 changes:
-  - path: projects/vat/src/gpu.rs
+  - path: apps/vat/src/gpu.rs
     action: modify
     section: rust-source-unit
     impl_mode: codegen
     description: |
-      rust-source-unit (td_ast) source for `projects/vat/src/gpu.rs` captured during #39 vat standardization.
+      rust-source-unit (td_ast) source for `apps/vat/src/gpu.rs` captured during #39 vat standardization.
 ```

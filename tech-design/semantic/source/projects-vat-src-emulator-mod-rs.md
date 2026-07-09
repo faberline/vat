@@ -1,7 +1,7 @@
 ---
 id: projects-vat-src-emulator-mod-rs
 summary: >
-  rust-source-unit TD AST payload for projects/vat/src/emulator/mod.rs.
+  rust-source-unit TD AST payload for apps/vat/src/emulator/mod.rs.
 fill_sections: [overview, source, changes]
 capability_refs:
   - id: agent-native-gpu-native-dev-containers
@@ -11,35 +11,35 @@ capability_refs:
     rationale: "This rust-source-unit TD preserves vat source ownership while migrating #39 off group-level source replay."
 ---
 
-# Standardized projects/vat/src/emulator/mod.rs
+# Standardized apps/vat/src/emulator/mod.rs
 
 ## Overview
 <!-- type: overview lang: markdown -->
 
-Public API manifest for `projects/vat/src/emulator/mod.rs` generated from AST during Score force-regeneration standardization.
+Public API manifest for `apps/vat/src/emulator/mod.rs` generated from AST during Score force-regeneration standardization.
 
 ### Symbols
 
 | Name | Target | Kind | Visibility | Line | Signature |
 |------|--------|------|------------|------|-----------|
-| `Kind` | projects/vat/src/emulator/mod.rs | enum | pub | 57 |  |
-| `auth` | projects/vat/src/emulator/mod.rs | module | pub | 13 |  |
-| `dispatch` | projects/vat/src/emulator/mod.rs | module | pub | 14 |  |
-| `googleapis` | projects/vat/src/emulator/mod.rs | module | pub | 32 |  |
-| `grpc_mux` | projects/vat/src/emulator/mod.rs | module | pub | 15 |  |
-| `httpmock` | projects/vat/src/emulator/mod.rs | module | pub | 16 |  |
-| `openapi` | projects/vat/src/emulator/mod.rs | module | pub | 17 |  |
-| `pubsub` | projects/vat/src/emulator/mod.rs | module | pub | 18 |  |
-| `scheduler` | projects/vat/src/emulator/mod.rs | module | pub | 19 |  |
-| `serve` | projects/vat/src/emulator/mod.rs | function | pub | 83 | serve(kind: Kind, host_port: &str) -> Result<()> |
-| `storage` | projects/vat/src/emulator/mod.rs | module | pub | 20 |  |
-| `tasks` | projects/vat/src/emulator/mod.rs | module | pub | 21 |  |
-| `workflows` | projects/vat/src/emulator/mod.rs | module | pub | 22 |  |
+| `Kind` | apps/vat/src/emulator/mod.rs | enum | pub | 57 |  |
+| `auth` | apps/vat/src/emulator/mod.rs | module | pub | 13 |  |
+| `dispatch` | apps/vat/src/emulator/mod.rs | module | pub | 14 |  |
+| `googleapis` | apps/vat/src/emulator/mod.rs | module | pub | 32 |  |
+| `grpc_mux` | apps/vat/src/emulator/mod.rs | module | pub | 15 |  |
+| `httpmock` | apps/vat/src/emulator/mod.rs | module | pub | 16 |  |
+| `openapi` | apps/vat/src/emulator/mod.rs | module | pub | 17 |  |
+| `pubsub` | apps/vat/src/emulator/mod.rs | module | pub | 18 |  |
+| `scheduler` | apps/vat/src/emulator/mod.rs | module | pub | 19 |  |
+| `serve` | apps/vat/src/emulator/mod.rs | function | pub | 83 | serve(kind: Kind, host_port: &str) -> Result<()> |
+| `storage` | apps/vat/src/emulator/mod.rs | module | pub | 20 |  |
+| `tasks` | apps/vat/src/emulator/mod.rs | module | pub | 21 |  |
+| `workflows` | apps/vat/src/emulator/mod.rs | module | pub | 22 |  |
 ## Source
 <!-- type: rust-source-unit lang: rust -->
 
 ````rust
-// SPEC-MANAGED: projects/vat/tech-design/semantic/source/projects-vat-src-emulator-mod-rs.md#rust-source-unit
+// SPEC-MANAGED: apps/vat/tech-design/semantic/source/projects-vat-src-emulator-mod-rs.md#rust-source-unit
 // CODEGEN-BEGIN
 //! vat's built-in Rust local-test emulators.
 //!
@@ -49,7 +49,7 @@ Public API manifest for `projects/vat/src/emulator/mod.rs` generated from AST du
 //! the common client operations; the official emulators remain available as a
 //! `runtime = docker`/`native` fidelity fallback.
 //!
-//! @spec projects/vat/tech-design/logic/built-in-rust-emulators-pub-sub-firebase-auth.md#logic
+//! @spec apps/vat/tech-design/logic/built-in-rust-emulators-pub-sub-firebase-auth.md#logic
 
 pub mod auth;
 pub mod dispatch;
@@ -94,7 +94,7 @@ pub mod googleapis {
 use anyhow::Result;
 
 /// Which built-in emulator to serve.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-emulator-mod-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-emulator-mod-rs.md#source
 pub enum Kind {
     Pubsub,
     FirebaseAuth,
@@ -120,7 +120,7 @@ pub enum Kind {
 
 /// Serve the selected emulator on `host_port` (e.g. `127.0.0.1:8085`) until the
 /// process is killed.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-emulator-mod-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-emulator-mod-rs.md#source
 pub async fn serve(kind: Kind, host_port: &str) -> Result<()> {
     match kind {
         Kind::FirebaseAuth => auth::serve(host_port).await,
@@ -146,10 +146,10 @@ pub async fn serve(kind: Kind, host_port: &str) -> Result<()> {
 
 ```yaml
 changes:
-  - path: projects/vat/src/emulator/mod.rs
+  - path: apps/vat/src/emulator/mod.rs
     action: modify
     section: rust-source-unit
     impl_mode: codegen
     description: |
-      rust-source-unit (td_ast) source for `projects/vat/src/emulator/mod.rs` captured during #39 vat standardization.
+      rust-source-unit (td_ast) source for `apps/vat/src/emulator/mod.rs` captured during #39 vat standardization.
 ```

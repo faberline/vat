@@ -1,7 +1,7 @@
 ---
 id: projects-vat-tests-vat_emulator_scheduler-rs
 summary: >
-  rust-source-unit TD AST payload for projects/vat/tests/vat_emulator_scheduler.rs.
+  rust-source-unit TD AST payload for apps/vat/tests/vat_emulator_scheduler.rs.
 fill_sections: [overview, source, changes]
 capability_refs:
   - id: agent-native-gpu-native-dev-containers
@@ -11,12 +11,12 @@ capability_refs:
     rationale: "This rust-source-unit TD preserves vat source ownership while migrating #39 off group-level source replay."
 ---
 
-# Standardized projects/vat/tests/vat_emulator_scheduler.rs
+# Standardized apps/vat/tests/vat_emulator_scheduler.rs
 
 ## Overview
 <!-- type: overview lang: markdown -->
 
-Public API manifest for `projects/vat/tests/vat_emulator_scheduler.rs` generated from AST during Score force-regeneration standardization.
+Public API manifest for `apps/vat/tests/vat_emulator_scheduler.rs` generated from AST during Score force-regeneration standardization.
 
 ### Symbols
 
@@ -143,10 +143,10 @@ async fn cloud_scheduler_emulator_fires_job_on_run() {
 
 ```yaml
 changes:
-  - path: projects/vat/tests/vat_emulator_scheduler.rs
+  - path: apps/vat/tests/vat_emulator_scheduler.rs
     action: modify
     section: rust-source-unit
     impl_mode: codegen
     description: |
-      rust-source-unit (td_ast) source for `projects/vat/tests/vat_emulator_scheduler.rs` captured during #39 vat standardization.
+      rust-source-unit (td_ast) source for `apps/vat/tests/vat_emulator_scheduler.rs` captured during #39 vat standardization.
 ```

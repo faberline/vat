@@ -1,4 +1,4 @@
-// SPEC-MANAGED: projects/vat/tech-design/logic/apply-the-sandbox-seatbelt-isolation-egress-to-runner-mode-comma.md#vat-runner-sandbox-egress-smoke
+// SPEC-MANAGED: apps/vat/tech-design/logic/apply-the-sandbox-seatbelt-isolation-egress-to-runner-mode-comma.md#vat-runner-sandbox-egress-smoke
 // CODEGEN-BEGIN
 // AW-EC-BEGIN
 // @ec vat-runner-sandbox-egress-smoke

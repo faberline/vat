@@ -1,4 +1,4 @@
-// SPEC-MANAGED: projects/vat/tech-design/semantic/source/projects-vat-src-emulator-httpmock-ca-rs.md#rust-source-unit
+// SPEC-MANAGED: apps/vat/tech-design/semantic/source/projects-vat-src-emulator-httpmock-ca-rs.md#rust-source-unit
 // CODEGEN-BEGIN
 //! CA + per-host leaf certificates for the HTTP mock proxy's HTTPS MITM.
 //!
@@ -7,7 +7,7 @@
 //! certs signed by that CA on demand (cached) so it can terminate TLS for any
 //! `https://host` the runner connects to. Nothing here panics on bad input.
 //!
-//! @spec projects/vat/tech-design/logic/built-in-http-mock-record-replay-proxy.md#logic
+//! @spec apps/vat/tech-design/logic/built-in-http-mock-record-replay-proxy.md#logic
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -18,7 +18,7 @@ use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use rustls::ServerConfig;
 
 /// Mints and caches per-host server TLS configs signed by a single CA.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-emulator-httpmock-ca-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-emulator-httpmock-ca-rs.md#source
 pub struct CaStore {
     ca_cert: Certificate,
     ca_key: KeyPair,
@@ -27,7 +27,7 @@ pub struct CaStore {
     leaves: Mutex<HashMap<String, Arc<ServerConfig>>>,
 }
 
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-emulator-httpmock-ca-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-emulator-httpmock-ca-rs.md#source
 impl CaStore {
     /// Generate a fresh CA in memory.
     pub fn generate() -> Result<Self> {

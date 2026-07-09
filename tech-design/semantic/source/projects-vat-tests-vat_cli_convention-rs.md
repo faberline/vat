@@ -10,12 +10,12 @@ capability_refs:
     rationale: "This rust-source-unit TD preserves the binary smoke tests for vat's mandatory CLI convention verbs."
 ---
 
-# Standardized projects/vat/tests/vat_cli_convention.rs
+# Standardized apps/vat/tests/vat_cli_convention.rs
 
 ## Overview
 <!-- type: overview lang: markdown -->
 
-Public API manifest for `projects/vat/tests/vat_cli_convention.rs` generated from AST during Score force-regeneration standardization.
+Public API manifest for `apps/vat/tests/vat_cli_convention.rs` generated from AST during Score force-regeneration standardization.
 
 ### Symbols
 
@@ -24,7 +24,7 @@ No public AST symbols.
 <!-- type: rust-source-unit lang: rust -->
 
 ````rust
-// SPEC-MANAGED: projects/vat/tech-design/semantic/source/projects-vat-tests-vat_cli_convention-rs.md#rust-source-unit
+// SPEC-MANAGED: apps/vat/tech-design/semantic/source/projects-vat-tests-vat_cli_convention-rs.md#rust-source-unit
 // CODEGEN-BEGIN
 //! Binary smoke test for the mandatory CLI convention: every CLI ships
 //! `llm`, `upgrade`, and `issue` (CONTRIBUTING.md).
@@ -153,11 +153,11 @@ fn cli_convention_upgrade_check_exits_cleanly() {
 
 ```yaml
 changes:
-  - path: projects/vat/tests/vat_cli_convention.rs
+  - path: apps/vat/tests/vat_cli_convention.rs
     action: modify
     section: rust-source-unit
     impl_mode: codegen
     description: |
-      rust-source-unit (td_ast) source for `projects/vat/tests/vat_cli_convention.rs` captured during vat
+      rust-source-unit (td_ast) source for `apps/vat/tests/vat_cli_convention.rs` captured during vat
       standardization.
 ```

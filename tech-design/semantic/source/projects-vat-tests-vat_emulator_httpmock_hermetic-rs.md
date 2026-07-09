@@ -1,7 +1,7 @@
 ---
 id: projects-vat-tests-vat_emulator_httpmock_hermetic-rs
 summary: >
-  rust-source-unit TD AST payload for projects/vat/tests/vat_emulator_httpmock_hermetic.rs.
+  rust-source-unit TD AST payload for apps/vat/tests/vat_emulator_httpmock_hermetic.rs.
 fill_sections: [overview, source, changes]
 capability_refs:
   - id: agent-native-gpu-native-dev-containers
@@ -12,12 +12,12 @@ capability_refs:
     rationale: "This rust-source-unit TD preserves vat e2e test source behavior for the local agent test runner protocol."
 ---
 
-# Standardized projects/vat/tests/vat_emulator_httpmock_hermetic.rs
+# Standardized apps/vat/tests/vat_emulator_httpmock_hermetic.rs
 
 ## Overview
 <!-- type: overview lang: markdown -->
 
-Public API manifest for `projects/vat/tests/vat_emulator_httpmock_hermetic.rs` generated from AST during Score force-regeneration standardization.
+Public API manifest for `apps/vat/tests/vat_emulator_httpmock_hermetic.rs` generated from AST during Score force-regeneration standardization.
 
 ### Symbols
 
@@ -26,7 +26,7 @@ No public AST symbols.
 <!-- type: rust-source-unit lang: rust -->
 
 ````rust
-// SPEC-MANAGED: projects/vat/tech-design/semantic/source/projects-vat-tests-vat_emulator_httpmock_hermetic-rs.md#rust-source-unit
+// SPEC-MANAGED: apps/vat/tech-design/semantic/source/projects-vat-tests-vat_emulator_httpmock_hermetic-rs.md#rust-source-unit
 // CODEGEN-BEGIN
 // HANDWRITE-BEGIN gap="missing-generator:e2e-test:7761ba2f" tracker="pending-tracker" reason="--no-forward proxy: unmatched → 502 hermetic (no upstream), stub still served; default proxy still forwards."
 //! Integration test for the http-mock hermetic (`--no-forward`) mode — the
@@ -68,7 +68,7 @@ fn wait_for_port(addr: &str) {
 }
 
 struct Killed(Child);
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-tests-vat_emulator_httpmock_hermetic-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-tests-vat_emulator_httpmock_hermetic-rs.md#source
 impl Drop for Killed {
     fn drop(&mut self) {
         let _ = self.0.kill();
@@ -210,10 +210,10 @@ async fn default_proxy_forwards_unmatched() {
 
 ```yaml
 changes:
-  - path: projects/vat/tests/vat_emulator_httpmock_hermetic.rs
+  - path: apps/vat/tests/vat_emulator_httpmock_hermetic.rs
     action: modify
     section: rust-source-unit
     impl_mode: codegen
     description: |
-      rust-source-unit (td_ast) source for `projects/vat/tests/vat_emulator_httpmock_hermetic.rs` captured during vat standardization.
+      rust-source-unit (td_ast) source for `apps/vat/tests/vat_emulator_httpmock_hermetic.rs` captured during vat standardization.
 ```

@@ -1,4 +1,4 @@
-// SPEC-MANAGED: projects/vat/tech-design/interfaces/grpc/cloud-tasks-and-cloud-scheduler-emulator-grpc-front-end-alongsid.md#vat-cloud-grpc-rest-coexist
+// SPEC-MANAGED: apps/vat/tech-design/interfaces/grpc/cloud-tasks-and-cloud-scheduler-emulator-grpc-front-end-alongsid.md#vat-cloud-grpc-rest-coexist
 // CODEGEN-BEGIN
 // AW-EC-BEGIN
 // @ec vat-cloud-grpc-rest-coexist

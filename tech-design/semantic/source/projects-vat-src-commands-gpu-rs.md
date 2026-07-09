@@ -1,7 +1,7 @@
 ---
 id: vat-source-projects-vat-src-commands-gpu-rs
 summary: >
-  rust-source-unit TD AST payload for projects/vat/src/commands/gpu.rs.
+  rust-source-unit TD AST payload for apps/vat/src/commands/gpu.rs.
 fill_sections: [overview, source, changes]
 capability_refs:
   - id: agent-native-gpu-native-dev-containers
@@ -11,18 +11,18 @@ capability_refs:
     rationale: "This rust-source-unit TD preserves vat source ownership while migrating #39 off group-level source replay."
 ---
 
-# Standardized projects/vat/src/commands/gpu.rs
+# Standardized apps/vat/src/commands/gpu.rs
 
 ## Overview
 <!-- type: overview lang: markdown -->
 
-Public API manifest for `projects/vat/src/commands/gpu.rs` generated from AST during Score force-regeneration standardization.
+Public API manifest for `apps/vat/src/commands/gpu.rs` generated from AST during Score force-regeneration standardization.
 
 ### Symbols
 
 | Name | Target | Kind | Visibility | Line | Signature |
 |------|--------|------|------------|------|-----------|
-| `exec` | projects/vat/src/commands/gpu.rs | function | pub | 16 | exec(json: bool) -> Result<ExitCode> |
+| `exec` | apps/vat/src/commands/gpu.rs | function | pub | 16 | exec(json: bool) -> Result<ExitCode> |
 ## Source
 <!-- type: rust-source-unit lang: rust -->
 
@@ -39,7 +39,7 @@ use anyhow::Result;
 
 use crate::gpu;
 
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-commands-gpu-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-commands-gpu-rs.md#source
 pub fn exec(json: bool) -> Result<ExitCode> {
     let info = gpu::detect();
     if json {
@@ -66,10 +66,10 @@ pub fn exec(json: bool) -> Result<ExitCode> {
 
 ```yaml
 changes:
-  - path: projects/vat/src/commands/gpu.rs
+  - path: apps/vat/src/commands/gpu.rs
     action: modify
     section: rust-source-unit
     impl_mode: codegen
     description: |
-      rust-source-unit (td_ast) source for `projects/vat/src/commands/gpu.rs` captured during #39 vat standardization.
+      rust-source-unit (td_ast) source for `apps/vat/src/commands/gpu.rs` captured during #39 vat standardization.
 ```

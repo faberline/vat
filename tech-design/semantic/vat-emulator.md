@@ -1,12 +1,12 @@
 ---
 id: semantic-vat-emulator
-summary: Semantic coverage for "projects/vat/src/emulator"
+summary: Semantic coverage for "apps/vat/src/emulator"
 capability_refs:
   - id: "agent-native-gpu-native-dev-containers"
     role: primary
     claim: "host-process-execution-and-gpu-visibility"
     coverage: partial
-    rationale: "Semantic takeover coverage for existing source group `projects/vat/src/emulator`."
+    rationale: "Semantic takeover coverage for existing source group `apps/vat/src/emulator`."
 fill_sections: [schema, changes]
 ---
 
@@ -18,11 +18,11 @@ fill_sections: [schema, changes]
 ```yaml
 semantic_domain:
   key: "vat/emulator"
-  source_group: "projects/vat/src/emulator"
+  source_group: "apps/vat/src/emulator"
   coverage_kind: semantic
   evidence:
     source_units:
-      - path: "projects/vat/src/emulator/dispatch.rs"
+      - path: "apps/vat/src/emulator/dispatch.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["config_surface", "data_model", "service_method"]
@@ -56,8 +56,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src/emulator"
-      - path: "projects/vat/src/emulator/openapi.rs"
+          domain: "apps/vat/src/emulator"
+      - path: "apps/vat/src/emulator/openapi.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["data_model", "service_method"]
@@ -133,8 +133,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src/emulator"
-      - path: "projects/vat/src/emulator/tasks.rs"
+          domain: "apps/vat/src/emulator"
+      - path: "apps/vat/src/emulator/tasks.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["data_model", "service_method", "test_case"]
@@ -264,8 +264,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "test"
           section_type: "unit-test"
-          domain: "projects/vat/src/emulator"
-      - path: "projects/vat/src/emulator/auth.rs"
+          domain: "apps/vat/src/emulator"
+      - path: "apps/vat/src/emulator/auth.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["config_surface", "data_model", "service_method"]
@@ -338,8 +338,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src/emulator"
-      - path: "projects/vat/src/emulator/grpc_mux.rs"
+          domain: "apps/vat/src/emulator"
+      - path: "apps/vat/src/emulator/grpc_mux.rs"
         language: "rust"
         ownership_state: "handwrite"
         generator_primitives: ["service_method"]
@@ -352,8 +352,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src/emulator"
-      - path: "projects/vat/src/emulator/mod.rs"
+          domain: "apps/vat/src/emulator"
+      - path: "apps/vat/src/emulator/mod.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["enum_model", "service_method"]
@@ -402,8 +402,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src/emulator"
-      - path: "projects/vat/src/emulator/scheduler.rs"
+          domain: "apps/vat/src/emulator"
+      - path: "apps/vat/src/emulator/scheduler.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["data_model", "service_method"]
@@ -488,8 +488,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src/emulator"
-      - path: "projects/vat/src/emulator/storage.rs"
+          domain: "apps/vat/src/emulator"
+      - path: "apps/vat/src/emulator/storage.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["data_model", "service_method"]
@@ -574,8 +574,8 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src/emulator"
-      - path: "projects/vat/src/emulator/pubsub.rs"
+          domain: "apps/vat/src/emulator"
+      - path: "apps/vat/src/emulator/pubsub.rs"
         language: "rust"
         ownership_state: "codegen"
         generator_primitives: ["data_model", "service_method"]
@@ -651,7 +651,7 @@ semantic_domain:
           ecosystem: "rust"
           role: "source"
           section_type: "schema"
-          domain: "projects/vat/src/emulator"
+          domain: "apps/vat/src/emulator"
 ```
 
 ## Changes
@@ -660,55 +660,55 @@ semantic_domain:
 ```yaml
 coverage_kind: semantic
 changes:
-  - path: "projects/vat/src/emulator/dispatch.rs"
+  - path: "apps/vat/src/emulator/dispatch.rs"
     action: modify
     section: schema
     description: |
       Existing source behavior is covered by this feature/domain semantic TD.
     impl_mode: hand-written
-  - path: "projects/vat/src/emulator/openapi.rs"
+  - path: "apps/vat/src/emulator/openapi.rs"
     action: modify
     section: schema
     description: |
       Existing source behavior is covered by this feature/domain semantic TD.
     impl_mode: hand-written
-  - path: "projects/vat/src/emulator/tasks.rs"
+  - path: "apps/vat/src/emulator/tasks.rs"
     action: modify
     section: schema
     description: |
       Existing source behavior is covered by this feature/domain semantic TD.
     impl_mode: hand-written
-  - path: "projects/vat/src/emulator/auth.rs"
+  - path: "apps/vat/src/emulator/auth.rs"
     action: modify
     section: schema
     description: |
       Existing source behavior is covered by this feature/domain semantic TD.
     impl_mode: hand-written
-  - path: "projects/vat/src/emulator/grpc_mux.rs"
+  - path: "apps/vat/src/emulator/grpc_mux.rs"
     action: modify
     section: schema
     description: |
       Existing source behavior is covered by this feature/domain semantic TD.
     impl_mode: hand-written
-  - path: "projects/vat/src/emulator/mod.rs"
+  - path: "apps/vat/src/emulator/mod.rs"
     action: modify
     section: schema
     description: |
       Existing source behavior is covered by this feature/domain semantic TD.
     impl_mode: hand-written
-  - path: "projects/vat/src/emulator/scheduler.rs"
+  - path: "apps/vat/src/emulator/scheduler.rs"
     action: modify
     section: schema
     description: |
       Existing source behavior is covered by this feature/domain semantic TD.
     impl_mode: hand-written
-  - path: "projects/vat/src/emulator/storage.rs"
+  - path: "apps/vat/src/emulator/storage.rs"
     action: modify
     section: schema
     description: |
       Existing source behavior is covered by this feature/domain semantic TD.
     impl_mode: hand-written
-  - path: "projects/vat/src/emulator/pubsub.rs"
+  - path: "apps/vat/src/emulator/pubsub.rs"
     action: modify
     section: schema
     description: |

@@ -1,4 +1,4 @@
-// SPEC-MANAGED: projects/vat/tech-design/semantic/source/projects-vat-src-emulator-workflows-mod-rs.md#rust-source-unit
+// SPEC-MANAGED: apps/vat/tech-design/semantic/source/projects-vat-src-emulator-workflows-mod-rs.md#rust-source-unit
 // CODEGEN-BEGIN
 //! Built-in Cloud Workflows emulator — an axum REST server for the Workflows v1
 //! API over in-memory state, plus a subset interpreter ([`interp`]) that runs a
@@ -8,7 +8,7 @@
 //! endpoint) end to end. The client points its base URL at
 //! `CLOUD_WORKFLOWS_EMULATOR_HOST`.
 //!
-//! @spec projects/vat/tech-design/logic/built-in-cloud-workflows-emulator.md#logic
+//! @spec apps/vat/tech-design/logic/built-in-cloud-workflows-emulator.md#logic
 
 pub mod expr;
 pub mod interp;
@@ -36,7 +36,7 @@ struct Store {
 }
 
 /// Serve the Cloud Workflows emulator until the process is killed.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-emulator-workflows-mod-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-emulator-workflows-mod-rs.md#source
 pub async fn serve(host_port: &str) -> Result<()> {
     let state = AppState {
         inner: Arc::new(Mutex::new(Store::default())),

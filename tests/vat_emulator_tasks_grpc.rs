@@ -1,4 +1,4 @@
-// SPEC-MANAGED: projects/vat/tech-design/semantic/source/projects-vat-tests-vat_emulator_tasks_grpc-rs.md#rust-source-unit
+// SPEC-MANAGED: apps/vat/tech-design/semantic/source/projects-vat-tests-vat_emulator_tasks_grpc-rs.md#rust-source-unit
 // CODEGEN-BEGIN
 //! Integration test for the Cloud Tasks emulator's gRPC front-end. Spawns
 //! `vat emulator cloud-tasks`, drives the GENERATED gRPC client over an insecure
@@ -40,7 +40,7 @@ fn wait_for_port(addr: &str) {
 }
 
 struct Killed(Child);
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-tests-vat_emulator_tasks_grpc-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-tests-vat_emulator_tasks_grpc-rs.md#source
 impl Drop for Killed {
     fn drop(&mut self) {
         let _ = self.0.kill();

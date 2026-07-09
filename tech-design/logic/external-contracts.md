@@ -41,7 +41,7 @@ e2e_tests:
     claim_id: host-process-execution-and-gpu-visibility
     contract_id: host-process-execution-and-gpu-visibility
     category: behavior
-    command: "rg -n -e 'Apple GPU' -e Metal -e MPS -e MLX -e tensorflow-metal projects/vat/README.md projects/vat/src/gpu.rs"
+    command: "rg -n -e 'Apple GPU' -e Metal -e MPS -e MLX -e tensorflow-metal apps/vat/README.md apps/vat/src/gpu.rs"
     assertions:
       - "README/source names Apple GPU access as a host-process property"
       - "Metal, MPS, MLX, and tensorflow-metal are present in the GPU contract"
@@ -57,7 +57,7 @@ e2e_tests:
     claim_id: agent-legible-state-and-diff-surface
     contract_id: agent-legible-state-and-diff-surface
     category: behavior
-    command: "rg -n -e 'vat state' -e 'vat diff' -e '--json' -e structured projects/vat/README.md"
+    command: "rg -n -e 'vat state' -e 'vat diff' -e '--json' -e structured apps/vat/README.md"
     assertions:
       - "README exposes vat state and vat diff"
       - "structured JSON output remains part of the agent-facing contract"
@@ -73,7 +73,7 @@ e2e_tests:
     claim_id: copy-on-write-fork-and-snapshot-lifecycle
     contract_id: copy-on-write-fork-and-snapshot-lifecycle
     category: behavior
-    command: "rg -n -e copy-on-write -e fork -e snapshot -e clonefile -e APFS projects/vat/README.md"
+    command: "rg -n -e copy-on-write -e fork -e snapshot -e clonefile -e APFS apps/vat/README.md"
     assertions:
       - "README preserves copy-on-write lifecycle language"
       - "fork, snapshot, clonefile, and APFS remain visible contract terms"
@@ -89,7 +89,7 @@ e2e_tests:
     claim_id: resource-isolation-boundary
     contract_id: resource-isolation-boundary
     category: behavior
-    command: "rg -n -e sandbox -e isolation -e seatbelt projects/vat/README.md projects/vat/src/sandbox"
+    command: "rg -n -e sandbox -e isolation -e seatbelt apps/vat/README.md apps/vat/src/sandbox"
     assertions:
       - "vat documents resource isolation as its responsibility"
       - "sandbox and seatbelt isolation remain visible implementation surfaces"

@@ -81,37 +81,37 @@ e2e_tests:
 
 ```yaml
 changes:
-  - path: projects/vat/src/commands/llm.rs
+  - path: apps/vat/src/commands/llm.rs
     action: create
     section: scenarios
     impl_mode: hand-written
     reason: "Implements the `llm_reads_compact_usage_contract` scenario with a stable stdout guide."
-  - path: projects/vat/src/cli.rs
+  - path: apps/vat/src/cli.rs
     action: modify
     section: source
     impl_mode: hand-written
     reason: "Register `vat llm` and make root help point agents to it."
-  - path: projects/vat/src/commands/mod.rs
+  - path: apps/vat/src/commands/mod.rs
     action: modify
     section: source
     impl_mode: hand-written
     reason: "Expose the new llm command module."
-  - path: projects/vat/src/commands/llm.rs
+  - path: apps/vat/src/commands/llm.rs
     action: create
     section: source
     impl_mode: hand-written
     reason: "Print the stable LLM usage guide."
-  - path: projects/vat/tests/vat_toml_runner.rs
+  - path: apps/vat/tests/vat_toml_runner.rs
     action: modify
     section: source
     impl_mode: hand-written
     reason: "Add a binary smoke test for the LLM guide contract."
-  - path: projects/vat/tests/vat_toml_runner.rs
+  - path: apps/vat/tests/vat_toml_runner.rs
     action: validate
     section: e2e-test
     impl_mode: hand-written
     reason: "Verifies the `vat llm --topic guide` guide mentions the core agent commands and non-Docker boundaries."
-  - path: projects/vat/README.md
+  - path: apps/vat/README.md
     action: modify
     section: cli
     impl_mode: hand-written

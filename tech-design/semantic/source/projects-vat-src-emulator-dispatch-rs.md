@@ -1,7 +1,7 @@
 ---
 id: projects-vat-src-emulator-dispatch-rs
 summary: >
-  rust-source-unit TD AST payload for projects/vat/src/emulator/dispatch.rs.
+  rust-source-unit TD AST payload for apps/vat/src/emulator/dispatch.rs.
 fill_sections: [overview, source, changes]
 capability_refs:
   - id: agent-native-gpu-native-dev-containers
@@ -11,22 +11,22 @@ capability_refs:
     rationale: "This rust-source-unit TD preserves vat source ownership while migrating #39 off group-level source replay."
 ---
 
-# Standardized projects/vat/src/emulator/dispatch.rs
+# Standardized apps/vat/src/emulator/dispatch.rs
 
 ## Overview
 <!-- type: overview lang: markdown -->
 
-Public API manifest for `projects/vat/src/emulator/dispatch.rs` generated from AST during Score force-regeneration standardization.
+Public API manifest for `apps/vat/src/emulator/dispatch.rs` generated from AST during Score force-regeneration standardization.
 
 ### Symbols
 
 | Name | Target | Kind | Visibility | Line | Signature |
 |------|--------|------|------------|------|-----------|
-| `DispatchResult` | projects/vat/src/emulator/dispatch.rs | struct | pub | 70 |  |
-| `Oidc` | projects/vat/src/emulator/dispatch.rs | struct | pub | 32 |  |
-| `Target` | projects/vat/src/emulator/dispatch.rs | struct | pub | 23 |  |
-| `dispatch_collect` | projects/vat/src/emulator/dispatch.rs | function | pub | 78 | dispatch_collect(     client: &reqwest::Client,     target: &Target, ) -> anyhow::Result<DispatchResult> |
-| `dispatch_http` | projects/vat/src/emulator/dispatch.rs | function | pub | 100 | dispatch_http(client: &reqwest::Client, target: &Target) -> anyhow::Result<u16> |
+| `DispatchResult` | apps/vat/src/emulator/dispatch.rs | struct | pub | 70 |  |
+| `Oidc` | apps/vat/src/emulator/dispatch.rs | struct | pub | 32 |  |
+| `Target` | apps/vat/src/emulator/dispatch.rs | struct | pub | 23 |  |
+| `dispatch_collect` | apps/vat/src/emulator/dispatch.rs | function | pub | 78 | dispatch_collect(     client: &reqwest::Client,     target: &Target, ) -> anyhow::Result<DispatchResult> |
+| `dispatch_http` | apps/vat/src/emulator/dispatch.rs | function | pub | 100 | dispatch_http(client: &reqwest::Client, target: &Target) -> anyhow::Result<u16> |
 ## Source
 <!-- type: rust-source-unit lang: rust -->
 
@@ -39,7 +39,7 @@ Public API manifest for `projects/vat/src/emulator/dispatch.rs` generated from A
 //! the `Authorization: Bearer` header (the same kind of fake token the Firebase
 //! Auth emulator mints; receivers in emulator/test mode do not verify it).
 //!
-//! @spec projects/vat/tech-design/logic/built-in-cloud-tasks-cloud-scheduler-emulators.md#logic
+//! @spec apps/vat/tech-design/logic/built-in-cloud-tasks-cloud-scheduler-emulators.md#logic
 
 use std::collections::BTreeMap;
 
@@ -133,10 +133,10 @@ pub async fn dispatch_http(client: &reqwest::Client, target: &Target) -> anyhow:
 
 ```yaml
 changes:
-  - path: projects/vat/src/emulator/dispatch.rs
+  - path: apps/vat/src/emulator/dispatch.rs
     action: modify
     section: rust-source-unit
     impl_mode: codegen
     description: |
-      rust-source-unit (td_ast) source for `projects/vat/src/emulator/dispatch.rs` captured during #39 vat standardization.
+      rust-source-unit (td_ast) source for `apps/vat/src/emulator/dispatch.rs` captured during #39 vat standardization.
 ```

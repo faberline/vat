@@ -1,7 +1,7 @@
 ---
 id: projects-vat-src-emulator-httpmock-ca-rs
 summary: >
-  rust-source-unit TD AST payload for projects/vat/src/emulator/httpmock/ca.rs.
+  rust-source-unit TD AST payload for apps/vat/src/emulator/httpmock/ca.rs.
 fill_sections: [overview, source, changes]
 capability_refs:
   - id: agent-native-gpu-native-dev-containers
@@ -11,21 +11,21 @@ capability_refs:
     rationale: "This rust-source-unit TD preserves vat source ownership while migrating #39 off group-level source replay."
 ---
 
-# Standardized projects/vat/src/emulator/httpmock/ca.rs
+# Standardized apps/vat/src/emulator/httpmock/ca.rs
 
 ## Overview
 <!-- type: overview lang: markdown -->
 
-Public API manifest for `projects/vat/src/emulator/httpmock/ca.rs` generated from AST during Score force-regeneration standardization.
+Public API manifest for `apps/vat/src/emulator/httpmock/ca.rs` generated from AST during Score force-regeneration standardization.
 
 ### Symbols
 
 | Name | Target | Kind | Visibility | Line | Signature |
 |------|--------|------|------------|------|-----------|
-| `CaStore` | projects/vat/src/emulator/httpmock/ca.rs | struct | pub | 22 |  |
-| `ca_pem` | projects/vat/src/emulator/httpmock/ca.rs | function | pub | 53 | ca_pem(&self) -> &str |
-| `generate` | projects/vat/src/emulator/httpmock/ca.rs | function | pub | 33 | generate() -> Result<Self> |
-| `server_config` | projects/vat/src/emulator/httpmock/ca.rs | function | pub | 59 | server_config(&self, host: &str) -> Result<Arc<ServerConfig>> |
+| `CaStore` | apps/vat/src/emulator/httpmock/ca.rs | struct | pub | 22 |  |
+| `ca_pem` | apps/vat/src/emulator/httpmock/ca.rs | function | pub | 53 | ca_pem(&self) -> &str |
+| `generate` | apps/vat/src/emulator/httpmock/ca.rs | function | pub | 33 | generate() -> Result<Self> |
+| `server_config` | apps/vat/src/emulator/httpmock/ca.rs | function | pub | 59 | server_config(&self, host: &str) -> Result<Arc<ServerConfig>> |
 ## Source
 <!-- type: rust-source-unit lang: rust -->
 
@@ -37,7 +37,7 @@ Public API manifest for `projects/vat/src/emulator/httpmock/ca.rs` generated fro
 //! certs signed by that CA on demand (cached) so it can terminate TLS for any
 //! `https://host` the runner connects to. Nothing here panics on bad input.
 //!
-//! @spec projects/vat/tech-design/logic/built-in-http-mock-record-replay-proxy.md#logic
+//! @spec apps/vat/tech-design/logic/built-in-http-mock-record-replay-proxy.md#logic
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -142,10 +142,10 @@ mod tests {
 
 ```yaml
 changes:
-  - path: projects/vat/src/emulator/httpmock/ca.rs
+  - path: apps/vat/src/emulator/httpmock/ca.rs
     action: modify
     section: rust-source-unit
     impl_mode: codegen
     description: |
-      rust-source-unit (td_ast) source for `projects/vat/src/emulator/httpmock/ca.rs` captured during #39 vat standardization.
+      rust-source-unit (td_ast) source for `apps/vat/src/emulator/httpmock/ca.rs` captured during #39 vat standardization.
 ```

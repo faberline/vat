@@ -1,7 +1,7 @@
 ---
 id: projects-vat-src-emulator-auth-rs
 summary: >
-  rust-source-unit TD AST payload for projects/vat/src/emulator/auth.rs.
+  rust-source-unit TD AST payload for apps/vat/src/emulator/auth.rs.
 fill_sections: [overview, source, changes]
 capability_refs:
   - id: agent-native-gpu-native-dev-containers
@@ -11,18 +11,18 @@ capability_refs:
     rationale: "This rust-source-unit TD preserves vat source ownership while migrating #39 off group-level source replay."
 ---
 
-# Standardized projects/vat/src/emulator/auth.rs
+# Standardized apps/vat/src/emulator/auth.rs
 
 ## Overview
 <!-- type: overview lang: markdown -->
 
-Public API manifest for `projects/vat/src/emulator/auth.rs` generated from AST during Score force-regeneration standardization.
+Public API manifest for `apps/vat/src/emulator/auth.rs` generated from AST during Score force-regeneration standardization.
 
 ### Symbols
 
 | Name | Target | Kind | Visibility | Line | Signature |
 |------|--------|------|------------|------|-----------|
-| `serve` | projects/vat/src/emulator/auth.rs | function | pub | 63 | serve(host_port: &str) -> Result<()> |
+| `serve` | apps/vat/src/emulator/auth.rs | function | pub | 63 | serve(host_port: &str) -> Result<()> |
 ## Source
 <!-- type: rust-source-unit lang: rust -->
 
@@ -34,7 +34,7 @@ Public API manifest for `projects/vat/src/emulator/auth.rs` generated from AST d
 //! signInWithPassword, lookup, delete, secure-token refresh, plus the
 //! `/emulator` config + accounts endpoints.
 //!
-//! @spec projects/vat/tech-design/logic/built-in-rust-emulators-pub-sub-firebase-auth.md#logic
+//! @spec apps/vat/tech-design/logic/built-in-rust-emulators-pub-sub-firebase-auth.md#logic
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -310,10 +310,10 @@ async fn banner() -> Json<Value> {
 
 ```yaml
 changes:
-  - path: projects/vat/src/emulator/auth.rs
+  - path: apps/vat/src/emulator/auth.rs
     action: modify
     section: rust-source-unit
     impl_mode: codegen
     description: |
-      rust-source-unit (td_ast) source for `projects/vat/src/emulator/auth.rs` captured during #39 vat standardization.
+      rust-source-unit (td_ast) source for `apps/vat/src/emulator/auth.rs` captured during #39 vat standardization.
 ```

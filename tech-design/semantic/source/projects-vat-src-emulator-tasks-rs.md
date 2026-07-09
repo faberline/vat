@@ -1,7 +1,7 @@
 ---
 id: projects-vat-src-emulator-tasks-rs
 summary: >
-  rust-source-unit TD AST payload for projects/vat/src/emulator/tasks.rs.
+  rust-source-unit TD AST payload for apps/vat/src/emulator/tasks.rs.
 fill_sections: [overview, source, changes]
 capability_refs:
   - id: agent-native-gpu-native-dev-containers
@@ -11,18 +11,18 @@ capability_refs:
     rationale: "This rust-source-unit TD preserves vat source ownership while migrating #39 off group-level source replay."
 ---
 
-# Standardized projects/vat/src/emulator/tasks.rs
+# Standardized apps/vat/src/emulator/tasks.rs
 
 ## Overview
 <!-- type: overview lang: markdown -->
 
-Public API manifest for `projects/vat/src/emulator/tasks.rs` generated from AST during Score force-regeneration standardization.
+Public API manifest for `apps/vat/src/emulator/tasks.rs` generated from AST during Score force-regeneration standardization.
 
 ### Symbols
 
 | Name | Target | Kind | Visibility | Line | Signature |
 |------|--------|------|------------|------|-----------|
-| `serve` | projects/vat/src/emulator/tasks.rs | function | pub | 41 | serve(host_port: &str) -> Result<()> |
+| `serve` | apps/vat/src/emulator/tasks.rs | function | pub | 41 | serve(host_port: &str) -> Result<()> |
 ## Source
 <!-- type: rust-source-unit lang: rust -->
 
@@ -35,7 +35,7 @@ Public API manifest for `projects/vat/src/emulator/tasks.rs` generated from AST 
 //! and `tasks/{t}:run` forces delivery now — a faithful-enough local path for
 //! testing task-queue producers/consumers.
 //!
-//! @spec projects/vat/tech-design/logic/built-in-cloud-tasks-cloud-scheduler-emulators.md#logic
+//! @spec apps/vat/tech-design/logic/built-in-cloud-tasks-cloud-scheduler-emulators.md#logic
 
 use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, Mutex};
@@ -728,10 +728,10 @@ impl pb::cloud_tasks_server::CloudTasks for TasksGrpc {
 
 ```yaml
 changes:
-  - path: projects/vat/src/emulator/tasks.rs
+  - path: apps/vat/src/emulator/tasks.rs
     action: modify
     section: rust-source-unit
     impl_mode: codegen
     description: |
-      rust-source-unit (td_ast) source for `projects/vat/src/emulator/tasks.rs` captured during #39 vat standardization.
+      rust-source-unit (td_ast) source for `apps/vat/src/emulator/tasks.rs` captured during #39 vat standardization.
 ```

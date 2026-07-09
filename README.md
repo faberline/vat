@@ -47,12 +47,12 @@ Required Verification: smoke
 Promise:
 vat runs sandboxed host-process environments over copy-on-write workspaces so coding and ML agents get structured state, local test runner evidence, fork/snapshot, ephemeral local Kubernetes clusters (kind/k3d/minikube), GCP/Firebase emulators (including built-in Rust Pub/Sub, Firebase Auth, Cloud Tasks, Cloud Scheduler, a Cloud Workflows interpreter, and Cloud Storage), and host GPU access without a VM.
 Gate Inventory:
-- `cargo test -p vat`; `rg -n -e 'vat state' -e 'vat diff' -e '--json' -e structured projects/vat/README.md`; `rg -n -e 'Apple GPU' -e Metal -e MPS -e MLX -e tensorflow-metal projects/vat/README.md projects/vat/src/gpu.rs`; `rg -n -e copy-on-write -e fork -e snapshot -e clonefile -e APFS projects/vat/README.md`
+- `cargo test -p vat`; `rg -n -e 'vat state' -e 'vat diff' -e '--json' -e structured apps/vat/README.md`; `rg -n -e 'Apple GPU' -e Metal -e MPS -e MLX -e tensorflow-metal apps/vat/README.md apps/vat/src/gpu.rs`; `rg -n -e copy-on-write -e fork -e snapshot -e clonefile -e APFS apps/vat/README.md`
 
 | Work Root | Kind | WI | Impl | Verification | Maturity | Gate / Evidence |
 |---|---|---:|---|---|---|---|
-| Host-process execution and GPU visibility | epic | - | implemented | verified | smoke | `rg -n -e 'Apple GPU' -e Metal -e MPS -e MLX -e tensorflow-metal projects/vat/README.md projects/vat/src/gpu.rs` |
-| Agent-legible state and diff surface | epic | - | implemented | verified | smoke | `rg -n -e 'vat state' -e 'vat diff' -e '--json' -e structured projects/vat/README.md` |
+| Host-process execution and GPU visibility | epic | - | implemented | verified | smoke | `rg -n -e 'Apple GPU' -e Metal -e MPS -e MLX -e tensorflow-metal apps/vat/README.md apps/vat/src/gpu.rs` |
+| Agent-legible state and diff surface | epic | - | implemented | verified | smoke | `rg -n -e 'vat state' -e 'vat diff' -e '--json' -e structured apps/vat/README.md` |
 | Local agent test runner protocol | epic | #4152 | implemented | verified | smoke | `cargo test -p vat vat_toml_runner -- --nocapture` |
 | Production-like integration scenarios | change | #701 | implemented | verified | smoke | `cargo test -p vat --test vat_toml_runner scenario_ -- --nocapture` |
 | Local Kubernetes cluster service and `vat cluster` | change | #141 | implemented | verified | smoke | `cargo test -p vat --test vat_cluster -- --nocapture` |
@@ -72,8 +72,8 @@ Gate Inventory:
 | Network sandbox v3 — seatbelt egress policy | change | #518 | implemented | verified | smoke | `cargo test -p vat --test vat_sandbox_egress -- --nocapture` |
 | Sandbox applied to runner-mode commands | change | #527 | implemented | verified | smoke | `cargo test -p vat --test vat_runner_sandbox -- --nocapture` |
 | Full-hermetic http-mock no-forward mode | change | #530 | implemented | verified | smoke | `cargo test -p vat --test vat_emulator_httpmock_hermetic -- --nocapture` |
-| Copy-on-write fork and snapshot lifecycle | epic | - | implemented | verified | smoke | `rg -n -e copy-on-write -e fork -e snapshot -e clonefile -e APFS projects/vat/README.md` |
-| Resource isolation boundary | epic | - | implemented | verified | smoke | `rg -n -e sandbox -e isolation -e seatbelt projects/vat/README.md projects/vat/src/sandbox` |
+| Copy-on-write fork and snapshot lifecycle | epic | - | implemented | verified | smoke | `rg -n -e copy-on-write -e fork -e snapshot -e clonefile -e APFS apps/vat/README.md` |
+| Resource isolation boundary | epic | - | implemented | verified | smoke | `rg -n -e sandbox -e isolation -e seatbelt apps/vat/README.md apps/vat/src/sandbox` |
 
 
 ## AW Verification Snapshot
@@ -82,9 +82,9 @@ Gate Inventory:
 |---|---|
 | Last verified | 2026-06-20 |
 | Production readiness | ready |
-| Tech design root | `projects/vat/tech-design` |
-| TD lock | `projects/vat/tech-design/td.lock` |
-| External-contract inventory | `projects/vat/tests/aw-ec.toml` |
+| Tech design root | `apps/vat/tech-design` |
+| TD lock | `apps/vat/tech-design/td.lock` |
+| External-contract inventory | `apps/vat/tests/aw-ec.toml` |
 | Source ownership | full codegen, 100.0% (65/65) |
 | Semantic coverage | 100.0% |
 | Traceability coverage | 95.6% |
@@ -118,7 +118,7 @@ Gate Inventory:
 ## Quick start
 
 ```bash
-projects/vat/build.sh debug         # build + install ~/.cargo/bin/vat
+apps/vat/build.sh debug         # build + install ~/.cargo/bin/vat
 
 # run a command in a fresh copy-on-write clone of the current dir
 vat run -- python train.py

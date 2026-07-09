@@ -1,7 +1,7 @@
 ---
 id: projects-vat-src-emulator-httpmock-stub-rs
 summary: >
-  rust-source-unit TD AST payload for projects/vat/src/emulator/httpmock/stub.rs.
+  rust-source-unit TD AST payload for apps/vat/src/emulator/httpmock/stub.rs.
 fill_sections: [overview, source, changes]
 capability_refs:
   - id: agent-native-gpu-native-dev-containers
@@ -11,25 +11,25 @@ capability_refs:
     rationale: "This rust-source-unit TD preserves vat source ownership while migrating #39 off group-level source replay."
 ---
 
-# Standardized projects/vat/src/emulator/httpmock/stub.rs
+# Standardized apps/vat/src/emulator/httpmock/stub.rs
 
 ## Overview
 <!-- type: overview lang: markdown -->
 
-Public API manifest for `projects/vat/src/emulator/httpmock/stub.rs` generated from AST during Score force-regeneration standardization.
+Public API manifest for `apps/vat/src/emulator/httpmock/stub.rs` generated from AST during Score force-regeneration standardization.
 
 ### Symbols
 
 | Name | Target | Kind | Visibility | Line | Signature |
 |------|--------|------|------------|------|-----------|
-| `Matcher` | projects/vat/src/emulator/httpmock/stub.rs | struct | pub | 17 |  |
-| `Registry` | projects/vat/src/emulator/httpmock/stub.rs | struct | pub | 73 |  |
-| `Stub` | projects/vat/src/emulator/httpmock/stub.rs | struct | pub | 46 |  |
-| `StubResponse` | projects/vat/src/emulator/httpmock/stub.rs | struct | pub | 31 |  |
-| `add` | projects/vat/src/emulator/httpmock/stub.rs | function | pub | 79 | add(&self, stub: Stub) |
-| `clear` | projects/vat/src/emulator/httpmock/stub.rs | function | pub | 83 | clear(&self) |
-| `find` | projects/vat/src/emulator/httpmock/stub.rs | function | pub | 87 | find(&self, method: &str, host: &str, path: &str) -> Option<StubResponse> |
-| `matches` | projects/vat/src/emulator/httpmock/stub.rs | function | pub | 55 | matches(&self, method: &str, host: &str, path: &str) -> bool |
+| `Matcher` | apps/vat/src/emulator/httpmock/stub.rs | struct | pub | 17 |  |
+| `Registry` | apps/vat/src/emulator/httpmock/stub.rs | struct | pub | 73 |  |
+| `Stub` | apps/vat/src/emulator/httpmock/stub.rs | struct | pub | 46 |  |
+| `StubResponse` | apps/vat/src/emulator/httpmock/stub.rs | struct | pub | 31 |  |
+| `add` | apps/vat/src/emulator/httpmock/stub.rs | function | pub | 79 | add(&self, stub: Stub) |
+| `clear` | apps/vat/src/emulator/httpmock/stub.rs | function | pub | 83 | clear(&self) |
+| `find` | apps/vat/src/emulator/httpmock/stub.rs | function | pub | 87 | find(&self, method: &str, host: &str, path: &str) -> Option<StubResponse> |
+| `matches` | apps/vat/src/emulator/httpmock/stub.rs | function | pub | 55 | matches(&self, method: &str, host: &str, path: &str) -> bool |
 ## Source
 <!-- type: rust-source-unit lang: rust -->
 
@@ -40,7 +40,7 @@ Public API manifest for `projects/vat/src/emulator/httpmock/stub.rs` generated f
 //! canned response. Stubs are registered via the admin API and always take
 //! precedence over cassette replay. Matching is first-registered-wins.
 //!
-//! @spec projects/vat/tech-design/logic/built-in-http-mock-record-replay-proxy.md#logic
+//! @spec apps/vat/tech-design/logic/built-in-http-mock-record-replay-proxy.md#logic
 
 use std::sync::Mutex;
 
@@ -166,10 +166,10 @@ mod tests {
 
 ```yaml
 changes:
-  - path: projects/vat/src/emulator/httpmock/stub.rs
+  - path: apps/vat/src/emulator/httpmock/stub.rs
     action: modify
     section: rust-source-unit
     impl_mode: codegen
     description: |
-      rust-source-unit (td_ast) source for `projects/vat/src/emulator/httpmock/stub.rs` captured during #39 vat standardization.
+      rust-source-unit (td_ast) source for `apps/vat/src/emulator/httpmock/stub.rs` captured during #39 vat standardization.
 ```

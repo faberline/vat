@@ -1,4 +1,4 @@
-<!-- SPEC-MANAGED: projects/vat/tech-design/semantic/vat-projects-vat.md#schema -->
+<!-- SPEC-MANAGED: apps/vat/tech-design/semantic/vat-projects-vat.md#schema -->
 <!-- CODEGEN-BEGIN -->
 # vat Agent Context
 
@@ -7,7 +7,7 @@
 ## Tech Design
 
 - [Tech Design](tech-design): implementation source of truth.
-- Validate: `aw td check projects/vat/tech-design`.
+- Validate: `aw td check apps/vat/tech-design`.
 
 ## Capability Map
 

@@ -1,4 +1,4 @@
-// SPEC-MANAGED: projects/vat/tech-design/semantic/source/projects-vat-src-emulator-tasks-rs.md#rust-source-unit
+// SPEC-MANAGED: apps/vat/tech-design/semantic/source/projects-vat-src-emulator-tasks-rs.md#rust-source-unit
 // CODEGEN-BEGIN
 //! Built-in Cloud Tasks emulator — an axum REST server for the Cloud Tasks v2
 //! API over in-memory state. Cloud Tasks has no official Google emulator, so
@@ -8,7 +8,7 @@
 //! and `tasks/{t}:run` forces delivery now — a faithful-enough local path for
 //! testing task-queue producers/consumers.
 //!
-//! @spec projects/vat/tech-design/logic/built-in-cloud-tasks-cloud-scheduler-emulators.md#logic
+//! @spec apps/vat/tech-design/logic/built-in-cloud-tasks-cloud-scheduler-emulators.md#logic
 
 use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, Mutex};
@@ -37,7 +37,7 @@ struct Store {
 }
 
 /// Serve the Cloud Tasks emulator until the process is killed.
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-emulator-tasks-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-emulator-tasks-rs.md#source
 pub async fn serve(host_port: &str) -> Result<()> {
     let state = AppState {
         inner: Arc::new(Mutex::new(Store::default())),
@@ -469,7 +469,7 @@ fn queue_json_to_proto(j: &Value) -> pb::Queue {
 }
 
 #[tonic::async_trait]
-/// @spec projects/vat/tech-design/semantic/source/projects-vat-src-emulator-tasks-rs.md#source
+/// @spec apps/vat/tech-design/semantic/source/projects-vat-src-emulator-tasks-rs.md#source
 impl pb::cloud_tasks_server::CloudTasks for TasksGrpc {
     async fn create_queue(
         &self,

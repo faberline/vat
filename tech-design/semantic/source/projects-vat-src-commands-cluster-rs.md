@@ -1,7 +1,7 @@
 ---
 id: projects-vat-src-commands-cluster-rs
 summary: >
-  rust-source-unit TD AST payload for projects/vat/src/commands/cluster.rs.
+  rust-source-unit TD AST payload for apps/vat/src/commands/cluster.rs.
 fill_sections: [overview, source, changes]
 capability_refs:
   - id: agent-native-gpu-native-dev-containers
@@ -11,22 +11,22 @@ capability_refs:
     rationale: "This rust-source-unit TD preserves vat source ownership while migrating #39 off group-level source replay."
 ---
 
-# Standardized projects/vat/src/commands/cluster.rs
+# Standardized apps/vat/src/commands/cluster.rs
 
 ## Overview
 <!-- type: overview lang: markdown -->
 
-Public API manifest for `projects/vat/src/commands/cluster.rs` generated from AST during Score force-regeneration standardization.
+Public API manifest for `apps/vat/src/commands/cluster.rs` generated from AST during Score force-regeneration standardization.
 
 ### Symbols
 
 | Name | Target | Kind | Visibility | Line | Signature |
 |------|--------|------|------------|------|-----------|
-| `ClusterRecord` | projects/vat/src/commands/cluster.rs | struct | pub | 30 |  |
-| `create` | projects/vat/src/commands/cluster.rs | function | pub | 40 | create(     name: Option<String>,     backend: ClusterBackend,     k8s_version: Option<String>,     nodes: u32,     json: bool, ) -> Result<ExitCode> |
-| `delete` | projects/vat/src/commands/cluster.rs | function | pub | 183 | delete(name: String, json: bool) -> Result<ExitCode> |
-| `kubeconfig` | projects/vat/src/commands/cluster.rs | function | pub | 170 | kubeconfig(name: String, json: bool) -> Result<ExitCode> |
-| `ls` | projects/vat/src/commands/cluster.rs | function | pub | 127 | ls(json: bool) -> Result<ExitCode> |
+| `ClusterRecord` | apps/vat/src/commands/cluster.rs | struct | pub | 30 |  |
+| `create` | apps/vat/src/commands/cluster.rs | function | pub | 40 | create(     name: Option<String>,     backend: ClusterBackend,     k8s_version: Option<String>,     nodes: u32,     json: bool, ) -> Result<ExitCode> |
+| `delete` | apps/vat/src/commands/cluster.rs | function | pub | 183 | delete(name: String, json: bool) -> Result<ExitCode> |
+| `kubeconfig` | apps/vat/src/commands/cluster.rs | function | pub | 170 | kubeconfig(name: String, json: bool) -> Result<ExitCode> |
+| `ls` | apps/vat/src/commands/cluster.rs | function | pub | 127 | ls(json: bool) -> Result<ExitCode> |
 ## Source
 <!-- type: rust-source-unit lang: rust -->
 
@@ -56,7 +56,7 @@ const CREATE_TIMEOUT: Duration = Duration::from_secs(600);
 
 /// Persisted registry entry for a standalone cluster
 /// (`<root>/clusters/<name>/cluster.json`).
-/// @spec projects/vat/tech-design/logic/kind-like-local-kubernetes-clusters.md#schema
+/// @spec apps/vat/tech-design/logic/kind-like-local-kubernetes-clusters.md#schema
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClusterRecord {
     pub backend: String,
@@ -67,7 +67,7 @@ pub struct ClusterRecord {
 }
 
 /// `vat cluster create` — resolve a backend and create a standalone cluster.
-/// @spec projects/vat/tech-design/logic/kind-like-local-kubernetes-clusters.md#cli
+/// @spec apps/vat/tech-design/logic/kind-like-local-kubernetes-clusters.md#cli
 pub fn create(
     name: Option<String>,
     backend: ClusterBackend,
@@ -154,7 +154,7 @@ pub fn create(
 
 /// `vat cluster ls` — list registry clusters, marking any missing from their
 /// backend as stale.
-/// @spec projects/vat/tech-design/logic/kind-like-local-kubernetes-clusters.md#cli
+/// @spec apps/vat/tech-design/logic/kind-like-local-kubernetes-clusters.md#cli
 pub fn ls(json: bool) -> Result<ExitCode> {
     let records = read_registry()?;
     // Reconcile against each backend's live list once.
@@ -197,7 +197,7 @@ pub fn ls(json: bool) -> Result<ExitCode> {
 }
 
 /// `vat cluster kubeconfig` — print the isolated kubeconfig path for a cluster.
-/// @spec projects/vat/tech-design/logic/kind-like-local-kubernetes-clusters.md#cli
+/// @spec apps/vat/tech-design/logic/kind-like-local-kubernetes-clusters.md#cli
 pub fn kubeconfig(name: String, json: bool) -> Result<ExitCode> {
     let record = load_record(&name)?;
     if json {
@@ -210,7 +210,7 @@ pub fn kubeconfig(name: String, json: bool) -> Result<ExitCode> {
 
 /// `vat cluster delete` — delete the cluster via its backend, then remove the
 /// registry entry.
-/// @spec projects/vat/tech-design/logic/kind-like-local-kubernetes-clusters.md#cli
+/// @spec apps/vat/tech-design/logic/kind-like-local-kubernetes-clusters.md#cli
 pub fn delete(name: String, json: bool) -> Result<ExitCode> {
     let record = load_record(&name)?;
     if let Some(backend) = ResolvedBackend::from_name(&record.backend) {
@@ -270,10 +270,10 @@ fn load_record(name: &str) -> Result<ClusterRecord> {
 
 ```yaml
 changes:
-  - path: projects/vat/src/commands/cluster.rs
+  - path: apps/vat/src/commands/cluster.rs
     action: modify
     section: rust-source-unit
     impl_mode: codegen
     description: |
-      rust-source-unit (td_ast) source for `projects/vat/src/commands/cluster.rs` captured during #39 vat standardization.
+      rust-source-unit (td_ast) source for `apps/vat/src/commands/cluster.rs` captured during #39 vat standardization.
 ```

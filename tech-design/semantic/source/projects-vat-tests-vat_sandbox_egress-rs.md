@@ -10,12 +10,12 @@ capability_refs:
     rationale: "This rust-source-unit TD preserves vat e2e test source behavior for the local agent test runner protocol."
 ---
 
-# Standardized projects/vat/tests/vat_sandbox_egress.rs
+# Standardized apps/vat/tests/vat_sandbox_egress.rs
 
 ## Overview
 <!-- type: overview lang: markdown -->
 
-Public API manifest for `projects/vat/tests/vat_sandbox_egress.rs` generated from AST during Score force-regeneration standardization.
+Public API manifest for `apps/vat/tests/vat_sandbox_egress.rs` generated from AST during Score force-regeneration standardization.
 
 ### Symbols
 
@@ -148,10 +148,10 @@ fn localhost_only_allows_loopback_denies_external() {
 
 ```yaml
 changes:
-  - path: projects/vat/tests/vat_sandbox_egress.rs
+  - path: apps/vat/tests/vat_sandbox_egress.rs
     action: modify
     section: rust-source-unit
     impl_mode: codegen
     description: |
-      rust-source-unit (td_ast) source for `projects/vat/tests/vat_sandbox_egress.rs` captured during vat standardization.
+      rust-source-unit (td_ast) source for `apps/vat/tests/vat_sandbox_egress.rs` captured during vat standardization.
 ```
