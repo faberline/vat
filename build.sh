@@ -4,7 +4,7 @@ set -euo pipefail
 
 usage() {
   cat <<'EOF'
-Usage: apps/vat/build.sh <debug|release>
+Usage: ./build.sh <debug|release>
 
 debug    Build vat and install target/debug/vat to ~/.cargo/bin/vat.
 release  Build/install vat, create a release commit, and print the tag to push after git:land.
@@ -15,7 +15,7 @@ fail_hint() {
   local mode="$1"
   echo ""
   echo "Build failed."
-  echo "Retry with: apps/vat/build.sh ${mode}"
+  echo "Retry with: ./build.sh ${mode}"
   echo "Verify with: ~/.cargo/bin/vat --version"
 }
 
@@ -56,8 +56,8 @@ install_vat() {
 }
 
 if [[ "$MODE" == "debug" ]]; then
-  VERSION_FILES=(apps/vat/Cargo.toml)
-  CURRENT_VERSION="$(project_build_read_version apps/vat/Cargo.toml)"
+  VERSION_FILES=(Cargo.toml)
+  CURRENT_VERSION="$(project_build_read_version Cargo.toml)"
   project_build_prepare_debug_version vat "$CURRENT_VERSION" "${VERSION_FILES[@]}"
   cargo build -p vat
   install_vat debug
@@ -67,8 +67,8 @@ if [[ "$MODE" == "debug" ]]; then
   exit 0
 fi
 
-VERSION_FILES=(apps/vat/Cargo.toml)
-CURRENT_VERSION="$(project_build_read_version apps/vat/Cargo.toml)"
+VERSION_FILES=(Cargo.toml)
+CURRENT_VERSION="$(project_build_read_version Cargo.toml)"
 export PROJECT_BUILD_REQUIRE_REMOTE_TAG_CHECK=1
 project_build_prepare_release_version vat "$CURRENT_VERSION" "${VERSION_FILES[@]}"
 
@@ -77,7 +77,7 @@ cargo build --release -p vat
 install_vat release
 
 TAG="${PROJECT_BUILD_RELEASE_TAG}"
-git add Cargo.lock apps/vat
+git add Cargo.lock .
 git commit --allow-empty -m "release(vat): ${TAG}"
 
 project_build_print_release_next_steps vat "$TAG"

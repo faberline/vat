@@ -55,5 +55,5 @@ pub mod cli;
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 // CODEGEN-END
 // CODEGEN-BEGIN
-// TODO: Implement apps/vat/src/lib.rs
+// TODO: Implement src/lib.rs
 // CODEGEN-END

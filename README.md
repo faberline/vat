@@ -59,16 +59,16 @@ emulators and host GPU access without a VM.
   conformance.
 - Gate: `cargo test -p vat`
 - Gate:
-  `rg -n -e 'vat state' -e 'vat diff' -e '--json' -e structured apps/vat/README.md`
+  `rg -n -e 'vat state' -e 'vat diff' -e '--json' -e structured README.md`
 - Gate:
-  `rg -n -e 'Apple GPU' -e Metal -e MPS -e MLX -e tensorflow-metal apps/vat/README.md apps/vat/src/gpu.rs`
+  `rg -n -e 'Apple GPU' -e Metal -e MPS -e MLX -e tensorflow-metal README.md src/gpu.rs`
 - Gate:
-  `rg -n -e copy-on-write -e fork -e snapshot -e clonefile -e APFS apps/vat/README.md`
+  `rg -n -e copy-on-write -e fork -e snapshot -e clonefile -e APFS README.md`
 
 | Work Root | Kind | WI | Gate / Evidence |
 |---|---|---:|---|
-| Host-process execution and GPU visibility | epic | - | `rg -n -e 'Apple GPU' -e Metal -e MPS -e MLX -e tensorflow-metal apps/vat/README.md apps/vat/src/gpu.rs` |
-| Agent-legible state and diff surface | epic | - | `rg -n -e 'vat state' -e 'vat diff' -e '--json' -e structured apps/vat/README.md` |
+| Host-process execution and GPU visibility | epic | - | `rg -n -e 'Apple GPU' -e Metal -e MPS -e MLX -e tensorflow-metal README.md src/gpu.rs` |
+| Agent-legible state and diff surface | epic | - | `rg -n -e 'vat state' -e 'vat diff' -e '--json' -e structured README.md` |
 | Local agent test runner protocol | epic | #4152 | `cargo test -p vat --test behavior_vat_toml_runner_local_service_smoke --test vat_toml_runner -- --nocapture` |
 | Interrupt-safe owned process cleanup | change | #2394 | `cargo test -p vat --test vat_signal_cleanup -- --test-threads=1` proves real SIGINT/SIGTERM cleanup for configured and direct runs. |
 | Production-like integration scenarios | change | #701 | `cargo test -p vat --test vat_toml_runner --test behavior_scenario_failure_keeps_topology_and_logs --test behavior_scenario_hermetic_requires_http_mock_service --test behavior_scenario_run_starts_app_dependency_and_runner -- --nocapture` |
@@ -97,8 +97,8 @@ emulators and host GPU access without a VM.
 | Headless Docker-command shim over Apple Container | change | #1685 | real host/build/dual-service E2E: `RUST_TEST_THREADS=1 VAT_DOCKER_COMPOSE_INDEPENDENT_SHIM_E2E_REQUIRED=1 cargo test -p vat --test vat_docker_shim -- --ignored --nocapture` |
 | Headless Apple Container K3s one-shot, lease, local-image delivery, and loopback Service port-forward | change | #1693 | deterministic fake regression passed, including bounded session-exec lifecycle/marker coverage; independent-kubectl one-shot E2E passed 1/1 (36 filtered, 28.38s), leased E2E passed 1/1 (36 filtered, 29.97s), local-image E2E passed 1/1 (36 filtered, 49.73s), and Service-forward E2E passed 1/1 (36 filtered, 49.57s). Requires an independently installed PATH `kubectl`; VAT rejects OrbStack-provided kubectl. Evidence is bounded to text commands, strict one-document JSON exec with explicit `--timeout 30`, one already-local Apple `alpine:3.20` pod with `imagePullPolicy=Never` and a marker log, and one Service-only loopback JSON tunnel; it does not claim registry-pull generality, persistent Kubernetes, GUI, Docker Engine/API, or OS-sandbox behavior. Gate: `RUST_TEST_THREADS=1 VAT_K8S_LOCAL_IMAGE_E2E_REQUIRED=1 cargo test -p vat --test vat_k8s_ephemeral -- --ignored --nocapture` |
 | Apple Container k3s local Kubernetes | epic | #1537 | one-shot, leased, local-image, and Service-forward independent-kubectl real-host E2Es passed; each remains bounded. Phase 0 is a bounded Docker-free path: `vat k8s ephemeral` runs one foreground host command and cleans up, while `vat k8s session create/exec/port-forward/image/status/delete` keeps one running guest and private credentials across explicit agent calls until its bounded lease is deleted or reclaimed. Every K3s command requires an independently installed `kubectl` first on PATH and rejects an OrbStack-provided binary. Persistent/reboot-safe kubeconfig, storage/PVC, ingress/LB, multi-node networking, and `microvm-k3s` remain blocked. |
-| Copy-on-write fork and snapshot lifecycle | epic | - | `rg -n -e copy-on-write -e fork -e snapshot -e clonefile -e APFS apps/vat/README.md` |
-| Resource isolation boundary | epic | - | `rg -n -e sandbox -e isolation -e seatbelt apps/vat/README.md apps/vat/src/sandbox` |
+| Copy-on-write fork and snapshot lifecycle | epic | - | `rg -n -e copy-on-write -e fork -e snapshot -e clonefile -e APFS README.md` |
+| Resource isolation boundary | epic | - | `rg -n -e sandbox -e isolation -e seatbelt README.md src/sandbox` |
 
 ### Developer & Agent Experience
 
@@ -131,9 +131,9 @@ project has a `vat.toml`.
 |---|---|
 | Last verified | 2026-06-20 |
 | Production readiness | ready |
-| Tech design root | `apps/vat/tech-design` |
-| TD lock | `apps/vat/tech-design/td.lock` |
-| External-contract inventory | `apps/vat/aw.toml` (`aw.ec.generated`) |
+| Tech design root | `tech-design` |
+| TD lock | `tech-design/td.lock` |
+| External-contract inventory | `aw.toml` (`aw.ec.generated`) |
 | Source ownership | full codegen, 100.0% (65/65) |
 | Semantic coverage | 100.0% |
 | Traceability coverage | 95.6% |
@@ -341,7 +341,7 @@ project has a `vat.toml`.
 ## Quick start
 
 ```bash
-apps/vat/build.sh debug         # build + install ~/.cargo/bin/vat
+./build.sh debug         # build + install ~/.cargo/bin/vat
 
 # run a command in a fresh copy-on-write clone of the current dir
 vat run -- python train.py

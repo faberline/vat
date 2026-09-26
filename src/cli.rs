@@ -846,7 +846,7 @@ fn configured_target(
 #[cfg_attr(not(any(feature = "self-update", feature = "issue")), allow(dead_code))]
 const TOOL: cli_std::ToolInfo = cli_std::ToolInfo {
     project: "vat",
-    repo: "chrischeng-c4/axiom",
+    repo: "faberline/vat",
     target: env!("VAT_TARGET"),
     version: env!("CARGO_PKG_VERSION"),
     git_sha: env!("VAT_GIT_SHA"),

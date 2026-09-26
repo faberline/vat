@@ -1156,7 +1156,7 @@ fn apple_machine_exec_control_is_usable_before_k3s() {
         )
     } else if !machine_image_inspect.passed() {
         Some(
-            "The required systemd Phase 0 image is unavailable. Build local/vat-k8s-systemd:phase0 from apps/vat/tests/fixtures/local-k8s-phase0-machine before retrying.",
+            "The required systemd Phase 0 image is unavailable. Build local/vat-k8s-systemd:phase0 from tests/fixtures/local-k8s-phase0-machine before retrying.",
         )
     } else if machine_logs.stdout.contains("can't run '/sbin/openrc'")
         || machine_logs.stderr.contains("can't run '/sbin/openrc'")
@@ -1488,7 +1488,7 @@ fn apple_machine_bootstraps_disposable_k3s_via_backing_container_exec() {
         )
     } else if !machine_image_inspect.passed() {
         Some(
-            "The required systemd Phase 0 image is unavailable. Build local/vat-k8s-systemd:phase0 from apps/vat/tests/fixtures/local-k8s-phase0-machine before retrying."
+            "The required systemd Phase 0 image is unavailable. Build local/vat-k8s-systemd:phase0 from tests/fixtures/local-k8s-phase0-machine before retrying."
                 .to_string(),
         )
     } else if !machine_create.passed() {

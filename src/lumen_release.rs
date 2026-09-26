@@ -10,7 +10,7 @@ use std::process::Command;
 
 use anyhow::{bail, Context, Result};
 
-const REPO: &str = "chrischeng-c4/axiom";
+const REPO: &str = "faberline/vat";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ResolvedLumen {

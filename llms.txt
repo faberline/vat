@@ -6,7 +6,7 @@
 ## Tech Design
 
 - [Tech Design](tech-design): implementation source of truth.
-- Validate: `aw td check apps/vat/tech-design`.
+- Validate: `aw td check tech-design`.
 
 ## Capability Map
 

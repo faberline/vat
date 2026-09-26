@@ -6,7 +6,7 @@
 // @contract copy-on-write-fork-and-snapshot-lifecycle
 // @category behavior
 // @required_for_production true
-// @command rg -n -e copy-on-write -e fork -e snapshot -e clonefile -e APFS apps/vat/README.md
+// @command rg -n -e copy-on-write -e fork -e snapshot -e clonefile -e APFS README.md
 // AW-EC-END
 
 // Contract: README preserves copy-on-write lifecycle language
@@ -14,8 +14,7 @@
 #[test]
 #[ignore = "AW EC gate: run via `aw health --verify-ec` or `cargo test -- --ignored`"]
 fn vat_copy_on_write_lifecycle() {
-    let command =
-        "rg -n -e copy-on-write -e fork -e snapshot -e clonefile -e APFS apps/vat/README.md";
+    let command = "rg -n -e copy-on-write -e fork -e snapshot -e clonefile -e APFS README.md";
     let id = "vat-copy-on-write-lifecycle";
     let mut root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     while !root.join(".aw").is_dir() {

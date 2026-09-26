@@ -6,7 +6,7 @@
 // @contract resource-isolation-boundary
 // @category behavior
 // @required_for_production true
-// @command rg -n -e sandbox -e isolation -e seatbelt apps/vat/README.md apps/vat/src/sandbox
+// @command rg -n -e sandbox -e isolation -e seatbelt README.md src/sandbox
 // AW-EC-END
 
 // Contract: vat documents resource isolation as its responsibility
@@ -14,8 +14,7 @@
 #[test]
 #[ignore = "AW EC gate: run via `aw health --verify-ec` or `cargo test -- --ignored`"]
 fn vat_resource_isolation_boundary() {
-    let command =
-        "rg -n -e sandbox -e isolation -e seatbelt apps/vat/README.md apps/vat/src/sandbox";
+    let command = "rg -n -e sandbox -e isolation -e seatbelt README.md src/sandbox";
     let id = "vat-resource-isolation-boundary";
     let mut root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     while !root.join(".aw").is_dir() {

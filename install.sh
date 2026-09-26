@@ -4,12 +4,12 @@
 # Releases and drops it on your PATH.
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/chrischeng-c4/axiom/main/apps/vat/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/faberline/vat/main/install.sh | sh
 #
 # Env overrides:
 #   VAT_VERSION   tag to install (default: latest vat@* release, e.g. vat@1.0)
 #   VAT_INSTALL   install dir (default: $HOME/.local/bin)
-#   VAT_REPO      gh repo (default: chrischeng-c4/axiom)
+#   VAT_REPO      gh repo (default: faberline/vat)
 #   GH_TOKEN      GitHub token for private-repo fetch (also: GITHUB_TOKEN)
 #                 If unset and `gh` is logged in, `gh auth token` is used.
 #
@@ -20,7 +20,7 @@
 #   3  missing curl / tar
 set -eu
 
-REPO="${VAT_REPO:-chrischeng-c4/axiom}"
+REPO="${VAT_REPO:-faberline/vat}"
 INSTALL_DIR="${VAT_INSTALL:-$HOME/.local/bin}"
 VERSION="${VAT_VERSION:-latest}"
 TOKEN="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
