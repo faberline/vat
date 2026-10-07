@@ -5,7 +5,9 @@
 //! pinned `kubectl`. Cluster state, PVCs, and the kubeconfig survive machine
 //! restarts. Every verb has a `--json` form for agents.
 
-use std::process::{Command, ExitCode};
+use std::io::Write;
+use std::path::{Path, PathBuf};
+use std::process::{Command, ExitCode, Stdio};
 use std::time::{Duration, Instant};
 
 use anyhow::{bail, Context, Result};
@@ -79,7 +81,53 @@ fn api_ready(kubectl: &std::path::Path, kubeconfig: &std::path::Path) -> bool {
         .is_ok_and(|o| o.status.success())
 }
 
+/// What `ensure_up` brought up: the cluster `vat k8s up` reports and the
+/// `cluster = "machine"` vat.toml service builds on.
+#[derive(Debug, Clone)]
+pub struct UpReport {
+    /// `https://127.0.0.1:<api port>`.
+    pub server: String,
+    /// Host kubeconfig (`<vat home>/kube/config`, context `vat`).
+    pub kubeconfig: PathBuf,
+    /// The pinned kubectl vat vends.
+    pub kubectl: PathBuf,
+    /// K3s was enabled in an already-running machine by this call.
+    pub enabled_live: bool,
+    pub ready_ms: u64,
+}
+
+impl UpReport {
+    pub fn to_json(&self) -> serde_json::Value {
+        json!({
+            "k8s": "ready",
+            "context": k8s::CONTEXT,
+            "server": self.server,
+            "kubeconfig": self.kubeconfig,
+            "kubectl": self.kubectl,
+            "k3s_version": k8s::k3s_version(),
+            "kubernetes_version": k8s::kubernetes_version(),
+            "enabled_live": self.enabled_live,
+            "ready_ms": self.ready_ms,
+        })
+    }
+}
+
 pub fn up(args: UpArgs) -> Result<ExitCode> {
+    let report = ensure_up(&args)?;
+    if args.json {
+        crate::commands::print_json(&report.to_json(), false)?;
+    } else {
+        println!("k8s ready at {} ({} ms)", report.server, report.ready_ms);
+        println!("export KUBECONFIG={}", report.kubeconfig.display());
+        println!("kubectl: {}", report.kubectl.display());
+    }
+    Ok(ExitCode::SUCCESS)
+}
+
+/// Enable K3s in the default machine (booting it when stopped), wait for the
+/// API server and the node, write the host kubeconfig, and install kubectl.
+/// Prints nothing on stdout; with `json` the machine boot is quiet on stderr too.
+pub fn ensure_up(args: &UpArgs) -> Result<UpReport> {
     let t0 = Instant::now();
     let deadline = t0 + Duration::from_secs(args.timeout_s);
     let paths = MachinePaths::new(DEFAULT_MACHINE)?;
@@ -166,37 +214,96 @@ pub fn up(args: UpArgs) -> Result<ExitCode> {
         }
         std::thread::sleep(Duration::from_millis(250));
     }
-    let report = json!({
-        "k8s": "ready",
-        "context": k8s::CONTEXT,
-        "server": server(&cfg),
-        "kubeconfig": kubeconfig,
-        "kubectl": kubectl,
-        "k3s_version": k8s::k3s_version(),
-        "kubernetes_version": k8s::kubernetes_version(),
-        "enabled_live": enabled_live,
-        "ready_ms": t0.elapsed().as_millis() as u64,
-    });
-    if args.json {
-        crate::commands::print_json(&report, false)?;
-    } else {
-        println!(
-            "k8s ready at {} ({} ms)",
-            server(&cfg),
-            t0.elapsed().as_millis()
+    Ok(UpReport {
+        server: server(&cfg),
+        kubeconfig,
+        kubectl,
+        enabled_live,
+        ready_ms: t0.elapsed().as_millis() as u64,
+    })
+}
+
+/// Create (idempotently) a run's namespace on the machine cluster and write a
+/// copy of the host kubeconfig whose `vat` context selects it.
+pub fn provision_namespace(
+    up: &UpReport,
+    namespace: &str,
+    run_id: &str,
+    kubeconfig_out: &Path,
+) -> Result<()> {
+    let manifest = k8s::namespace_manifest(namespace, run_id);
+    let mut child = Command::new(&up.kubectl)
+        .args(["apply", "--request-timeout=30s", "-f", "-"])
+        .env("KUBECONFIG", &up.kubeconfig)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::null())
+        .stderr(Stdio::piped())
+        .spawn()
+        .context("run kubectl apply")?;
+    child
+        .stdin
+        .take()
+        .context("kubectl stdin")?
+        .write_all(manifest.as_bytes())?;
+    let out = child.wait_with_output()?;
+    if !out.status.success() {
+        bail!(
+            "create namespace `{namespace}`: {}",
+            String::from_utf8_lossy(&out.stderr).trim()
         );
-        println!("export KUBECONFIG={}", kubeconfig.display());
-        println!("kubectl: {}", kubectl.display());
     }
-    Ok(ExitCode::SUCCESS)
+    let host = std::fs::read_to_string(&up.kubeconfig)
+        .with_context(|| format!("read {}", up.kubeconfig.display()))?;
+    let yaml = k8s::namespaced_kubeconfig(&host, namespace)?;
+    if let Some(dir) = kubeconfig_out.parent() {
+        std::fs::create_dir_all(dir)?;
+    }
+    std::fs::write(kubeconfig_out, yaml)
+        .with_context(|| format!("write {}", kubeconfig_out.display()))?;
+    use std::os::unix::fs::PermissionsExt;
+    std::fs::set_permissions(kubeconfig_out, std::fs::Permissions::from_mode(0o600))?;
+    Ok(())
+}
+
+/// Cheap, side-effect-free view of the machine cluster (no API calls).
+#[derive(Debug, Clone, Copy)]
+pub struct Probe {
+    pub enabled: bool,
+    pub running: bool,
+    pub ready: bool,
+}
+
+impl Probe {
+    pub fn state(self) -> &'static str {
+        match (self.enabled, self.running, self.ready) {
+            (false, _, _) => "disabled",
+            (true, false, _) => "stopped",
+            (true, true, false) => "starting",
+            (true, true, true) => "ready",
+        }
+    }
+}
+
+pub fn probe() -> Result<Probe> {
+    let paths = MachinePaths::new(DEFAULT_MACHINE)?;
+    let cfg = MachineConfig::load(&paths.config)?;
+    let running = machine::running_pid(&paths).is_some();
+    let enabled = cfg.as_ref().is_some_and(|c| c.k8s);
+    Ok(Probe {
+        enabled,
+        running,
+        ready: running && enabled && guest_k8s_ready(&paths),
+    })
 }
 
 pub fn status(json_out: bool) -> Result<ExitCode> {
     let paths = MachinePaths::new(DEFAULT_MACHINE)?;
     let cfg = MachineConfig::load(&paths.config)?;
-    let running = machine::running_pid(&paths).is_some();
-    let enabled = cfg.as_ref().is_some_and(|c| c.k8s);
-    let ready = running && enabled && guest_k8s_ready(&paths);
+    let Probe {
+        enabled,
+        running,
+        ready,
+    } = probe()?;
     let kubeconfig = k8s::kubeconfig_path()?;
     let kubectl = k8s::kubectl_path()?;
     let report = json!({
@@ -214,12 +321,12 @@ pub fn status(json_out: bool) -> Result<ExitCode> {
     if json_out {
         crate::commands::print_json(&report, false)?;
     } else {
-        let state = match (enabled, running, ready) {
-            (false, _, _) => "disabled",
-            (true, false, _) => "stopped",
-            (true, true, false) => "starting",
-            (true, true, true) => "ready",
-        };
+        let state = Probe {
+            enabled,
+            running,
+            ready,
+        }
+        .state();
         println!("k8s      {state} (K3s {})", k8s::k3s_version());
         if let Some(server) = report["server"].as_str() {
             println!("server   {server}");

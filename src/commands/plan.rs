@@ -8,8 +8,8 @@ use anyhow::{bail, Result};
 use serde::Serialize;
 
 use crate::config::{
-    self, ClusterBackend, PortSpec, RetentionPolicy, RunnerConfig, ScenarioConfig,
-    ScenarioNetworkMode, ServiceConfig, ServicePreset, ServiceRuntime, VatConfig,
+    self, PortSpec, RetentionPolicy, RunnerConfig, ScenarioConfig, ScenarioNetworkMode,
+    ServiceConfig, ServicePreset, ServiceRuntime, VatConfig,
 };
 use crate::spec::EgressPolicy;
 use crate::state::ConfigRef;
@@ -344,10 +344,7 @@ fn planned_service(service: &ServiceConfig) -> PlannedService {
             host: external.host.clone(),
             port: external.port,
         }),
-        cluster: service
-            .cluster
-            .map(cluster_backend_name)
-            .map(str::to_string),
+        cluster: service.cluster.map(|backend| backend.name().to_string()),
         readiness: readiness_name(service).to_string(),
     }
 }
@@ -409,6 +406,7 @@ fn exported_env_keys(service: &ServiceConfig) -> Vec<String> {
         add_endpoint_env_keys(&mut keys, &service.id);
     } else if service.cluster.is_some() {
         keys.insert("KUBECONFIG".to_string());
+        keys.insert("VAT_K8S_NAMESPACE".to_string());
         keys.extend(service.export.keys().cloned());
         let upper = service.id.to_uppercase().replace(['-', '.'], "_");
         keys.insert(format!("VAT_SERVICE_{upper}_KUBECONFIG"));
@@ -485,7 +483,9 @@ fn readiness_name(service: &ServiceConfig) -> &'static str {
         "cmd"
     } else if service.ready_http.is_some() {
         "http"
-    } else if service.external.is_some() || service.preset.is_some() || service.cluster.is_some() {
+    } else if service.cluster.is_some() {
+        "kubectl"
+    } else if service.external.is_some() || service.preset.is_some() {
         "tcp"
     } else {
         "none"
@@ -582,15 +582,6 @@ fn service_preset_by_name(name: &str) -> Option<ServicePreset> {
         "openapi" => ServicePreset::Openapi,
         _ => return None,
     })
-}
-
-fn cluster_backend_name(backend: ClusterBackend) -> &'static str {
-    match backend {
-        ClusterBackend::Auto => "auto",
-        ClusterBackend::Kind => "kind",
-        ClusterBackend::K3d => "k3d",
-        ClusterBackend::Minikube => "minikube",
-    }
 }
 
 fn egress_name(egress: EgressPolicy) -> &'static str {

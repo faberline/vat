@@ -109,13 +109,12 @@ completion evidence named in it runs as a gate; until then the matching
   PersistentVolumeClaims, and its kubeconfig survive VM restart and host
   reboot; `vat k8s` exposes the kubeconfig and status through structured JSON.
   The kind/k3d/minikube `cluster` service and the one-boot Apple Container K3s
-  session are superseded and retired once this outcome passes its gate.
+  session are retired; `cluster = "machine"` services run on this cluster in a
+  per-run namespace.
 - Boundary: Single node. No Ingress/GCLB emulation, no Secret Manager, no
-  multi-node in this outcome. The independent-`kubectl` requirement carries
-  over unless the owner decides vat should vend its own. Retirement of
-  `vat cluster` and `vat k8s ephemeral|session` is part of this outcome's
-  definition of done, so their [STATUS.md](STATUS.md) rows are removed, not
-  left `Limited`.
+  multi-node in this outcome. vat vends a pinned kubectl (`~/.vat/bin/kubectl`). The
+  retired commands' [STATUS.md](STATUS.md) rows are removed, not left
+  `Limited`.
 - Completion evidence: A `cargo test -p vat` target (opt-in real-host E2E)
   builds an image through the Engine API, deploys a pod using it with no load
   step, writes to a PVC, restarts the VM, and proves the pod and PVC data are

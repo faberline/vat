@@ -355,51 +355,6 @@ required_for_production = true
 assertions = ["a vat.toml with preset = cloud-workflows alongside another emulator preset runs a workflow whose http step targets that sibling emulator's exported host, end to end."]
 
 [[aw.ec.generated.cases]]
-id = "vat-cluster-backend-unavailable-smoke"
-capability_id = "agent-native-gpu-native-dev-containers"
-claim_id = "local-kubernetes-cluster-service-and-vat-cluster"
-contract_id = "local-agent-test-runner-protocol"
-category = "behavior"
-td_ref = "tech-design/logic/kind-like-local-kubernetes-clusters.md#vat-cluster-backend-unavailable-smoke"
-test_path = "tests/behavior_vat_cluster_backend_unavailable_smoke.rs"
-command = "cargo test -p vat --test vat_cluster -- --nocapture"
-required_for_production = true
-assertions = [
-    "a cluster service with no backend on PATH emits a cluster_backend_unavailable JSONL error and a non-zero exit.",
-    "vat never panics on the unavailable path.",
-]
-
-[[aw.ec.generated.cases]]
-id = "vat-cluster-runscoped-smoke"
-capability_id = "agent-native-gpu-native-dev-containers"
-claim_id = "local-kubernetes-cluster-service-and-vat-cluster"
-contract_id = "local-agent-test-runner-protocol"
-category = "behavior"
-td_ref = "tech-design/logic/kind-like-local-kubernetes-clusters.md#vat-cluster-runscoped-smoke"
-test_path = "tests/behavior_vat_cluster_runscoped_smoke.rs"
-command = "cargo test -p vat --test vat_cluster -- --nocapture --include-ignored"
-required_for_production = true
-assertions = [
-    "with a real backend and Docker available, vat creates the cluster, the runner reaches the cluster via KUBECONFIG, and vat state shows services[].cluster.backend.",
-    "the cluster is deleted at teardown under keep=never; the test skips gracefully when no backend/docker is present.",
-]
-
-[[aw.ec.generated.cases]]
-id = "vat-cluster-standalone-smoke"
-capability_id = "agent-native-gpu-native-dev-containers"
-claim_id = "local-kubernetes-cluster-service-and-vat-cluster"
-contract_id = "local-agent-test-runner-protocol"
-category = "behavior"
-td_ref = "tech-design/logic/kind-like-local-kubernetes-clusters.md#vat-cluster-standalone-smoke"
-test_path = "tests/behavior_vat_cluster_standalone_smoke.rs"
-command = "cargo test -p vat --test vat_cluster -- --nocapture --include-ignored"
-required_for_production = true
-assertions = [
-    "vat cluster create then ls --json lists the cluster, kubeconfig prints a usable path, and delete removes it from the registry and the backend.",
-    "the test skips gracefully when no backend/docker is present.",
-]
-
-[[aw.ec.generated.cases]]
 id = "vat-compose-container-gated-full-cycle"
 capability_id = "agent-native-gpu-native-dev-containers"
 claim_id = "vat-compose-bounded-compose-subset-up-down-ps-logs"
@@ -509,7 +464,7 @@ required_for_production = true
 assertions = [
     "A fake explicit MicroVm image/preset plan with an unselected Docker service invokes exactly one read-only container system status probe per invocation plus bounded read-only builder advisory probes, never Docker even when Docker is on PATH, maps services.docker_services to not_probed, and emits docker.daemon_probe.state=skipped with the selected-plan reason as provenance rather than unavailable evidence; daemon=false has no unavailable meaning because no Docker command ran.",
     "The builder advisory records shared_unknown ownership, automatic_cleanup=false, separate configuration/observed stats/global disk, and nonfatal unknown/timeout/probe errors without lifecycle mutation or a change to doctor runtime success; a real state is reported only when supported by the installed CLI.",
-    "An unsupported selected MicroVm preset without a declared OCI route fails closed without Docker fallback. A selected Docker runtime, Auto image, eligible Auto preset fallback, or cluster retains normal Docker probing; a selected cluster requires Docker. Doctor never autostarts Apple Container or changes runtime through fallback.",
+    "An unsupported selected MicroVm preset without a declared OCI route fails closed without Docker fallback. A selected Docker runtime, Auto image, or eligible Auto preset fallback retains normal Docker probing; a selected machine cluster service reports machine K3s state without a host Docker probe. Doctor never autostarts Apple Container or changes runtime through fallback.",
     "Recorded implementation validation: `cargo test -p vat --test vat_toml_runner -- --nocapture` passed 26/26; `cargo test -p vat --lib sandbox::microvm::tests -- --nocapture` passed 7/7.",
 ]
 
@@ -652,118 +607,6 @@ required_for_production = true
 assertions = ["two sequential gRPC calls through the MITM to the same emulator both succeed (reuse path), and the #509 single-call e2e still passes."]
 
 [[aw.ec.generated.cases]]
-id = "vat-headless-ephemeral-k8s-bootstrap-diagnostics"
-capability_id = "agent-native-gpu-native-dev-containers"
-claim_id = "headless-ephemeral-kubernetes-session"
-contract_id = "vat-headless-ephemeral-k8s-bootstrap-diagnostics"
-category = "behavior"
-td_ref = "tech-design/logic/vat-headless-ephemeral-local-k8s.md#vat-headless-ephemeral-k8s-bootstrap-diagnostics"
-test_path = "tests/behavior_vat_headless_ephemeral_k8s_bootstrap_diagnostics.rs"
-command = "cargo test -p vat --test vat_k8s_ephemeral -- --nocapture"
-required_for_production = true
-assertions = [
-    "The passed deterministic fake regression keeps the bootstrap root error primary, then emits staged non-sensitive installer/guest/machine diagnostics with exactly guest_install_log, guest_k3s_system, backing_container_logs, machine_boot_log, machine_inspect, and container_system_status.",
-    "The diagnostics are fixed read-only probes under a six-second total and one-second-per-probe budget; they exclude private kubeconfig/cache and host credentials, do not change the existing 300-second bootstrap behavior, do not rerun k3s --version or add a wrapper/recovery command, and exact cleanup still runs.",
-]
-
-[[aw.ec.generated.cases]]
-id = "vat-headless-ephemeral-k8s-real-host"
-capability_id = "agent-native-gpu-native-dev-containers"
-claim_id = "headless-ephemeral-kubernetes-session"
-contract_id = "vat-headless-ephemeral-k8s-real-host"
-category = "behavior"
-td_ref = "tech-design/logic/vat-headless-ephemeral-local-k8s.md#vat-headless-ephemeral-k8s-real-host"
-test_path = "tests/behavior_vat_headless_ephemeral_k8s_real_host.rs"
-command = "VAT_K8S_EPHEMERAL_E2E_REQUIRED=1 cargo test -p vat --test vat_k8s_ephemeral apple_container_k3s_session_exposes_host_api_then_cleans_up -- --ignored --nocapture"
-required_for_production = true
-assertions = [
-    "An independently installed non-OrbStack kubectl is first on PATH; an OrbStack-provided binary is rejected before the K3s command runs.",
-    "The public command's systemd image is present in Apple Container.",
-    "Host kubectl reads exactly one Ready K3s node through the temporary 0600 kubeconfig.",
-    "The terminal result's exact machine name returns Apple Container's not-found result after return.",
-    "A pass is only a one-boot agent-session proof, never a durable microvm-k3s claim.",
-]
-
-[[aw.ec.generated.cases]]
-id = "vat-headless-leased-k8s-json-exec-fake"
-capability_id = "agent-native-gpu-native-dev-containers"
-claim_id = "headless-ephemeral-kubernetes-session"
-contract_id = "vat-headless-leased-k8s-json-exec-fake"
-category = "behavior"
-td_ref = "tech-design/logic/vat-headless-ephemeral-local-k8s.md#vat-headless-leased-k8s-json-exec-fake"
-test_path = "tests/behavior_vat_headless_leased_k8s_json_exec_fake.rs"
-command = "cargo test -p vat --test vat_k8s_ephemeral leased_session_exec -- --nocapture"
-required_for_production = true
-assertions = [
-    "The fake runtime proves the JSON leased exec result has one VAT-owned document, separate bounded streams, a preserved child exit code, no raw replay, and no session marker mutation; credential-validation and API-probe failures mask private paths.",
-    "A fake owned-API probe that crosses the lease deadline does not spawn the credentialed child. The independent-kubectl leased real-host E2E passed 1/1 (36 filtered) in 29.97s and includes strict JSON exec with --timeout 30.",
-]
-
-[[aw.ec.generated.cases]]
-id = "vat-headless-leased-k8s-local-image-real-host"
-capability_id = "agent-native-gpu-native-dev-containers"
-claim_id = "headless-ephemeral-kubernetes-session"
-contract_id = "vat-headless-leased-k8s-local-image-real-host"
-category = "behavior"
-td_ref = "tech-design/logic/vat-headless-ephemeral-local-k8s.md#vat-headless-leased-k8s-local-image-real-host"
-test_path = "tests/behavior_vat_headless_leased_k8s_local_image_real_host.rs"
-command = "RUST_TEST_THREADS=1 VAT_K8S_LOCAL_IMAGE_E2E_REQUIRED=1 cargo test -p vat --test vat_k8s_ephemeral apple_container_k3s_lease_imports_local_image_without_registry_pull -- --ignored --nocapture"
-required_for_production = true
-assertions = [
-    "Passed 1/1 (36 filtered) in 49.73s: an already-local Apple alpine:3.20 image is inspected, privately delivered into one active K3s lease, and reported with an OCI descriptor digest.",
-    "The one fixture pod uses imagePullPolicy Never, completes, and emits its marker log; this proves the imported local image for that pod only, not registry-pull generality.",
-    "Explicit delete confirms exact Apple machine and private session storage cleanup. This is not persistence, GUI, or Docker Engine/API evidence.",
-]
-
-[[aw.ec.generated.cases]]
-id = "vat-headless-leased-k8s-port-forward-json-fake"
-capability_id = "agent-native-gpu-native-dev-containers"
-claim_id = "headless-ephemeral-kubernetes-session"
-contract_id = "vat-headless-leased-k8s-port-forward-json-fake"
-category = "behavior"
-td_ref = "tech-design/logic/vat-headless-ephemeral-local-k8s.md#vat-headless-leased-k8s-port-forward-json-fake"
-test_path = "tests/behavior_vat_headless_leased_k8s_port_forward_json_fake.rs"
-command = "cargo test -p vat --test vat_k8s_ephemeral leased_session_port_forward_json -- --nocapture"
-required_for_production = true
-assertions = [
-    "The fake runtime proves text stays separate while JSON returns one vat.k8s.session.port-forward.v1 only after exact tunnel/group cleanup, preserving the host child exit and separately bounded stream snapshots without raw replay.",
-    "VAT masks its own setup/API/tunnel/cleanup errors, preserves opaque credential-free child output in a successful result, refuses to open a tunnel when the lease crosses expiry after API proof, and cleans direct/outer children before readers join after partial setup failure.",
-    "Focused deterministic filter passed 7/7. The independent-kubectl Service-forward E2E passed 1/1 (36 filtered) in 49.57s and includes the strict JSON tunnel only for one Service-only loopback session.",
-]
-
-[[aw.ec.generated.cases]]
-id = "vat-headless-leased-k8s-port-forward-real-host"
-capability_id = "agent-native-gpu-native-dev-containers"
-claim_id = "headless-ephemeral-kubernetes-session"
-contract_id = "vat-headless-leased-k8s-port-forward-real-host"
-category = "behavior"
-td_ref = "tech-design/logic/vat-headless-ephemeral-local-k8s.md#vat-headless-leased-k8s-port-forward-real-host"
-test_path = "tests/behavior_vat_headless_leased_k8s_port_forward_real_host.rs"
-command = "VAT_K8S_PORT_FORWARD_E2E_REQUIRED=1 cargo test -p vat --test vat_k8s_ephemeral apple_container_k3s_lease_port_forwards_local_service_to_one_credential_free_host_child -- --ignored --nocapture"
-required_for_production = true
-assertions = [
-    "Independent-kubectl real-host E2E passed 1/1 (36 filtered) in 49.57s. A local alpine fixture was loaded into the active K3s lease; because BusyBox lacks `httpd`, an in-pod HTTP probe verified the fixture before its Service endpoint responded through one VAT-owned 127.0.0.1 text forward and the strict one-document JSON tunnel.",
-    "One credential-free host curl child proves VAT supplied endpoint metadata but did not inject kubeconfig/cache/API variables or VAT_HOME. Its terminal record begins on a new line after child output.",
-    "The terminal result confirms forward cleanup, the selected loopback port is closed afterward, and the lease remains active only until explicit delete confirms exact machine cleanup. This bounded result is not a same-UID OS-isolation claim, daemonized-child claim, persistence, ingress, public bind, background-proxy, or general Kubernetes claim.",
-]
-
-[[aw.ec.generated.cases]]
-id = "vat-headless-leased-k8s-real-host"
-capability_id = "agent-native-gpu-native-dev-containers"
-claim_id = "headless-ephemeral-kubernetes-session"
-contract_id = "vat-headless-leased-k8s-real-host"
-category = "behavior"
-td_ref = "tech-design/logic/vat-headless-ephemeral-local-k8s.md#vat-headless-leased-k8s-real-host"
-test_path = "tests/behavior_vat_headless_leased_k8s_real_host.rs"
-command = "VAT_K8S_SESSION_E2E_REQUIRED=1 cargo test -p vat --test vat_k8s_ephemeral apple_container_k3s_leased_session_supports_multiple_host_commands_then_deletes -- --ignored --nocapture"
-required_for_production = true
-assertions = [
-    "Two independent host kubectl commands use one active private lease.",
-    "Explicit delete confirms exact Apple machine absence and removes the credential directory.",
-    "The proof does not claim Apple-machine restart, reboot persistence, or a durable cluster backend.",
-]
-
-[[aw.ec.generated.cases]]
 id = "vat-hermetic-build"
 capability_id = "agent-native-gpu-native-dev-containers"
 claim_id = "full-hermetic-http-mock-no-forward-mode"
@@ -883,10 +726,8 @@ assertions = [
     "`vat llm --topic guide` exits successfully.",
     "The guide mentions vat.toml runner mode and direct command mode.",
     "The guide mentions state, diff, and logs evidence commands.",
-    "The guide describes unchanged no-flag session status and the bounded `vat k8s session status --verify-api <id>` proof: only an active unexpired lease without a port-forward or exec marker may enter the private operation lock; it rechecks expiry after lock and immediately before the bounded private-credential API probe, verifies exact backing identity/endpoint, reports api_checked=true/api_state=reachable on success, returns non-probing api_checked=false/api_state=not_checked for expired/recovery state, and fails closed without lease/credential mutation for busy, unavailable, or identity-mismatched state. It remains one-boot/nonpersistent with no GUI or Docker Engine/API; focused fake coverage passed 4/4, a precise unit passed 1/1, and the independent-kubectl leased E2E passed 1/1 (36 filtered) in 29.97s with status --verify-api after text and strict JSON exec. That is bounded active-lease evidence, not a general API-status guarantee.",
-    "The guide describes bounded text `vat k8s session exec [--timeout SECONDS] <id> -- COMMAND` and JSON `vat k8s session exec --format json [--timeout SECONDS] <id> -- COMMAND`: omission uses remaining TTL; explicit 1..=14400 seconds cannot exceed it. Both forms validate the active lease, exact backing/API identity, private credentials, and owned host API under the private lock, recheck expiry before spawn, own/reap the process group on normal exit, deadline, or interruption, and retain the lock through cleanup. A starting/live crash marker blocks later exec/delete/cleanup fail-closed rather than claiming termination. JSON returns one `vat.k8s.session.exec.v1`/`vat_json` document with child_exit_code, separate stdout/stderr with 64 KiB serialized-value caps and truncated/utf8-lossy indicators, api_verified=true, runtime_invoked=true, session_record_mutated=false, no raw replay, and no private paths. The leased real-host E2E passed 1/1 (36 filtered) in 29.97s, including JSON exec with `--timeout 30`, status verification, and exact delete.",
-    "The guide describes unchanged text Service-forward and only `vat k8s session port-forward run --format json <id> service/<name> <port> -- COMMAND` for JSON: its loopback Service tunnel gives a credential-free child endpoint metadata, keeps the lock through shared-PGID cleanup, silently rechecks TTL after API proof and before exact kubectl/child spawn, then emits one post-cleanup `vat.k8s.session.port-forward.v1` document with child exit, separate 64 KiB serialized streams, no raw replay, masked VAT-owned failures, opaque-child preservation, and status-verify next. Partial reader setup cleans direct/outer children before reader joining. The independent-kubectl real-host E2E passed 1/1 (36 filtered) in 49.57s, covering one loopback Service text and strict JSON tunnel with confirmed cleanup and closed local ports; it is not a general tunnel guarantee.",
-    "The guide preserves permanent headless, non-Docker, non-daemon, full capabilities versus selected-plan doctor semantics: a full Docker probe maps `services.docker_services` to available or unavailable; `vat capabilities` exposes only a bounded read-only shared-builder advisory (shared_unknown ownership, automatic_cleanup=false, separate configuration/observed stats/global disk, nonfatal timeout/unknown/probe errors, no lifecycle mutation). An explicit Apple-Container-only plan uses one read-only container status probe and executes no Docker command; it maps `services.docker_services` to not_probed, retains `docker.daemon_probe.state=skipped` as provenance, and makes daemon=false non-unavailable evidence. Unsupported no-OCI-route presets and named volumes fail closed; builder advisory never decides doctor runtime success; Docker/Auto/cluster retains probe. K3s remains one-boot/local-lease only and requires an independently installed kubectl on PATH before K3s use. Independent-kubectl one-shot, leased, local-image, and Service-forward E2Es passed 1/1 (36 filtered) in 28.38s, 29.97s, 49.73s, and 49.57s. The local-image result is one already-local Apple alpine:3.20 pod with imagePullPolicy=Never, a marker log, and exact session cleanup; it does not establish registry-pull generality, persistence, GUI, or Docker Engine/API. The leased result covers strict JSON exec with `--timeout 30` and bounded `status --verify-api`; the Service-forward result covers one Service-only loopback strict JSON tunnel with a credential-free child, confirmed cleanup, and closed local ports. It adds no durable status backend: `status --verify-api` remains a private-lock, identity/endpoint, expiry-rechecked bounded active-lease proof, while `session exec --format json` is a credentialed agent-result form with no raw replay or session mutation. Those results do not establish persistence, a general cluster/tunnel, OS isolation, or crash-safe termination. It also documents `vat machine start` as the Docker Engine path: the stock docker CLI then works with DOCKER_HOST=unix://~/.vat/run/docker.sock.",
+    "The guide describes the persistent machine K3s cluster: `vat k8s up [--api-port P] [--timeout S] [--json]`, `vat k8s status|kubeconfig|down [--json]`, and `vat k8s kubectl -- <args>` against `~/.vat/kube/config` (context `vat`); and the vat.toml machine cluster service, which gets a per-run namespace exported as `KUBECONFIG` and `VAT_K8S_NAMESPACE`, deleted at teardown per the keep policy, with `k8s_version` and `nodes` rejected. It no longer mentions `vat cluster`, `vat k8s ephemeral`, `vat k8s session`, or kind/k3d/minikube backends.",
+    "The guide preserves permanent headless, non-daemon, never-containerized-runner, full capabilities versus selected-plan doctor semantics: a full Docker probe maps `services.docker_services` to available or unavailable; an explicit Apple-Container-only plan uses one read-only container status probe, executes no Docker command, maps `services.docker_services` to not_probed, and records `docker.daemon_probe.state=skipped` as provenance; Docker/Auto retain the probe while a selected machine cluster service reports machine K3s state instead. It also documents `vat machine start` as the Docker Engine path: the stock docker CLI then works with DOCKER_HOST=unix://~/.vat/run/docker.sock.",
 ]
 
 [[aw.ec.generated.cases]]
@@ -902,59 +743,6 @@ required_for_production = true
 assertions = [
     "`vat llm` exits successfully and still mentions vat.toml runner mode, direct command mode, and state/diff/logs evidence commands.",
     "the guide mentions the cloud-tasks / cloud-scheduler client-wiring factory (REST transport + http endpoint + anonymous credentials) and the direct-REST alternative.",
-]
-
-[[aw.ec.generated.cases]]
-id = "vat-local-k8s-phase0-disposable-host-api"
-capability_id = "agent-native-gpu-native-dev-containers"
-claim_id = "local-kubernetes-cluster-service-and-vat-cluster"
-contract_id = "local-agent-test-runner-protocol"
-category = "behavior"
-td_ref = "tech-design/logic/vat-local-k8s-phase-0-prove-k3s-on-apple-container-machine.md#vat-local-k8s-phase0-disposable-host-api"
-test_path = "tests/behavior_vat_local_k8s_phase0_disposable_host_api.rs"
-command = "VAT_LOCAL_K8S_DISPOSABLE_E2E=1 VAT_LOCAL_K8S_HOST_API_E2E=1 cargo test -p vat --test vat_local_k8s_phase0 apple_machine_bootstraps_disposable_k3s_via_backing_container_exec -- --ignored --nocapture"
-required_for_production = true
-assertions = [
-    "The second explicit opt-in re-inspects the exact owned running machine and requires its backing container ID and IP address to be unchanged before it exports any credential. It installs k3s with that inspected IP as a TLS SAN.",
-    "It copies the guest admin kubeconfig only into a private 0700 temporary directory, rewrites exactly one loopback server endpoint to the inspected IP, restricts the copied file to 0600, removes ambient KUBECONFIG and proxy environment variables, and makes kubectl use a private discovery cache inside the same owned directory. No credential contents are emitted in JSON evidence.",
-    "The host command is `kubectl --kubeconfig <owned-path> --cache-dir <owned-path>/kubectl-cache --request-timeout=20s get nodes -o json`; the observed result is `ephemeral-host-api-go`, then the credential directory and exact owned machine are both confirmed absent.",
-    "This is a one-boot reachability diagnostic only. It does not export a durable user kubeconfig or unlock a persistent microvm-k3s backend, port publication, local image delivery, storage, multi-node networking, or stop/run durability.",
-]
-
-[[aw.ec.generated.cases]]
-id = "vat-local-k8s-phase0-disposable-k3s"
-capability_id = "agent-native-gpu-native-dev-containers"
-claim_id = "local-kubernetes-cluster-service-and-vat-cluster"
-contract_id = "local-agent-test-runner-protocol"
-category = "behavior"
-td_ref = "tech-design/logic/vat-local-k8s-phase-0-prove-k3s-on-apple-container-machine.md#vat-local-k8s-phase0-disposable-k3s"
-test_path = "tests/behavior_vat_local_k8s_phase0_disposable_k3s.rs"
-command = "VAT_LOCAL_K8S_DISPOSABLE_E2E=1 cargo test -p vat --test vat_local_k8s_phase0 apple_machine_bootstraps_disposable_k3s_via_backing_container_exec -- --ignored --nocapture"
-required_for_production = true
-assertions = [
-    "The explicit opt-in probe creates one auto-booted source-fixture machine, parses only that machine's inspect-returned running `containerId`, and never searches for or touches an ambient container.",
-    "It requires PID 1 to be systemd and root command execution, installs pinned k3s v1.36.2+k3s1 with a guest-only 0600 admin kubeconfig, first waits within a bounded loop for the Node resource to exist and then waits for `Node Ready`, then creates, waits for, logs, and deletes a BusyBox Job whose marker is `vat-k8s-phase0-workload-ok`.",
-    "The probe captures node/pod state and k3s journal output in a JSON report, explicitly deletes the Job, then reconciles and proves bounded absence of only its owned machine; Drop cleanup is panic-only fallback. The observed host result is `ephemeral-go`.",
-    "Without the separate host-API opt-in, this evidence proves a one-machine, one-boot guest substrate only. It does not prove default-add-on readiness, host API access, port exposure, local OCI image delivery, persistent volumes, multi-node networking, or stop/run durability.",
-    "Because the command explicitly opts into this real-host production gate, a missing or unusable Apple Container CLI is a hard failure rather than a successful skip.",
-]
-
-[[aw.ec.generated.cases]]
-id = "vat-local-k8s-phase0-real-host"
-capability_id = "agent-native-gpu-native-dev-containers"
-claim_id = "local-kubernetes-cluster-service-and-vat-cluster"
-contract_id = "local-agent-test-runner-protocol"
-category = "stability"
-td_ref = "tech-design/logic/vat-local-k8s-phase-0-prove-k3s-on-apple-container-machine.md#vat-local-k8s-phase0-real-host"
-test_path = "tests/stability_vat_local_k8s_phase0_real_host.rs"
-command = "VAT_LOCAL_K8S_E2E=1 cargo test -p vat --test vat_local_k8s_phase0 apple_machine_exec_control_is_usable_before_k3s -- --ignored --nocapture"
-required_for_production = false
-assertions = [
-    "The ignored, explicit opt-in test preflights `local/vat-k8s-systemd:phase0` (or `VAT_LOCAL_K8S_MACHINE_IMAGE`) and skips cleanly when the Apple Container CLI is absent. It never builds or publishes an image itself.",
-    "Using the source-controlled systemd fixture, the test creates one unique no-boot machine with no home mount, 2 CPUs, and 4G memory. It requires PID 1 to be `systemd`, waits for systemd, stops the machine, and requires `container machine run` to restart it and return the control marker.",
-    "The test records exact argv, output, inspect/logs, bounded exact-name cleanup attempts, and a `go` or `no-go` verdict in a JSON report under `VAT_LOCAL_K8S_EVIDENCE_DIR` (default `/private/tmp`). It never deletes an ambient machine: after a failed or timed-out create it continues exact-name reconciliation through a stabilization window and requires a structured exact-name absence result; Drop is panic-only fallback.",
-    "Recorded durability evidence: Apple Container 1.1.0 on macOS 26.5.1 boots the systemd fixture, but `container machine run` returns `Operation not supported by device` after a restart retry. A separate host-API probe also saw `machine create` report a bootMachine XPC timeout while its uniquely named machine was running, so failed create is treated as delayed allocation rather than proof of absence. `container exec` can diagnose an already-running backing container only; it cannot restart a stopped machine and is not a substitute for this control. The verdict remains NO-GO.",
-    "This test does not treat a disposable `container exec` session as a durable pass. The durable failure blocks host kubeconfig, local image loading, networking, storage, stop/start reconciliation, and Phase 1 backend implementation.",
 ]
 
 [[aw.ec.generated.cases]]

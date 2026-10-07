@@ -14,7 +14,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 
 use crate::commands;
-use crate::config::{ClusterBackend, RetentionPolicy};
+use crate::config::RetentionPolicy;
 use crate::spec::{GpuRequest, Isolation};
 
 #[derive(Parser)]
@@ -212,11 +212,6 @@ enum Cmd {
         #[arg(long)]
         json: bool,
     },
-    /// Manage standalone local Kubernetes clusters (independent of runs).
-    Cluster {
-        #[command(subcommand)]
-        cmd: ClusterCmd,
-    },
     /// Manage the shared Linux machine behind the Docker Engine socket and K3s.
     Machine {
         #[command(subcommand)]
@@ -277,7 +272,7 @@ enum Cmd {
         #[command(subcommand)]
         cmd: ComposeCmd,
     },
-    /// Run one disposable, Docker-free local Kubernetes session over Apple Container.
+    /// The persistent K3s cluster in the shared machine (up/status/kubeconfig/kubectl/down).
     K8s {
         #[command(subcommand)]
         cmd: K8sCmd,
@@ -469,47 +464,6 @@ enum MachineCmd {
     },
 }
 
-/// Standalone `vat cluster` verbs. Clusters created here outlive a single run;
-/// vat creates/lists/deletes them on explicit command but does not supervise
-/// them.
-#[derive(Subcommand)]
-enum ClusterCmd {
-    /// Create a local Kubernetes cluster.
-    Create {
-        /// Cluster name (auto-generated when omitted).
-        #[arg(long)]
-        name: Option<String>,
-        /// Backend to use; `auto` prefers kind → k3d → minikube.
-        #[arg(long, value_enum, default_value = "auto")]
-        backend: ClusterBackend,
-        /// Kubernetes version for the node image (e.g. 1.30).
-        #[arg(long)]
-        k8s_version: Option<String>,
-        /// Node count.
-        #[arg(long, default_value_t = 1)]
-        nodes: u32,
-        #[arg(long)]
-        json: bool,
-    },
-    /// List vat-managed clusters.
-    Ls {
-        #[arg(long)]
-        json: bool,
-    },
-    /// Print the kubeconfig path (or record) for a cluster.
-    Kubeconfig {
-        name: String,
-        #[arg(long)]
-        json: bool,
-    },
-    /// Delete a cluster by name.
-    Delete {
-        name: String,
-        #[arg(long)]
-        json: bool,
-    },
-}
-
 /// `vat compose` subcommands: import/up/down/ps/logs for docker-compose.yml.
 #[derive(Subcommand)]
 pub enum ComposeCmd {
@@ -552,10 +506,7 @@ pub enum ComposeCmd {
     },
 }
 
-/// Bounded headless Apple-Container local Kubernetes sessions. These sessions
-/// deliberately do not extend `vat cluster`: the backing machine is deleted
-/// at the end of the foreground command because Apple Container restart
-/// semantics are not yet sufficient for durable cluster ownership.
+/// The persistent K3s cluster inside the shared machine.
 #[derive(Subcommand)]
 enum K8sCmd {
     /// Enable the persistent K3s cluster in the machine, wait for its API,
@@ -593,156 +544,6 @@ enum K8sCmd {
     Down {
         #[arg(long)]
         json: bool,
-    },
-    /// Start a single disposable K3s machine for one foreground command.
-    Ephemeral {
-        #[command(subcommand)]
-        cmd: EphemeralK8sCmd,
-    },
-    /// Keep one explicitly leased Apple K3s session across agent commands.
-    Session {
-        #[command(subcommand)]
-        cmd: K8sSessionCmd,
-    },
-}
-
-#[derive(Subcommand)]
-enum EphemeralK8sCmd {
-    /// Build VAT's embedded systemd machine image into Apple Container's image store.
-    Image {
-        #[command(subcommand)]
-        cmd: EphemeralImageCmd,
-    },
-    /// Inject a private kubeconfig into one host command, then delete the machine.
-    Run {
-        /// Prebuilt systemd machine image. Build the default explicitly first when absent.
-        #[arg(long)]
-        image: Option<String>,
-        /// Host command to run after the single node is Ready, e.g. `-- kubectl get nodes`.
-        #[arg(
-            last = true,
-            allow_hyphen_values = true,
-            value_name = "COMMAND",
-            required = true
-        )]
-        command: Vec<String>,
-    },
-    /// Reconcile abandoned sessions recorded by an interrupted VAT process.
-    Cleanup {
-        /// Emit one JSON result object.
-        #[arg(long)]
-        json: bool,
-    },
-}
-
-#[derive(Subcommand)]
-enum EphemeralImageCmd {
-    /// Build the default embedded-image tag required by `ephemeral run`.
-    Build,
-}
-
-#[derive(Subcommand)]
-enum K8sSessionCmd {
-    /// Create a one-boot K3s session with private credentials and a bounded lease.
-    Create {
-        /// Prebuilt systemd machine image. Build the default explicitly first when absent.
-        #[arg(long)]
-        image: Option<String>,
-        /// Lease duration: positive whole seconds, or a value such as 30m / 2h (1m through 4h).
-        #[arg(long, default_value = "30m")]
-        ttl: String,
-    },
-    /// Run one host command against a still-valid leased session.
-    Exec {
-        /// Emit one bounded VAT JSON result instead of replaying child stdout/stderr.
-        #[arg(long, value_parser = ["json"])]
-        format: Option<String>,
-        /// Bound one agent command in seconds; defaults to the remaining lease and cleans its owned process group on timeout or interrupt.
-        #[arg(long)]
-        timeout: Option<u64>,
-        /// Session id emitted by `vat k8s session create`.
-        id: String,
-        /// Host command to run with the private kubeconfig, e.g. `-- kubectl get nodes`.
-        #[arg(
-            last = true,
-            allow_hyphen_values = true,
-            value_name = "COMMAND",
-            required = true
-        )]
-        command: Vec<String>,
-    },
-    /// Forward one active lease Service only to loopback for one host command.
-    PortForward {
-        #[command(subcommand)]
-        cmd: K8sSessionPortForwardCmd,
-    },
-    /// Import a locally verified Apple Container image into this active K3s lease.
-    Image {
-        #[command(subcommand)]
-        cmd: K8sSessionImageCmd,
-    },
-    /// Show a session's lease and exact Apple-machine presence without exposing credentials.
-    Status {
-        /// Verify the active session's owned API with its private kubeconfig.
-        #[arg(long)]
-        verify_api: bool,
-        /// Session id emitted by `vat k8s session create`.
-        id: String,
-    },
-    /// Delete one exact owned session and its private credentials.
-    Delete {
-        /// Session id emitted by `vat k8s session create`.
-        id: String,
-    },
-    /// Reclaim expired leases and abandoned session creations; active sessions are retained.
-    Cleanup {
-        /// Emit one JSON result object.
-        #[arg(long)]
-        json: bool,
-    },
-}
-
-#[derive(Subcommand)]
-enum K8sSessionImageCmd {
-    /// Save one local ARM64 Linux image privately, import it into K3s, then remove both archives.
-    Load {
-        /// Session id emitted by `vat k8s session create`.
-        id: String,
-        /// Locally present Apple Container image reference; arbitrary tar files are not accepted.
-        image: String,
-        /// Guest image platform. The current Apple K3s path is deliberately linux/arm64 only.
-        #[arg(long, default_value = "linux/arm64")]
-        platform: String,
-    },
-}
-
-#[derive(Subcommand)]
-enum K8sSessionPortForwardCmd {
-    /// Forward one Service port to 127.0.0.1 for one foreground host command.
-    Run {
-        /// Emit one bounded VAT JSON result after confirmed tunnel cleanup.
-        #[arg(long, value_parser = ["json"])]
-        format: Option<String>,
-        /// Session id emitted by vat k8s session create.
-        id: String,
-        /// Service selector, exactly service/<name>.
-        resource: String,
-        /// Numeric Service port to forward.
-        remote_port: u16,
-        /// Kubernetes namespace containing the Service.
-        #[arg(long, default_value = "default")]
-        namespace: String,
-        /// Loopback local port. Use zero to let kubectl choose one.
-        #[arg(long, default_value_t = 0)]
-        local_port: u16,
-        /// Host test or assertion command after --. It receives only tunnel metadata.
-        #[arg(
-            last = true,
-            allow_hyphen_values = true,
-            value_name = "COMMAND",
-            required = true
-        )]
-        command: Vec<String>,
     },
 }
 
@@ -872,18 +673,6 @@ pub fn run() -> Result<ExitCode> {
         Cmd::Container { cmd } => commands::native::container(cmd),
         Cmd::Native { cmd } => commands::native::native(cmd),
         Cmd::Gpu { json } => commands::gpu::exec(json),
-        Cmd::Cluster { cmd } => match cmd {
-            ClusterCmd::Create {
-                name,
-                backend,
-                k8s_version,
-                nodes,
-                json,
-            } => commands::cluster::create(name, backend, k8s_version, nodes, json),
-            ClusterCmd::Ls { json } => commands::cluster::ls(json),
-            ClusterCmd::Kubeconfig { name, json } => commands::cluster::kubeconfig(name, json),
-            ClusterCmd::Delete { name, json } => commands::cluster::delete(name, json),
-        },
         Cmd::Machine { cmd } => match cmd {
             MachineCmd::Start {
                 name,
@@ -991,72 +780,6 @@ pub fn run() -> Result<ExitCode> {
             K8sCmd::Kubeconfig { json } => commands::kube::kubeconfig(json),
             K8sCmd::Kubectl { args } => commands::kube::kubectl(args),
             K8sCmd::Down { json } => commands::kube::down(json),
-            K8sCmd::Ephemeral { cmd } => match cmd {
-                EphemeralK8sCmd::Image { cmd } => match cmd {
-                    EphemeralImageCmd::Build => commands::k8s::build_default_image(),
-                },
-                EphemeralK8sCmd::Run { image, command } => {
-                    commands::k8s::ephemeral_run(commands::k8s::EphemeralRunArgs { image, command })
-                }
-                EphemeralK8sCmd::Cleanup { json } => commands::k8s::cleanup_abandoned(json),
-            },
-            K8sCmd::Session { cmd } => match cmd {
-                K8sSessionCmd::Create { image, ttl } => {
-                    commands::k8s::session_create(commands::k8s::ActiveSessionCreateArgs {
-                        image,
-                        ttl,
-                    })
-                }
-                K8sSessionCmd::Exec {
-                    format,
-                    timeout,
-                    id,
-                    command,
-                } => commands::k8s::session_exec(id, command, format.is_some(), timeout),
-                K8sSessionCmd::PortForward { cmd } => match cmd {
-                    K8sSessionPortForwardCmd::Run {
-                        format,
-                        id,
-                        resource,
-                        remote_port,
-                        namespace,
-                        local_port,
-                        command,
-                    } => commands::k8s::session_port_forward(
-                        commands::k8s::ActiveSessionPortForwardArgs {
-                            json: format.is_some(),
-                            id,
-                            resource,
-                            remote_port,
-                            namespace,
-                            local_port,
-                            command,
-                        },
-                    ),
-                },
-                K8sSessionCmd::Image { cmd } => match cmd {
-                    K8sSessionImageCmd::Load {
-                        id,
-                        image,
-                        platform,
-                    } => commands::k8s::session_image_load(
-                        commands::k8s::ActiveSessionImageLoadArgs {
-                            id,
-                            image,
-                            platform,
-                        },
-                    ),
-                },
-                K8sSessionCmd::Status { id, verify_api } => {
-                    if verify_api {
-                        commands::k8s::session_status_verify_api(id)
-                    } else {
-                        commands::k8s::session_status(id)
-                    }
-                }
-                K8sSessionCmd::Delete { id } => commands::k8s::session_delete(id),
-                K8sSessionCmd::Cleanup { json } => commands::k8s::session_cleanup(json),
-            },
         },
     }
 }

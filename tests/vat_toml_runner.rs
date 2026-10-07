@@ -1011,7 +1011,7 @@ fn vat_doctor_host_only_needs_no_vat_toml() {
     assert!(json["capabilities"]["workspace"]["primary_clone_method"].is_string());
     assert!(json["gpu"]["accessible"].is_boolean());
     let checks = json["checks"].as_array().expect("host-only checks");
-    for id in ["copy_on_write", "host", "cli", "daemon", "kubectl"] {
+    for id in ["copy_on_write", "host", "cli", "daemon", "machine"] {
         assert!(
             checks.iter().any(|check| check["id"] == id),
             "host-only doctor is missing `{id}` evidence: {checks:?}"
@@ -1337,43 +1337,19 @@ cmd = ["true"]
 
 #[cfg(unix)]
 #[test]
-fn vat_doctor_selected_cluster_forces_a_docker_probe() {
+fn vat_doctor_selected_machine_cluster_reports_k3s_without_docker() {
     let _lock = builder_observation_test_lock();
     let project = tempfile::tempdir().expect("project");
+    let machine_home = tempfile::tempdir().expect("machine home");
     let fake_bin = tempfile::tempdir().expect("fake runtime bin");
     let docker_log = fake_bin.path().join("docker.log");
     write_doctor_executable(
-        &fake_bin.path().join("container"),
-        r#"#!/bin/sh
-set -eu
-[ "$#" -eq 2 ]
-[ "$1" = "system" ]
-[ "$2" = "status" ]
-"#,
-    );
-    write_doctor_executable(
         &fake_bin.path().join("docker"),
         r#"#!/bin/sh
-set -eu
 printf '%s\n' "$*" >> "$VAT_DOCTOR_DOCKER_LOG"
-case "$1" in
-  context)
-    [ "${2:-}" = "show" ]
-    printf '%s\n' fake-context
-    ;;
-  version)
-    [ "${2:-}" = "--format" ]
-    printf '%s\n' 1.0
-    ;;
-  info)
-    ;;
-  *)
-    exit 64
-    ;;
-esac
+exit 64
 "#,
     );
-    write_doctor_executable(&fake_bin.path().join("kind"), "#!/bin/sh\nexit 0\n");
     std::fs::write(
         project.path().join("vat.toml"),
         r#"
@@ -1384,18 +1360,12 @@ default_runner = "e2e"
 egress = "open"
 
 [[services]]
-id = "image-microvm"
-image = "example.test/image:latest"
-container_port = 8080
-runtime = "micro_vm"
-
-[[services]]
-id = "local-cluster"
-cluster = "kind"
+id = "k8s"
+cluster = "machine"
 
 [[runners]]
 id = "e2e"
-requires = ["image-microvm", "local-cluster"]
+requires = ["k8s"]
 cmd = ["true"]
 "#,
     )
@@ -1404,6 +1374,7 @@ cmd = ["true"]
     let output = Command::new(vat_bin())
         .current_dir(project.path())
         .env("PATH", fake_bin.path())
+        .env("VAT_MACHINE_HOME", machine_home.path())
         .env("VAT_DOCTOR_DOCKER_LOG", &docker_log)
         .args(["doctor", "--json"])
         .output()
@@ -1416,22 +1387,98 @@ cmd = ["true"]
         String::from_utf8_lossy(&output.stderr)
     );
     let json: Value = serde_json::from_slice(&output.stdout).expect("doctor JSON");
-    assert_eq!(json["capabilities"]["docker"]["daemon"], true);
     assert!(
-        json["capabilities"]["docker"]["daemon_probe"].is_null(),
-        "selected cluster must use the normal Docker capability probe: {}",
-        json["capabilities"]["docker"]
+        !docker_log.exists(),
+        "a machine cluster needs no host Docker daemon probe: {}",
+        std::fs::read_to_string(&docker_log).unwrap_or_default()
     );
-    assert_eq!(
-        json["capabilities"]["services"]["docker_services"], "available",
-        "the fake selected cluster has a reachable Docker daemon"
+    let checks = json["checks"].as_array().expect("doctor checks");
+    let k8s = checks
+        .iter()
+        .find(|check| check["component"] == "cluster" && check["id"] == "k8s")
+        .unwrap_or_else(|| panic!("missing machine K3s check: {checks:?}"));
+    assert_eq!(k8s["ok"], true, "{k8s}");
+    assert!(
+        k8s["message"]
+            .as_str()
+            .is_some_and(|m| m.contains("machine K3s disabled") && m.contains("vat k8s up")),
+        "{k8s}"
     );
-    let calls = std::fs::read_to_string(&docker_log).expect("read Docker calls");
-    for expected in ["version --format {{.Server.Version}}", "info"] {
-        assert!(
-            calls.lines().any(|call| call == expected),
-            "selected cluster omitted required Docker probe {expected:?}: {calls}"
+}
+
+#[test]
+fn vat_toml_rejects_retired_cluster_backends_and_knobs() {
+    for (body, expected) in [
+        ("cluster = \"kind\"", "no longer supported"),
+        ("cluster = \"auto\"", "no longer supported"),
+        ("cluster = \"machine\"\nnodes = 2", "single node"),
+        (
+            "cluster = \"machine\"\nk8s_version = \"1.30\"",
+            "k8s_version",
+        ),
+    ] {
+        let project = tempfile::tempdir().unwrap();
+        std::fs::write(
+            project.path().join("vat.toml"),
+            format!(
+                "version = 1\ndefault_runner = \"e2e\"\n\n[[services]]\nid = \"k8s\"\n{body}\n\n[[runners]]\nid = \"e2e\"\nrequires = [\"k8s\"]\ncmd = [\"true\"]\n"
+            ),
+        )
+        .unwrap();
+        let output = Command::new(vat_bin())
+            .current_dir(project.path())
+            .args(["plan", "--json"])
+            .output()
+            .unwrap();
+        assert!(!output.status.success(), "{body} must be rejected");
+        let all = format!(
+            "{}{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
         );
+        assert!(
+            all.contains(expected),
+            "{body}: missing {expected:?} in {all}"
+        );
+    }
+}
+
+#[test]
+fn vat_plan_machine_cluster_exports_kubeconfig_and_namespace() {
+    let project = tempfile::tempdir().unwrap();
+    std::fs::write(
+        project.path().join("vat.toml"),
+        "version = 1\ndefault_runner = \"e2e\"\n\n[[services]]\nid = \"k8s\"\ncluster = \"machine\"\n\n[[runners]]\nid = \"e2e\"\nrequires = [\"k8s\"]\ncmd = [\"true\"]\n",
+    )
+    .unwrap();
+    let output = Command::new(vat_bin())
+        .current_dir(project.path())
+        .args(["plan", "--json"])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let json: Value = serde_json::from_slice(&output.stdout).expect("plan JSON");
+    let service = json["services"]
+        .as_array()
+        .and_then(|services| services.iter().find(|s| s["id"] == "k8s"))
+        .unwrap_or_else(|| panic!("k8s service missing from plan: {json}"));
+    assert_eq!(service["cluster"], "machine");
+    let exported: Vec<&str> = service["exported_env"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter_map(Value::as_str)
+        .collect();
+    for key in [
+        "KUBECONFIG",
+        "VAT_K8S_NAMESPACE",
+        "VAT_SERVICE_K8S_KUBECONFIG",
+    ] {
+        assert!(exported.contains(&key), "{key} missing from {exported:?}");
     }
 }
 
@@ -2010,9 +2057,10 @@ fn llm_guide_mentions_core_agent_contract() {
         "It is permanently headless",
         "vat machine start",
         "DOCKER_HOST=unix://~/.vat/run/docker.sock",
-        "vat k8s ephemeral image build",
-        "VAT_K8S_CACHE_DIR",
-        "vat_k8s_ephemeral_result",
+        "vat k8s up",
+        "vat k8s kubectl --",
+        "cluster = \"machine\"",
+        "VAT_K8S_NAMESPACE",
         "does not use Docker",
         "never containerized",
         // Native/Docker/explicit-Apple-Container service contract is discoverable.
@@ -2040,10 +2088,14 @@ fn llm_guide_mentions_core_agent_contract() {
         "The shim has one strict Compose profile only",
         "It rejects build, multiple services",
         "vat docker install-shim",
+        "vat cluster",
+        "vat k8s ephemeral",
+        "vat k8s session",
+        "minikube",
     ] {
         assert!(
             !stdout.contains(obsolete),
-            "obsolete Compose guidance {obsolete:?} remains in:\n{stdout}"
+            "obsolete guidance {obsolete:?} remains in:\n{stdout}"
         );
     }
 }

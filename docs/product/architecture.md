@@ -190,9 +190,10 @@ with no code change.
 1. *Persistent K3s in the shared VM (M4).* K3s runs inside the M2 VM and uses
    the same containerd, so an image built through the M3 Engine API is visible
    to pods immediately with no load step. The cluster, its PVCs, and its
-   kubeconfig persist across VM restart and host reboot. This supersedes both
+   kubeconfig persist across VM restart and host reboot. It replaced both
    the kind/k3d/minikube `cluster` service (which needs a Docker daemon) and
-   the one-boot Apple Container K3s session (`src/commands/k8s.rs`).
+   the one-boot Apple Container K3s session; a `cluster = "machine"` service
+   gets a per-run namespace on it.
 2. *GCE metadata server and Workload Identity (M5).* Pods resolve
    `metadata.google.internal` to a vat-served metadata endpoint that answers
    project, zone, and service-account token requests; a Kubernetes service
@@ -214,8 +215,8 @@ are not reproduced, and each emulator's gaps are listed in STATUS.
 A `vat.toml` run can mix all three: the runner is a native macOS process
 (pillar 1) with the GPU; its `[[services]]` may be native Homebrew presets,
 built-in emulators (pillar 3), or Linux containers in the shared VM reached
-through loopback-published ports (pillar 2); a `cluster`-kind service can be
-the persistent K3s (pillar 3 on pillar 2). `vat state` reports the topology
+through loopback-published ports (pillar 2); a `cluster = "machine"` service is
+a per-run namespace on the persistent K3s (pillar 3 on pillar 2). `vat state` reports the topology
 of the whole run in one document, and hermetic scenarios still confine the
 native runner to loopback so every external call lands on an emulator.
 

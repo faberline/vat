@@ -8,7 +8,6 @@
 
 pub mod build;
 pub mod capabilities;
-pub mod cluster;
 pub mod compose;
 pub mod diff;
 pub mod doctor;
@@ -16,7 +15,6 @@ pub mod emulator;
 pub mod gc;
 pub mod gcp;
 pub mod gpu;
-pub mod k8s;
 pub mod kube;
 pub mod llm;
 pub mod logs;
