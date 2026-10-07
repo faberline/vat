@@ -974,6 +974,11 @@ pub fn run_detached(container: &Container) -> Result<()> {
             break;
         }
         if let Some(status) = supervisor.try_wait()? {
+            if status.success() && container.record.auto_remove && !container.dir.exists() {
+                // A `--rm` workload that already ran, exited, and was removed.
+                std::mem::forget(supervisor);
+                return Ok(());
+            }
             if !container.dir.join("started.json").exists() {
                 let log = std::fs::read_to_string(container.dir.join("supervisor.log")).unwrap_or_default();
                 bail!("native container supervisor exited ({status}) before starting the workload: {}", log.trim());
@@ -1066,11 +1071,25 @@ pub fn stop(container: &Container, timeout: Duration) -> Result<Option<i32>> {
             return Ok(current.exit_code());
         }
         if current.status() == Status::Exited {
-            // Workload is gone; give a supervisor a moment to record its code.
-            std::thread::sleep(Duration::from_millis(200));
-            let again = load_dir(&container.dir).ok();
-            if let Some(code) = again.as_ref().and_then(|c| c.exit_code()) {
-                return Ok(Some(code));
+            // Workload is gone; give a supervisor (bounded) time to record
+            // the real exit code before falling back to a signal code.
+            let grace = Instant::now() + Duration::from_secs(5);
+            loop {
+                match load_dir(&container.dir) {
+                    Ok(again) => {
+                        if let Some(code) = again.exit_code() {
+                            return Ok(Some(code));
+                        }
+                    }
+                    Err(_) => return Ok(Some(143)),
+                }
+                let supervisor_alive = started
+                    .supervisor_pid
+                    .is_some_and(|pid| unsafe { libc::kill(pid, 0) } == 0);
+                if !supervisor_alive || Instant::now() > grace {
+                    break;
+                }
+                std::thread::sleep(Duration::from_millis(25));
             }
             let (code, sig) = if killed { (137, libc::SIGKILL) } else { (143, libc::SIGTERM) };
             record_exit(&container.dir, code, Some(sig), None)?;
