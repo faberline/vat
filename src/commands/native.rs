@@ -199,7 +199,12 @@ fn short(digest: &str) -> &str {
 pub fn image(cmd: ImageCmd) -> Result<ExitCode> {
     let store = ImageStore::open()?;
     match cmd {
-        ImageCmd::Build { tag, file, context, json } => {
+        ImageCmd::Build {
+            tag,
+            file,
+            context,
+            json,
+        } => {
             let outcome = build::build(&build::BuildOptions { tag, file, context })?;
             if json {
                 print_json(&outcome, false)?;
@@ -214,7 +219,11 @@ pub fn image(cmd: ImageCmd) -> Result<ExitCode> {
                 if json {
                     print_json(&outcome, false)?;
                 } else {
-                    println!("{} {}", outcome.tagged.as_deref().unwrap_or(&reference), outcome.digest);
+                    println!(
+                        "{} {}",
+                        outcome.tagged.as_deref().unwrap_or(&reference),
+                        outcome.digest
+                    );
                 }
             }
             #[cfg(not(feature = "registry"))]
@@ -223,10 +232,15 @@ pub fn image(cmd: ImageCmd) -> Result<ExitCode> {
                 bail!("this vat was built without the `registry` feature; `vat image pull` is unavailable (use `vat image import --oci-layout`)");
             }
         }
-        ImageCmd::Push { source, destination, json } => {
+        ImageCmd::Push {
+            source,
+            destination,
+            json,
+        } => {
             #[cfg(feature = "registry")]
             {
-                let outcome = crate::native::distribution::push(&store, &source, destination.as_deref())?;
+                let outcome =
+                    crate::native::distribution::push(&store, &source, destination.as_deref())?;
                 if json {
                     print_json(&outcome, false)?;
                 } else {
@@ -239,7 +253,11 @@ pub fn image(cmd: ImageCmd) -> Result<ExitCode> {
                 bail!("this vat was built without the `registry` feature; `vat image push` is unavailable (use `vat image export --oci-layout`)");
             }
         }
-        ImageCmd::Import { oci_layout, tag, json } => {
+        ImageCmd::Import {
+            oci_layout,
+            tag,
+            json,
+        } => {
             let imported = store.import(&oci_layout, tag.as_deref())?;
             if json {
                 let rows: Vec<_> = imported
@@ -261,10 +279,16 @@ pub fn image(cmd: ImageCmd) -> Result<ExitCode> {
         ImageCmd::Ls { json } => {
             let images = store.list()?;
             if json {
-                let rows: Vec<_> = images.iter().map(|(names, image)| image.summary(names.clone())).collect();
+                let rows: Vec<_> = images
+                    .iter()
+                    .map(|(names, image)| image.summary(names.clone()))
+                    .collect();
                 print_json(&rows, false)?;
             } else {
-                println!("{:<40} {:<12} {:>6} {:>12}", "NAME", "DIGEST", "LAYERS", "SIZE");
+                println!(
+                    "{:<40} {:<12} {:>6} {:>12}",
+                    "NAME", "DIGEST", "LAYERS", "SIZE"
+                );
                 for (names, image) in images {
                     let summary = image.summary(names.clone());
                     for name in names {
@@ -295,7 +319,10 @@ pub fn image(cmd: ImageCmd) -> Result<ExitCode> {
         }
         ImageCmd::Inspect { name, json } => {
             let image = store.resolve(&name)?;
-            let names = store.names_by_digest()?.remove(&image.manifest_digest).unwrap_or_default();
+            let names = store
+                .names_by_digest()?
+                .remove(&image.manifest_digest)
+                .unwrap_or_default();
             let mut value = image.summary(names);
             value["manifest"] = serde_json::to_value(&image.manifest)?;
             value["config"] = serde_json::to_value(&image.config)?;
@@ -313,7 +340,17 @@ pub fn image(cmd: ImageCmd) -> Result<ExitCode> {
 
 pub fn container(cmd: ContainerCmd) -> Result<ExitCode> {
     match cmd {
-        ContainerCmd::Run { name, detach, env, volumes, network, rm, workdir, image, command } => {
+        ContainerCmd::Run {
+            name,
+            detach,
+            env,
+            volumes,
+            network,
+            rm,
+            workdir,
+            image,
+            command,
+        } => {
             let opts = container::RunOptions {
                 name,
                 detach,
@@ -345,7 +382,10 @@ pub fn container(cmd: ContainerCmd) -> Result<ExitCode> {
             if json {
                 print_json(&rows, false)?;
             } else {
-                println!("{:<16} {:<20} {:<28} {:<10} COMMAND", "ID", "NAME", "IMAGE", "STATUS");
+                println!(
+                    "{:<16} {:<20} {:<28} {:<10} COMMAND",
+                    "ID", "NAME", "IMAGE", "STATUS"
+                );
                 for row in rows {
                     let status = match (row["status"].as_str(), row["exit_code"].as_i64()) {
                         (Some("exited"), Some(code)) => format!("exited({code})"),
@@ -354,7 +394,11 @@ pub fn container(cmd: ContainerCmd) -> Result<ExitCode> {
                     };
                     let command: Vec<String> = row["command"]
                         .as_array()
-                        .map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect())
+                        .map(|a| {
+                            a.iter()
+                                .filter_map(|v| v.as_str().map(str::to_string))
+                                .collect()
+                        })
                         .unwrap_or_default();
                     println!(
                         "{:<16} {:<20} {:<28} {:<10} {}",
@@ -368,13 +412,26 @@ pub fn container(cmd: ContainerCmd) -> Result<ExitCode> {
             }
             Ok(ExitCode::SUCCESS)
         }
-        ContainerCmd::Logs { container: key, follow } => {
+        ContainerCmd::Logs {
+            container: key,
+            follow,
+        } => {
             container::logs(&container::find(&key)?, follow)?;
             Ok(ExitCode::SUCCESS)
         }
-        ContainerCmd::Exec { env, workdir, container: key, command } => {
+        ContainerCmd::Exec {
+            env,
+            workdir,
+            container: key,
+            command,
+        } => {
             let target = container::find(&key)?;
-            Ok(exit(container::exec(&target, &command, &env, workdir.as_deref())?))
+            Ok(exit(container::exec(
+                &target,
+                &command,
+                &env,
+                workdir.as_deref(),
+            )?))
         }
         ContainerCmd::Stop { time, containers } => {
             for key in containers {
@@ -395,11 +452,17 @@ pub fn container(cmd: ContainerCmd) -> Result<ExitCode> {
             }
             Ok(ExitCode::SUCCESS)
         }
-        ContainerCmd::Inspect { container: key, json } => {
+        ContainerCmd::Inspect {
+            container: key,
+            json,
+        } => {
             print_json(&container::find(&key)?.inspect()?, json)?;
             Ok(ExitCode::SUCCESS)
         }
-        ContainerCmd::Diff { container: key, json } => {
+        ContainerCmd::Diff {
+            container: key,
+            json,
+        } => {
             let changes = container::find(&key)?.changes()?;
             if json {
                 print_json(&changes, false)?;
@@ -426,19 +489,28 @@ pub fn container(cmd: ContainerCmd) -> Result<ExitCode> {
 pub fn native(cmd: NativeCmd) -> Result<ExitCode> {
     match cmd {
         NativeCmd::Users { cmd } => match cmd {
-            UsersCmd::Setup { count, first_id, print } => {
+            UsersCmd::Setup {
+                count,
+                first_id,
+                print,
+            } => {
                 if count == 0 {
                     bail!("--count must be at least 1");
                 }
                 if print {
                     users::check_setup_ids(count, first_id)?;
                     for argv in users::setup_commands(count, first_id) {
-                        let line: Vec<String> = argv.iter().map(|a| users::shell_quote(a)).collect();
+                        let line: Vec<String> =
+                            argv.iter().map(|a| users::shell_quote(a)).collect();
                         println!("sudo {}", line.join(" "));
                     }
                 } else {
                     users::run_setup(count, first_id)?;
-                    println!("created {count} pool users ({}1..{}{count})", users::POOL_PREFIX, users::POOL_PREFIX);
+                    println!(
+                        "created {count} pool users ({}1..{}{count})",
+                        users::POOL_PREFIX,
+                        users::POOL_PREFIX
+                    );
                 }
                 Ok(ExitCode::SUCCESS)
             }

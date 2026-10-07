@@ -106,7 +106,11 @@ pub(crate) fn remove_tree(path: &std::path::Path) -> Result<()> {
         return Ok(());
     }
     use std::os::unix::fs::PermissionsExt;
-    for entry in walkdir::WalkDir::new(path).follow_links(false).into_iter().flatten() {
+    for entry in walkdir::WalkDir::new(path)
+        .follow_links(false)
+        .into_iter()
+        .flatten()
+    {
         if entry.file_type().is_dir() {
             if let Ok(meta) = entry.metadata() {
                 let mut perms = meta.permissions();
@@ -162,7 +166,11 @@ fn copy_faithful(src: &std::path::Path, dst: &std::path::Path) -> Result<()> {
     Ok(())
 }
 
-fn copy_entry(src: &std::path::Path, dst: &std::path::Path, meta: &std::fs::Metadata) -> Result<()> {
+fn copy_entry(
+    src: &std::path::Path,
+    dst: &std::path::Path,
+    meta: &std::fs::Metadata,
+) -> Result<()> {
     let mtime = filetime::FileTime::from_last_modification_time(meta);
     if meta.file_type().is_symlink() {
         let target = std::fs::read_link(src)?;

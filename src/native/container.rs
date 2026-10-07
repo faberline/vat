@@ -51,7 +51,9 @@ impl Network {
         match raw {
             "host" => Ok(Network::Host),
             "none" => Ok(Network::None),
-            other => bail!("unsupported --network {other:?} (native containers support `host` and `none`)"),
+            other => bail!(
+                "unsupported --network {other:?} (native containers support `host` and `none`)"
+            ),
         }
     }
 
@@ -292,11 +294,16 @@ impl Container {
         let now = layer::scan_tree(&self.record.root, &ScanOptions::default())?;
         let diff = layer::diff(&base, &now);
         let keep = |path: &String, tree: &Tree| {
-            tree.get(path).is_some_and(|e| e.kind != layer::EntryKind::Dir)
+            tree.get(path)
+                .is_some_and(|e| e.kind != layer::EntryKind::Dir)
         };
         Ok(crate::state::ChangeSet {
             added: diff.added.into_iter().filter(|p| keep(p, &now)).collect(),
-            modified: diff.modified.into_iter().filter(|p| keep(p, &now)).collect(),
+            modified: diff
+                .modified
+                .into_iter()
+                .filter(|p| keep(p, &now))
+                .collect(),
             deleted: diff.deleted,
         })
     }
@@ -383,7 +390,10 @@ pub fn list() -> Result<Vec<Container>> {
 /// Find a container by id, unique id prefix, or name.
 pub fn find(key: &str) -> Result<Container> {
     let all = list()?;
-    if let Some(found) = all.iter().find(|c| c.record.id == key || c.record.name == key) {
+    if let Some(found) = all
+        .iter()
+        .find(|c| c.record.id == key || c.record.name == key)
+    {
         return Ok(found.clone());
     }
     let matches: Vec<&Container> = all
@@ -470,7 +480,11 @@ fn split_env(entry: &str) -> (String, String) {
 
 /// Build the workload environment for `root` from the image env plus `-e`
 /// overrides, following the native env contract.
-pub fn runtime_env(root: &Path, image_env: &[String], overrides: &[String]) -> Result<Vec<(String, String)>> {
+pub fn runtime_env(
+    root: &Path,
+    image_env: &[String],
+    overrides: &[String],
+) -> Result<Vec<(String, String)>> {
     let root_str = root.to_str().context("root must be UTF-8")?;
     let mut env: BTreeMap<String, String> = BTreeMap::new();
     for key in ["TERM", "LANG", "USER", "LOGNAME"] {
@@ -506,7 +520,8 @@ pub fn runtime_env(root: &Path, image_env: &[String], overrides: &[String]) -> R
         };
         env.insert(key, substitute_root(&value, root_str));
     }
-    env.entry("HOME".into()).or_insert_with(|| root.join("root").display().to_string());
+    env.entry("HOME".into())
+        .or_insert_with(|| root.join("root").display().to_string());
     env.insert("TMPDIR".into(), root.join("tmp").display().to_string());
     for entry in overrides {
         let (key, value) = match entry.split_once('=') {
@@ -535,7 +550,11 @@ pub fn runtime_env(root: &Path, image_env: &[String], overrides: &[String]) -> R
 
 /// Resolve argv from Entrypoint + (override or Cmd), mapping an absolute
 /// argv0 that exists inside the root to its root path.
-pub fn resolve_argv(root: &Path, config: &ContainerConfig, command: &[String]) -> Result<(Vec<String>, Vec<String>)> {
+pub fn resolve_argv(
+    root: &Path,
+    config: &ContainerConfig,
+    command: &[String],
+) -> Result<(Vec<String>, Vec<String>)> {
     let mut requested: Vec<String> = config.entrypoint.clone().unwrap_or_default();
     if command.is_empty() {
         requested.extend(config.cmd.clone().unwrap_or_default());
@@ -587,7 +606,11 @@ fn not_found_message(argv0: &str) -> String {
 }
 
 /// Working directory: image `WorkingDir` (or `-w`) relative to the root.
-pub fn resolve_workdir(root: &Path, config: &ContainerConfig, override_dir: Option<&str>) -> PathBuf {
+pub fn resolve_workdir(
+    root: &Path,
+    config: &ContainerConfig,
+    override_dir: Option<&str>,
+) -> PathBuf {
     match override_dir.or(config.working_dir.as_deref()) {
         Some(dir) if !dir.is_empty() => root_join(root, dir),
         _ => root.to_path_buf(),
@@ -613,7 +636,9 @@ fn validate_name(name: &str) -> Result<()> {
         .chars()
         .next()
         .is_some_and(|c| c.is_ascii_alphanumeric())
-        && name.chars().all(|c| c.is_ascii_alphanumeric() || "_.-".contains(c))
+        && name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || "_.-".contains(c))
         && name.len() <= 128;
     if !ok {
         bail!("invalid container name {name:?} ([a-zA-Z0-9][a-zA-Z0-9_.-]*)");
@@ -692,7 +717,9 @@ pub fn create(opts: &RunOptions) -> Result<Container> {
                 } else if meta.file_type().is_symlink() {
                     std::fs::remove_file(&link)?;
                 } else {
-                    bail!("-v target {ctr} already exists in the image and is not an empty directory");
+                    bail!(
+                        "-v target {ctr} already exists in the image and is not an empty directory"
+                    );
                 }
             }
             if let Some(parent) = link.parent() {
@@ -700,7 +727,12 @@ pub fn create(opts: &RunOptions) -> Result<Container> {
             }
             std::os::unix::fs::symlink(&host, &link)
                 .with_context(|| format!("link {} -> {}", link.display(), host.display()))?;
-            mounts.push(MountRecord { host, container: ctr, link, read_only });
+            mounts.push(MountRecord {
+                host,
+                container: ctr,
+                link,
+                read_only,
+            });
         }
 
         let decision = users::decide(
@@ -710,29 +742,41 @@ pub fn create(opts: &RunOptions) -> Result<Container> {
             users::world_traversable(&root_path),
         );
         let (uid_isolation, reason, run_as) = match decision {
-            Decision::Active(user) => {
-                ("active", None, RunAs { uid: user.uid, gid: user.gid, user: Some(user.name) })
-            }
+            Decision::Active(user) => (
+                "active",
+                None,
+                RunAs {
+                    uid: user.uid,
+                    gid: user.gid,
+                    user: Some(user.name),
+                },
+            ),
             Decision::RunAsInvoker { reason } => (
                 "unavailable",
                 Some(reason),
-                RunAs { uid: unsafe { libc::getuid() }, gid: unsafe { libc::getgid() }, user: std::env::var("USER").ok() },
+                RunAs {
+                    uid: unsafe { libc::getuid() },
+                    gid: unsafe { libc::getgid() },
+                    user: std::env::var("USER").ok(),
+                },
             ),
             Decision::Refuse { reason } => bail!("{reason}"),
         };
 
         let mut writable = vec![root_path.clone()];
-        writable.extend(mounts.iter().filter(|m| !m.read_only).map(|m| m.host.clone()));
+        writable.extend(
+            mounts
+                .iter()
+                .filter(|m| !m.read_only)
+                .map(|m| m.host.clone()),
+        );
         if uid_isolation != "active" {
             if let Some(cache) = user_cache_dir() {
                 writable.push(cache);
             }
         }
-        let profile = seatbelt::native_container_profile(
-            &root_path,
-            &writable[1..],
-            opts.network.egress(),
-        );
+        let profile =
+            seatbelt::native_container_profile(&root_path, &writable[1..], opts.network.egress());
         let config = &image.config.config;
         let env = runtime_env(&root_path, &config.env, &opts.env)?;
         let (command, argv) = resolve_argv(&root_path, config, &opts.command)?;
@@ -752,7 +796,10 @@ pub fn create(opts: &RunOptions) -> Result<Container> {
             id: id.clone(),
             name,
             image: ImageRef {
-                reference: image.reference.clone().unwrap_or_else(|| opts.image.clone()),
+                reference: image
+                    .reference
+                    .clone()
+                    .unwrap_or_else(|| opts.image.clone()),
                 digest: image.manifest_digest.clone(),
                 config_digest: image.manifest.config.digest.clone(),
             },
@@ -783,7 +830,12 @@ pub fn create(opts: &RunOptions) -> Result<Container> {
         write_json(&dir.join("base-manifest.json"), &tree)?;
         std::fs::write(dir.join("profile.sb"), &profile)?;
         write_json(&dir.join("container.json"), &record)?;
-        Ok(Container { dir: dir.clone(), record, started: None, exited: None })
+        Ok(Container {
+            dir: dir.clone(),
+            record,
+            started: None,
+            exited: None,
+        })
     })();
     if result.is_err() {
         let _ = super::remove_tree(&root_path);
@@ -795,7 +847,10 @@ pub fn create(opts: &RunOptions) -> Result<Container> {
 /// How the workload's stdio is wired.
 enum Stdio3 {
     Inherit,
-    Files { stdout: std::fs::File, stderr: std::fs::File },
+    Files {
+        stdout: std::fs::File,
+        stderr: std::fs::File,
+    },
 }
 
 /// Build the `sandbox-exec` command for a container workload or exec.
@@ -822,7 +877,8 @@ fn workload_command(
             cmd.stdin(Stdio::null()).stdout(stdout).stderr(stderr);
         }
     }
-    let switch_to = (record.uid_isolation == "active").then_some((record.run_as.uid, record.run_as.gid));
+    let switch_to =
+        (record.uid_isolation == "active").then_some((record.run_as.uid, record.run_as.gid));
     unsafe {
         cmd.pre_exec(move || {
             // Own process group so `stop` can killpg the workload tree.
@@ -833,7 +889,15 @@ fn workload_command(
                 libc::signal(libc::SIGTTOU, libc::SIG_IGN);
                 libc::tcsetpgrp(0, libc::getpid());
             }
-            for sig in [libc::SIGTERM, libc::SIGINT, libc::SIGHUP, libc::SIGQUIT, libc::SIGPIPE, libc::SIGTTOU, libc::SIGTTIN] {
+            for sig in [
+                libc::SIGTERM,
+                libc::SIGINT,
+                libc::SIGHUP,
+                libc::SIGQUIT,
+                libc::SIGPIPE,
+                libc::SIGTTOU,
+                libc::SIGTTIN,
+            ] {
                 libc::signal(sig, libc::SIG_DFL);
             }
             if let Some((uid, gid)) = switch_to {
@@ -864,7 +928,15 @@ fn record_exit(dir: &Path, code: i32, signal: Option<i32>, error: Option<String>
     if path.exists() {
         return Ok(());
     }
-    write_json(&path, &Exited { exit_code: code, signal, finished_at: now(), error })
+    write_json(
+        &path,
+        &Exited {
+            exit_code: code,
+            signal,
+            finished_at: now(),
+            error,
+        },
+    )
 }
 
 fn record_started(dir: &Path, pid: i32, supervisor_pid: Option<i32>) -> Result<()> {
@@ -892,12 +964,21 @@ pub fn run_foreground(container: &Container) -> Result<i32> {
         }
         return Ok(127);
     }
-    let tty = unsafe { libc::isatty(0) } == 1 && unsafe { libc::tcgetpgrp(0) } == unsafe { libc::getpgrp() };
-    let mut cmd = workload_command(record, &record.argv, &record.env, &record.workdir, Stdio3::Inherit, tty);
-    let flags: Vec<(i32, Arc<AtomicBool>)> = [libc::SIGTERM, libc::SIGINT, libc::SIGHUP, libc::SIGQUIT]
-        .into_iter()
-        .map(|sig| (sig, Arc::new(AtomicBool::new(false))))
-        .collect();
+    let tty = unsafe { libc::isatty(0) } == 1
+        && unsafe { libc::tcgetpgrp(0) } == unsafe { libc::getpgrp() };
+    let mut cmd = workload_command(
+        record,
+        &record.argv,
+        &record.env,
+        &record.workdir,
+        Stdio3::Inherit,
+        tty,
+    );
+    let flags: Vec<(i32, Arc<AtomicBool>)> =
+        [libc::SIGTERM, libc::SIGINT, libc::SIGHUP, libc::SIGQUIT]
+            .into_iter()
+            .map(|sig| (sig, Arc::new(AtomicBool::new(false))))
+            .collect();
     let mut handles = Vec::new();
     for (sig, flag) in &flags {
         handles.push(signal_hook::flag::register(*sig, Arc::clone(flag))?);
@@ -967,7 +1048,9 @@ pub fn run_detached(container: &Container) -> Result<()> {
             Ok(())
         });
     }
-    let mut supervisor = cmd.spawn().context("spawn the native container supervisor")?;
+    let mut supervisor = cmd
+        .spawn()
+        .context("spawn the native container supervisor")?;
     let deadline = Instant::now() + Duration::from_secs(30);
     loop {
         if container.dir.join("started.json").exists() || container.dir.join("exit.json").exists() {
@@ -980,13 +1063,17 @@ pub fn run_detached(container: &Container) -> Result<()> {
                 return Ok(());
             }
             if !container.dir.join("started.json").exists() {
-                let log = std::fs::read_to_string(container.dir.join("supervisor.log")).unwrap_or_default();
+                let log = std::fs::read_to_string(container.dir.join("supervisor.log"))
+                    .unwrap_or_default();
                 bail!("native container supervisor exited ({status}) before starting the workload: {}", log.trim());
             }
             break;
         }
         if Instant::now() > deadline {
-            bail!("timed out waiting for container {} to start", container.record.id);
+            bail!(
+                "timed out waiting for container {} to start",
+                container.record.id
+            );
         }
         std::thread::sleep(Duration::from_millis(20));
     }
@@ -1014,7 +1101,12 @@ pub fn supervise(id: &str) -> Result<()> {
     let stderr = open_log(container.stderr_log())?;
     let record = &container.record;
     if find_executable(&record.argv[0], &record.env, &record.workdir).is_none() {
-        record_exit(&container.dir, 127, None, Some(not_found_message(&record.command[0])))?;
+        record_exit(
+            &container.dir,
+            127,
+            None,
+            Some(not_found_message(&record.command[0])),
+        )?;
         return Ok(());
     }
     let mut cmd = workload_command(
@@ -1028,7 +1120,12 @@ pub fn supervise(id: &str) -> Result<()> {
     let mut child = match cmd.spawn() {
         Ok(child) => child,
         Err(err) => {
-            record_exit(&container.dir, 127, None, Some(format!("spawn sandbox-exec: {err}")))?;
+            record_exit(
+                &container.dir,
+                127,
+                None,
+                Some(format!("spawn sandbox-exec: {err}")),
+            )?;
             return Ok(());
         }
     };
@@ -1091,7 +1188,11 @@ pub fn stop(container: &Container, timeout: Duration) -> Result<Option<i32>> {
                 }
                 std::thread::sleep(Duration::from_millis(25));
             }
-            let (code, sig) = if killed { (137, libc::SIGKILL) } else { (143, libc::SIGTERM) };
+            let (code, sig) = if killed {
+                (137, libc::SIGKILL)
+            } else {
+                (143, libc::SIGTERM)
+            };
             record_exit(&container.dir, code, Some(sig), None)?;
             return Ok(Some(code));
         }
@@ -1120,7 +1221,10 @@ pub fn remove(container: &Container, force: bool) -> Result<()> {
         let _ = std::fs::remove_file(&mount.link);
     }
     super::remove_tree(&container.record.root).with_context(|| {
-        format!("remove root {} (if it was chowned to a pool user, remove it as root)", container.record.root.display())
+        format!(
+            "remove root {} (if it was chowned to a pool user, remove it as root)",
+            container.record.root.display()
+        )
     })?;
     super::remove_tree(&container.dir)?;
     Ok(())
@@ -1128,7 +1232,12 @@ pub fn remove(container: &Container, force: bool) -> Result<()> {
 
 /// Run a command inside an existing container root (same env, profile, and
 /// user); returns the exit code.
-pub fn exec(container: &Container, command: &[String], extra_env: &[String], workdir: Option<&str>) -> Result<i32> {
+pub fn exec(
+    container: &Container,
+    command: &[String],
+    extra_env: &[String],
+    workdir: Option<&str>,
+) -> Result<i32> {
     let record = &container.record;
     if !record.root.is_dir() {
         bail!("container {} has no root on disk", record.id);
@@ -1146,7 +1255,10 @@ pub fn exec(container: &Container, command: &[String], extra_env: &[String], wor
         env.insert(k, substitute_root(&v, root_str));
     }
     let env: Vec<String> = env.into_iter().map(|(k, v)| format!("{k}={v}")).collect();
-    let config = ContainerConfig { cmd: Some(command.to_vec()), ..Default::default() };
+    let config = ContainerConfig {
+        cmd: Some(command.to_vec()),
+        ..Default::default()
+    };
     let (_, argv) = resolve_argv(&record.root, &config, &[])?;
     let workdir = match workdir {
         Some(dir) => root_join(&record.root, dir),
@@ -1156,7 +1268,8 @@ pub fn exec(container: &Container, command: &[String], extra_env: &[String], wor
         eprintln!("vat: {}", not_found_message(&command[0]));
         return Ok(127);
     }
-    let tty = unsafe { libc::isatty(0) } == 1 && unsafe { libc::tcgetpgrp(0) } == unsafe { libc::getpgrp() };
+    let tty = unsafe { libc::isatty(0) } == 1
+        && unsafe { libc::tcgetpgrp(0) } == unsafe { libc::getpgrp() };
     let mut cmd = workload_command(record, &argv, &env, &workdir, Stdio3::Inherit, tty);
     let flags: Vec<(i32, Arc<AtomicBool>)> = [libc::SIGTERM, libc::SIGINT, libc::SIGHUP]
         .into_iter()
@@ -1224,7 +1337,9 @@ pub fn logs(container: &Container, follow: bool) -> Result<()> {
     let paths = [container.stdout_log(), container.stderr_log()];
     loop {
         for (i, path) in paths.iter().enumerate() {
-            let Ok(mut file) = std::fs::File::open(path) else { continue };
+            let Ok(mut file) = std::fs::File::open(path) else {
+                continue;
+            };
             file.seek(SeekFrom::Start(offsets[i]))?;
             let mut buf = Vec::new();
             file.read_to_end(&mut buf)?;
@@ -1239,7 +1354,9 @@ pub fn logs(container: &Container, follow: bool) -> Result<()> {
         if !follow {
             return Ok(());
         }
-        let Ok(current) = load_dir(&container.dir) else { return Ok(()) };
+        let Ok(current) = load_dir(&container.dir) else {
+            return Ok(());
+        };
         if current.status() != Status::Running {
             follow_final_flush(&paths, &mut offsets)?;
             return Ok(());
@@ -1251,7 +1368,9 @@ pub fn logs(container: &Container, follow: bool) -> Result<()> {
 fn follow_final_flush(paths: &[PathBuf; 2], offsets: &mut [u64; 2]) -> Result<()> {
     use std::io::{Read, Seek, SeekFrom, Write};
     for (i, path) in paths.iter().enumerate() {
-        let Ok(mut file) = std::fs::File::open(path) else { continue };
+        let Ok(mut file) = std::fs::File::open(path) else {
+            continue;
+        };
         file.seek(SeekFrom::Start(offsets[i]))?;
         let mut buf = Vec::new();
         file.read_to_end(&mut buf)?;
@@ -1311,7 +1430,9 @@ mod tests {
         assert_eq!(get("EXTRA").unwrap(), "/x/c-1/e");
         assert!(runtime_env(root, &[], &["VAT_ROOT=/".into()]).is_err());
         let bare = runtime_env(root, &[], &[]).unwrap();
-        assert!(bare.iter().any(|(k, v)| k == "PATH" && v == HOST_SYSTEM_PATH));
+        assert!(bare
+            .iter()
+            .any(|(k, v)| k == "PATH" && v == HOST_SYSTEM_PATH));
     }
 
     #[test]
@@ -1330,12 +1451,16 @@ mod tests {
         assert_eq!(requested, vec!["/app/run.sh", "$VAT_ROOT/data"]);
         assert_eq!(argv[0], root.join("app/run.sh").display().to_string());
         assert_eq!(argv[1], format!("{}/data", root.display()));
-        let (_, host) = resolve_argv(root, &ContainerConfig::default(), &["/bin/echo".into()]).unwrap();
+        let (_, host) =
+            resolve_argv(root, &ContainerConfig::default(), &["/bin/echo".into()]).unwrap();
         assert_eq!(host[0], "/bin/echo");
         assert!(resolve_argv(root, &ContainerConfig::default(), &[]).is_err());
         assert_eq!(resolve_workdir(root, &config, None), root.join("app"));
         assert_eq!(resolve_workdir(root, &config, Some("/w")), root.join("w"));
-        assert_eq!(resolve_workdir(root, &ContainerConfig::default(), None), root.to_path_buf());
+        assert_eq!(
+            resolve_workdir(root, &ContainerConfig::default(), None),
+            root.to_path_buf()
+        );
     }
 
     #[test]

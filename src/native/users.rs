@@ -41,8 +41,14 @@ pub fn lookup_user(name: &str) -> Option<PoolUser> {
         return None;
     }
     let pw = unsafe { &*pw };
-    let name = unsafe { CStr::from_ptr(pw.pw_name) }.to_string_lossy().to_string();
-    Some(PoolUser { name, uid: pw.pw_uid, gid: pw.pw_gid })
+    let name = unsafe { CStr::from_ptr(pw.pw_name) }
+        .to_string_lossy()
+        .to_string();
+    Some(PoolUser {
+        name,
+        uid: pw.pw_uid,
+        gid: pw.pw_gid,
+    })
 }
 
 fn uid_taken(uid: u32) -> Option<String> {
@@ -50,7 +56,11 @@ fn uid_taken(uid: u32) -> Option<String> {
     if pw.is_null() {
         return None;
     }
-    Some(unsafe { CStr::from_ptr((*pw).pw_name) }.to_string_lossy().to_string())
+    Some(
+        unsafe { CStr::from_ptr((*pw).pw_name) }
+            .to_string_lossy()
+            .to_string(),
+    )
 }
 
 fn gid_taken(gid: u32) -> Option<String> {
@@ -58,7 +68,11 @@ fn gid_taken(gid: u32) -> Option<String> {
     if gr.is_null() {
         return None;
     }
-    Some(unsafe { CStr::from_ptr((*gr).gr_name) }.to_string_lossy().to_string())
+    Some(
+        unsafe { CStr::from_ptr((*gr).gr_name) }
+            .to_string_lossy()
+            .to_string(),
+    )
 }
 
 /// The pool users that exist on this host (`_vat1`, `_vat2`, … until the
@@ -166,7 +180,12 @@ pub fn setup_commands(count: u32, first_id: u32) -> Vec<Vec<String>> {
     let group = format!("/Groups/{POOL_PREFIX}");
     cmds.push(dscl(&["-create", &group]));
     cmds.push(dscl(&["-create", &group, "PrimaryGroupID", &gid]));
-    cmds.push(dscl(&["-create", &group, "RealName", "vat native container users"]));
+    cmds.push(dscl(&[
+        "-create",
+        &group,
+        "RealName",
+        "vat native container users",
+    ]));
     cmds.push(dscl(&["-create", &group, "Password", "*"]));
     for i in 1..=count {
         let user = format!("/Users/{POOL_PREFIX}{i}");
@@ -180,7 +199,12 @@ pub fn setup_commands(count: u32, first_id: u32) -> Vec<Vec<String>> {
         cmds.push(dscl(&["-create", &user, "RealName", &real]));
         cmds.push(dscl(&["-create", &user, "IsHidden", "1"]));
         cmds.push(dscl(&["-create", &user, "Password", "*"]));
-        cmds.push(dscl(&["-append", &group, "GroupMembership", &format!("{POOL_PREFIX}{i}")]));
+        cmds.push(dscl(&[
+            "-append",
+            &group,
+            "GroupMembership",
+            &format!("{POOL_PREFIX}{i}"),
+        ]));
     }
     cmds
 }
@@ -202,7 +226,11 @@ pub fn check_setup_ids(count: u32, first_id: u32) -> Result<()> {
         }
         if let Some(existing) = lookup_user(&expected) {
             if existing.uid != uid {
-                bail!("{expected} already exists with UID {}; pass --first-id {}", existing.uid, existing.uid - i);
+                bail!(
+                    "{expected} already exists with UID {}; pass --first-id {}",
+                    existing.uid,
+                    existing.uid - i
+                );
             }
         }
     }
@@ -211,7 +239,11 @@ pub fn check_setup_ids(count: u32, first_id: u32) -> Result<()> {
 
 /// Shell-quote one argument for `--print` output.
 pub fn shell_quote(arg: &str) -> String {
-    if !arg.is_empty() && arg.bytes().all(|b| b.is_ascii_alphanumeric() || b"/._-=:".contains(&b)) {
+    if !arg.is_empty()
+        && arg
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b"/._-=:".contains(&b))
+    {
         arg.to_string()
     } else {
         format!("'{}'", arg.replace('\'', "'\\''"))
@@ -257,7 +289,11 @@ mod tests {
 
     fn pool(n: u32) -> Vec<PoolUser> {
         (1..=n)
-            .map(|i| PoolUser { name: format!("_vat{i}"), uid: 4200 + i, gid: 4200 })
+            .map(|i| PoolUser {
+                name: format!("_vat{i}"),
+                uid: 4200 + i,
+                gid: 4200,
+            })
             .collect()
     }
 
@@ -279,20 +315,34 @@ mod tests {
 
     #[test]
     fn root_without_pool_refuses_instead_of_running_as_root() {
-        assert!(matches!(decide(0, &[], &BTreeSet::new(), Ok(())), Decision::Refuse { .. }));
+        assert!(matches!(
+            decide(0, &[], &BTreeSet::new(), Ok(())),
+            Decision::Refuse { .. }
+        ));
     }
 
     #[test]
     fn root_with_pool_picks_first_free_user() {
         let in_use: BTreeSet<u32> = [4201].into_iter().collect();
-        assert_eq!(decide(0, &pool(3), &in_use, Ok(())), Decision::Active(pool(3)[1].clone()));
+        assert_eq!(
+            decide(0, &pool(3), &in_use, Ok(())),
+            Decision::Active(pool(3)[1].clone())
+        );
         let all: BTreeSet<u32> = [4201, 4202].into_iter().collect();
-        assert!(matches!(decide(0, &pool(2), &all, Ok(())), Decision::Refuse { .. }));
+        assert!(matches!(
+            decide(0, &pool(2), &all, Ok(())),
+            Decision::Refuse { .. }
+        ));
     }
 
     #[test]
     fn root_with_untraversable_base_refuses() {
-        let d = decide(0, &pool(1), &BTreeSet::new(), Err("/Users/me is not world-searchable".into()));
+        let d = decide(
+            0,
+            &pool(1),
+            &BTreeSet::new(),
+            Err("/Users/me is not world-searchable".into()),
+        );
         match d {
             Decision::Refuse { reason } => assert!(reason.contains("VAT_NATIVE_ROOT_BASE")),
             other => panic!("unexpected {other:?}"),
@@ -303,12 +353,19 @@ mod tests {
     fn setup_commands_create_hidden_users() {
         let cmds = setup_commands(2, 4200);
         let flat: Vec<String> = cmds.iter().map(|c| c.join(" ")).collect();
-        assert!(flat.contains(&"/usr/bin/dscl . -create /Groups/_vat PrimaryGroupID 4200".to_string()));
+        assert!(
+            flat.contains(&"/usr/bin/dscl . -create /Groups/_vat PrimaryGroupID 4200".to_string())
+        );
         assert!(flat.contains(&"/usr/bin/dscl . -create /Users/_vat2 UniqueID 4202".to_string()));
         assert!(flat.contains(&"/usr/bin/dscl . -create /Users/_vat1 IsHidden 1".to_string()));
-        assert!(flat.contains(&"/usr/bin/dscl . -create /Users/_vat1 UserShell /usr/bin/false".to_string()));
+        assert!(flat.contains(
+            &"/usr/bin/dscl . -create /Users/_vat1 UserShell /usr/bin/false".to_string()
+        ));
         assert_eq!(shell_quote("*"), "'*'");
-        assert_eq!(shell_quote("vat native container user 1"), "'vat native container user 1'");
+        assert_eq!(
+            shell_quote("vat native container user 1"),
+            "'vat native container user 1'"
+        );
     }
 
     #[test]

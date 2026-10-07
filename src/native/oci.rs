@@ -32,7 +32,11 @@ pub const ARCH: &str = "arm64";
 pub struct Platform {
     pub architecture: String,
     pub os: String,
-    #[serde(rename = "os.version", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "os.version",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub os_version: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub variant: Option<String>,
@@ -40,7 +44,12 @@ pub struct Platform {
 
 impl Platform {
     pub fn darwin_arm64() -> Self {
-        Platform { architecture: ARCH.into(), os: OS.into(), os_version: None, variant: None }
+        Platform {
+            architecture: ARCH.into(),
+            os: OS.into(),
+            os_version: None,
+            variant: None,
+        }
     }
 
     pub fn is_darwin_arm64(&self) -> bool {
@@ -111,15 +120,27 @@ pub struct Index {
 pub struct ContainerConfig {
     #[serde(rename = "Env", default, skip_serializing_if = "Vec::is_empty")]
     pub env: Vec<String>,
-    #[serde(rename = "Entrypoint", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "Entrypoint",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub entrypoint: Option<Vec<String>>,
     #[serde(rename = "Cmd", default, skip_serializing_if = "Option::is_none")]
     pub cmd: Option<Vec<String>>,
-    #[serde(rename = "WorkingDir", default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "WorkingDir",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub working_dir: Option<String>,
     #[serde(rename = "Labels", default, skip_serializing_if = "BTreeMap::is_empty")]
     pub labels: BTreeMap<String, String>,
-    #[serde(rename = "ExposedPorts", default, skip_serializing_if = "BTreeMap::is_empty")]
+    #[serde(
+        rename = "ExposedPorts",
+        default,
+        skip_serializing_if = "BTreeMap::is_empty"
+    )]
     pub exposed_ports: BTreeMap<String, serde_json::Value>,
 }
 
@@ -256,12 +277,19 @@ impl Reference {
         if let Some(tag) = &tag {
             let valid_tag = !tag.is_empty()
                 && tag.len() <= 128
-                && tag.bytes().all(|b| b.is_ascii_alphanumeric() || b"._-".contains(&b));
+                && tag
+                    .bytes()
+                    .all(|b| b.is_ascii_alphanumeric() || b"._-".contains(&b));
             if !valid_tag {
                 bail!("invalid tag {tag:?} in image reference {raw:?}");
             }
         }
-        Ok(Reference { registry, repository, tag, digest })
+        Ok(Reference {
+            registry,
+            repository,
+            tag,
+            digest,
+        })
     }
 
     /// Tag, defaulting to `latest`.
@@ -293,7 +321,10 @@ impl Reference {
     /// Repository path for network operations (Docker Hub official images
     /// live under `library/`).
     pub fn remote_repository(&self) -> String {
-        let hub = matches!(self.registry.as_deref(), None | Some("docker.io") | Some("index.docker.io"));
+        let hub = matches!(
+            self.registry.as_deref(),
+            None | Some("docker.io") | Some("index.docker.io")
+        );
         if hub && !self.repository.contains('/') {
             format!("library/{}", self.repository)
         } else {
@@ -303,7 +334,9 @@ impl Reference {
 
     /// Manifest reference to request: digest if pinned, else tag.
     pub fn remote_reference(&self) -> String {
-        self.digest.clone().unwrap_or_else(|| self.tag_or_latest().to_string())
+        self.digest
+            .clone()
+            .unwrap_or_else(|| self.tag_or_latest().to_string())
     }
 }
 
@@ -365,7 +398,10 @@ mod tests {
                 working_dir: Some("/app".into()),
                 ..Default::default()
             },
-            rootfs: RootFs { kind: "layers".into(), diff_ids: vec![] },
+            rootfs: RootFs {
+                kind: "layers".into(),
+                diff_ids: vec![],
+            },
             history: vec![],
         };
         let json = serde_json::to_value(&config).unwrap();

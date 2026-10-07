@@ -48,7 +48,9 @@ pub struct ScanOptions {
 
 impl ScanOptions {
     pub fn native_default() -> Self {
-        ScanOptions { exclude_contents: vec!["tmp".into()] }
+        ScanOptions {
+            exclude_contents: vec!["tmp".into()],
+        }
     }
 
     fn excluded(&self, rel: &str) -> bool {
@@ -63,7 +65,10 @@ impl ScanOptions {
 /// Scan `root` (not following symlinks).
 pub fn scan_tree(root: &Path, options: &ScanOptions) -> Result<Tree> {
     let mut tree = Tree::new();
-    let mut walker = walkdir::WalkDir::new(root).follow_links(false).min_depth(1).into_iter();
+    let mut walker = walkdir::WalkDir::new(root)
+        .follow_links(false)
+        .min_depth(1)
+        .into_iter();
     while let Some(entry) = walker.next() {
         let entry = entry.with_context(|| format!("scan {}", root.display()))?;
         let rel = entry
@@ -71,7 +76,10 @@ pub fn scan_tree(root: &Path, options: &ScanOptions) -> Result<Tree> {
             .strip_prefix(root)
             .expect("walkdir yields paths under root");
         let Some(rel) = rel.to_str() else {
-            bail!("non-UTF-8 path {} is not supported in native images", entry.path().display());
+            bail!(
+                "non-UTF-8 path {} is not supported in native images",
+                entry.path().display()
+            );
         };
         let rel = rel.to_string();
         if options.excluded(&rel) {
@@ -80,7 +88,9 @@ pub fn scan_tree(root: &Path, options: &ScanOptions) -> Result<Tree> {
             }
             continue;
         }
-        let meta = entry.metadata().with_context(|| format!("stat {}", entry.path().display()))?;
+        let meta = entry
+            .metadata()
+            .with_context(|| format!("stat {}", entry.path().display()))?;
         let file_type = meta.file_type();
         let kind = if file_type.is_symlink() {
             EntryKind::Symlink
@@ -137,7 +147,10 @@ fn changed(a: &Entry, b: &Entry) -> bool {
         EntryKind::Dir => a.mtime_ns != b.mtime_ns,
         EntryKind::Symlink => a.target != b.target,
         _ => {
-            a.size != b.size || a.mtime_ns != b.mtime_ns || a.ino != b.ino || a.ctime_ns != b.ctime_ns
+            a.size != b.size
+                || a.mtime_ns != b.mtime_ns
+                || a.ino != b.ino
+                || a.ctime_ns != b.ctime_ns
         }
     }
 }
@@ -191,7 +204,11 @@ pub struct HashWriter<W: Write> {
 
 impl<W: Write> HashWriter<W> {
     pub fn new(inner: W) -> Self {
-        HashWriter { inner, hasher: Sha256::new(), count: 0 }
+        HashWriter {
+            inner,
+            hasher: Sha256::new(),
+            count: 0,
+        }
     }
 
     /// Return the inner writer, the `sha256:` digest, and the byte count.
@@ -296,7 +313,11 @@ pub fn write_layer(
         entries += 1;
     }
 
-    let mut paths: Vec<&String> = tree_diff.added.iter().chain(tree_diff.modified.iter()).collect();
+    let mut paths: Vec<&String> = tree_diff
+        .added
+        .iter()
+        .chain(tree_diff.modified.iter())
+        .collect();
     paths.sort();
     for rel in paths {
         let entry = &after[rel];
@@ -304,7 +325,8 @@ pub fn write_layer(
         match entry.kind {
             EntryKind::Other => continue,
             EntryKind::Dir => {
-                let mut header = tar_header(tar::EntryType::Directory, entry.mode, entry.mtime_ns, 0);
+                let mut header =
+                    tar_header(tar::EntryType::Directory, entry.mode, entry.mtime_ns, 0);
                 builder.append_data(&mut header, format!("{rel}/"), std::io::empty())?;
             }
             EntryKind::Symlink => {
@@ -313,7 +335,10 @@ pub fn write_layer(
                 if let Some((from, to)) = relocate {
                     if memchr::memmem::find(&target_bytes, from).is_some() {
                         target_bytes = replace_all(&target_bytes, from, to);
-                        relocations.push(Relocation { path: rel.clone(), kind: RelocKind::Symlink });
+                        relocations.push(Relocation {
+                            path: rel.clone(),
+                            kind: RelocKind::Symlink,
+                        });
                     }
                 }
                 let target = std::ffi::OsStr::from_bytes(&target_bytes);
@@ -334,15 +359,23 @@ pub fn write_layer(
                         RelocKind::Text
                     };
                     let patched = replace_all(&bytes, from, to);
-                    let mut header =
-                        tar_header(tar::EntryType::Regular, entry.mode, entry.mtime_ns, patched.len() as u64);
+                    let mut header = tar_header(
+                        tar::EntryType::Regular,
+                        entry.mode,
+                        entry.mtime_ns,
+                        patched.len() as u64,
+                    );
                     builder.append_data(&mut header, rel, patched.as_slice())?;
-                    relocations.push(Relocation { path: rel.clone(), kind });
+                    relocations.push(Relocation {
+                        path: rel.clone(),
+                        kind,
+                    });
                 } else {
                     let file = std::fs::File::open(&full)
                         .with_context(|| format!("open {}", full.display()))?;
                     let size = file.metadata()?.len();
-                    let mut header = tar_header(tar::EntryType::Regular, entry.mode, entry.mtime_ns, size);
+                    let mut header =
+                        tar_header(tar::EntryType::Regular, entry.mode, entry.mtime_ns, size);
                     builder.append_data(&mut header, rel, file.take(size))?;
                 }
             }
@@ -358,16 +391,18 @@ pub fn write_layer(
         .map_err(|err| err.into_error())?
         .sync_all()?;
     relocations.sort();
-    Ok(LayerBlob { digest, size, diff_id, relocations, entries })
+    Ok(LayerBlob {
+        digest,
+        size,
+        diff_id,
+        relocations,
+        entries,
+    })
 }
 
 /// Make every existing ancestor directory of `rel` (under `dst`) writable by
 /// the owner, remembering original modes so they can be restored.
-fn ensure_writable_ancestors(
-    dst: &Path,
-    rel: &Path,
-    restore: &mut BTreeMap<PathBuf, u32>,
-) {
+fn ensure_writable_ancestors(dst: &Path, rel: &Path, restore: &mut BTreeMap<PathBuf, u32>) {
     let mut current = dst.to_path_buf();
     let mut components: Vec<_> = rel.components().collect();
     components.pop();
@@ -477,7 +512,10 @@ pub fn apply_layer(dst: &Path, reader: impl Read) -> Result<()> {
         }
         if let Some(meta) = &existing {
             // Replace any existing entry (dir, symlink, read-only file).
-            if meta.is_dir() || meta.file_type().is_symlink() || meta.permissions().mode() & 0o200 == 0 {
+            if meta.is_dir()
+                || meta.file_type().is_symlink()
+                || meta.permissions().mode() & 0o200 == 0
+            {
                 super::remove_tree(&target)?;
             }
         }
@@ -552,9 +590,15 @@ mod tests {
         write_layer(root, &diff(&empty, &t0), &t0, None, &out.path().join("l0")).unwrap();
 
         std::fs::remove_file(root.join("old.txt")).unwrap();
-        write(&root.join("bin/run.sh"), &format!("#!/bin/sh\necho {build_root}/data\n"));
-        std::fs::set_permissions(root.join("bin/run.sh"), std::fs::Permissions::from_mode(0o755))
-            .unwrap();
+        write(
+            &root.join("bin/run.sh"),
+            &format!("#!/bin/sh\necho {build_root}/data\n"),
+        );
+        std::fs::set_permissions(
+            root.join("bin/run.sh"),
+            std::fs::Permissions::from_mode(0o755),
+        )
+        .unwrap();
         std::os::unix::fs::symlink(format!("{build_root}/base.txt"), root.join("link")).unwrap();
         let t1 = scan_tree(root, &opts).unwrap();
         let d1 = diff(&t0, &t1);
@@ -569,21 +613,41 @@ mod tests {
         assert_eq!(
             l1.relocations,
             vec![
-                Relocation { path: "bin/run.sh".into(), kind: RelocKind::Text },
-                Relocation { path: "link".into(), kind: RelocKind::Symlink },
+                Relocation {
+                    path: "bin/run.sh".into(),
+                    kind: RelocKind::Text
+                },
+                Relocation {
+                    path: "link".into(),
+                    kind: RelocKind::Symlink
+                },
             ]
         );
         assert_ne!(l1.digest, l1.diff_id);
 
         let dst = tempfile::tempdir().unwrap();
-        apply_layer(dst.path(), std::fs::File::open(out.path().join("l0")).unwrap()).unwrap();
+        apply_layer(
+            dst.path(),
+            std::fs::File::open(out.path().join("l0")).unwrap(),
+        )
+        .unwrap();
         assert!(dst.path().join("old.txt").exists());
-        apply_layer(dst.path(), std::fs::File::open(out.path().join("l1")).unwrap()).unwrap();
+        apply_layer(
+            dst.path(),
+            std::fs::File::open(out.path().join("l1")).unwrap(),
+        )
+        .unwrap();
         assert!(!dst.path().join("old.txt").exists());
-        assert_eq!(std::fs::read_to_string(dst.path().join("base.txt")).unwrap(), "base");
+        assert_eq!(
+            std::fs::read_to_string(dst.path().join("base.txt")).unwrap(),
+            "base"
+        );
         let script = std::fs::read_to_string(dst.path().join("bin/run.sh")).unwrap();
         assert_eq!(script, format!("#!/bin/sh\necho {placeholder}/data\n"));
-        let mode = std::fs::metadata(dst.path().join("bin/run.sh")).unwrap().permissions().mode();
+        let mode = std::fs::metadata(dst.path().join("bin/run.sh"))
+            .unwrap()
+            .permissions()
+            .mode();
         assert_eq!(mode & 0o777, 0o755);
         assert_eq!(
             std::fs::read_link(dst.path().join("link")).unwrap(),
@@ -598,7 +662,9 @@ mod tests {
         write(&dst.path().join("d/b"), "b");
         let mut builder = tar::Builder::new(Vec::new());
         let mut header = tar_header(tar::EntryType::Regular, 0o644, 0, 0);
-        builder.append_data(&mut header, "d/.wh..wh..opq", std::io::empty()).unwrap();
+        builder
+            .append_data(&mut header, "d/.wh..wh..opq", std::io::empty())
+            .unwrap();
         let mut header = tar_header(tar::EntryType::Regular, 0o644, 0, 1);
         builder.append_data(&mut header, "d/c", &b"c"[..]).unwrap();
         let bytes = builder.into_inner().unwrap();
@@ -612,14 +678,22 @@ mod tests {
         let dst = tempfile::tempdir().unwrap();
         let mut builder = tar::Builder::new(Vec::new());
         let mut header = tar_header(tar::EntryType::Directory, 0o555, 0, 0);
-        builder.append_data(&mut header, "ro/", std::io::empty()).unwrap();
+        builder
+            .append_data(&mut header, "ro/", std::io::empty())
+            .unwrap();
         let mut header = tar_header(tar::EntryType::Regular, 0o444, 0, 1);
         builder.append_data(&mut header, "ro/f", &b"x"[..]).unwrap();
         let bytes = builder.into_inner().unwrap();
         apply_layer(dst.path(), bytes.as_slice()).unwrap();
-        let mode = std::fs::metadata(dst.path().join("ro")).unwrap().permissions().mode();
+        let mode = std::fs::metadata(dst.path().join("ro"))
+            .unwrap()
+            .permissions()
+            .mode();
         assert_eq!(mode & 0o777, 0o555);
-        assert_eq!(std::fs::read_to_string(dst.path().join("ro/f")).unwrap(), "x");
+        assert_eq!(
+            std::fs::read_to_string(dst.path().join("ro/f")).unwrap(),
+            "x"
+        );
         super::super::remove_tree(&dst.path().join("ro")).unwrap();
     }
 }

@@ -3330,7 +3330,10 @@ fn prepare_native_image_service(
                 .with_context(|| format!("service `{}`: pull native image {image}", service.id))?;
         }
         #[cfg(not(feature = "registry"))]
-        return Err(err.context(format!("service `{}`: native image {image} is not in the local store", service.id)));
+        return Err(err.context(format!(
+            "service `{}`: native image {image} is not in the local store",
+            service.id
+        )));
     }
     let name = container_name(&vat.meta.id, &service.id);
     let exe = std::env::current_exe().context("locate the vat executable")?;

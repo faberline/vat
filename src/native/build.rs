@@ -137,7 +137,11 @@ pub fn expand(value: &str, env: &BTreeMap<String, String>) -> String {
         if bytes[i] == '$' && i + 1 < bytes.len() {
             let (name, end, braced) = if bytes[i + 1] == '{' {
                 match bytes[i + 2..].iter().position(|c| *c == '}') {
-                    Some(close) => (bytes[i + 2..i + 2 + close].iter().collect::<String>(), i + 3 + close, true),
+                    Some(close) => (
+                        bytes[i + 2..i + 2 + close].iter().collect::<String>(),
+                        i + 3 + close,
+                        true,
+                    ),
                     None => {
                         out.push('$');
                         i += 1;
@@ -149,7 +153,11 @@ pub fn expand(value: &str, env: &BTreeMap<String, String>) -> String {
                     .iter()
                     .take_while(|c| c.is_ascii_alphanumeric() || **c == '_')
                     .count();
-                (bytes[i + 1..i + 1 + len].iter().collect::<String>(), i + 1 + len, false)
+                (
+                    bytes[i + 1..i + 1 + len].iter().collect::<String>(),
+                    i + 1 + len,
+                    false,
+                )
             };
             if name.is_empty() {
                 out.push('$');
@@ -252,7 +260,11 @@ pub fn parse(text: &str) -> Result<Vec<Step>> {
         }
         _ => {}
     }
-    if steps.iter().skip(1).any(|s| matches!(s.instruction, Instruction::From(_))) {
+    if steps
+        .iter()
+        .skip(1)
+        .any(|s| matches!(s.instruction, Instruction::From(_)))
+    {
         bail!("multi-stage builds (more than one FROM) are not supported by vat image build");
     }
     Ok(steps)
@@ -328,7 +340,11 @@ fn parse_instruction(line: usize, text: &str) -> Result<Step> {
             "line {line}: unsupported Vatfile instruction {other}; vat image build supports {SUPPORTED}"
         ),
     };
-    Ok(Step { line, text: text.to_string(), instruction })
+    Ok(Step {
+        line,
+        text: text.to_string(),
+        instruction,
+    })
 }
 
 /// `vat image build` options.
@@ -371,7 +387,11 @@ fn env_map(env: &[String]) -> BTreeMap<String, String> {
 
 fn set_env(config: &mut ContainerConfig, key: &str, value: &str) {
     let entry = format!("{key}={value}");
-    match config.env.iter_mut().find(|e| e.split_once('=').map(|(k, _)| k) == Some(key)) {
+    match config
+        .env
+        .iter_mut()
+        .find(|e| e.split_once('=').map(|(k, _)| k) == Some(key))
+    {
         Some(existing) => *existing = entry,
         None => config.env.push(entry),
     }
@@ -411,7 +431,10 @@ fn copy_into(src: &Path, dst: &Path) -> Result<()> {
             let entry = entry?;
             copy_into(&entry.path(), &dst.join(entry.file_name()))?;
         }
-        std::fs::set_permissions(dst, std::fs::Permissions::from_mode(meta.permissions().mode()))?;
+        std::fs::set_permissions(
+            dst,
+            std::fs::Permissions::from_mode(meta.permissions().mode()),
+        )?;
         let mtime = filetime::FileTime::from_last_modification_time(&meta);
         let _ = filetime::set_file_times(dst, mtime, mtime);
         return Ok(());
@@ -437,7 +460,13 @@ fn copy_into(src: &Path, dst: &Path) -> Result<()> {
     Ok(())
 }
 
-fn copy_step(context: &Path, root: &Path, config: &ContainerConfig, srcs: &[String], dest: &str) -> Result<()> {
+fn copy_step(
+    context: &Path,
+    root: &Path,
+    config: &ContainerConfig,
+    srcs: &[String],
+    dest: &str,
+) -> Result<()> {
     let dest_in_image = in_image_dir(config, dest);
     let dest_path = root_join(root, &dest_in_image)?;
     let dest_is_dir = dest.ends_with('/') || srcs.len() > 1 || dest_path.is_dir();
@@ -459,7 +488,9 @@ fn copy_step(context: &Path, root: &Path, config: &ContainerConfig, srcs: &[Stri
             }
         } else if dest_is_dir {
             std::fs::create_dir_all(&dest_path)?;
-            let name = resolved.file_name().context("COPY source has no file name")?;
+            let name = resolved
+                .file_name()
+                .context("COPY source has no file name")?;
             copy_into(&resolved, &dest_path.join(name))?;
         } else {
             copy_into(&resolved, &dest_path)?;
@@ -480,7 +511,10 @@ fn run_step(root: &Path, config: &ContainerConfig, form: &Form) -> Result<()> {
             std::fs::create_dir_all(home)?;
         }
     }
-    let exec_config = ContainerConfig { cmd: Some(form.argv()), ..Default::default() };
+    let exec_config = ContainerConfig {
+        cmd: Some(form.argv()),
+        ..Default::default()
+    };
     let (_, argv) = resolve_argv(root, &exec_config, &[])?;
     let writable: Vec<PathBuf> = user_cache_dir().into_iter().collect();
     let profile = seatbelt::native_container_profile(root, &writable, EgressPolicy::Open);
@@ -521,12 +555,14 @@ pub fn build(opts: &BuildOptions) -> Result<BuildOutcome> {
             }
         }
     };
-    let text = std::fs::read_to_string(&file)
-        .with_context(|| format!("read {}", file.display()))?;
+    let text =
+        std::fs::read_to_string(&file).with_context(|| format!("read {}", file.display()))?;
     let steps = parse(&text).with_context(|| format!("parse {}", file.display()))?;
     let store = ImageStore::open()?;
 
-    let Instruction::From(from) = &steps[0].instruction else { unreachable!("checked by parse") };
+    let Instruction::From(from) = &steps[0].instruction else {
+        unreachable!("checked by parse")
+    };
     let base = if from == "scratch" {
         None
     } else {
@@ -554,14 +590,28 @@ pub fn build(opts: &BuildOptions) -> Result<BuildOutcome> {
     std::fs::set_permissions(&build_root, std::fs::Permissions::from_mode(0o755))?;
     std::fs::create_dir_all(build_root.join("tmp"))?;
 
-    let mut config = base.as_ref().map(|b| b.config.config.clone()).unwrap_or_default();
-    let mut layers: Vec<Descriptor> = base.as_ref().map(|b| b.manifest.layers.clone()).unwrap_or_default();
-    let mut diff_ids: Vec<String> = base.as_ref().map(|b| b.config.rootfs.diff_ids.clone()).unwrap_or_default();
-    let mut history: Vec<History> = base.as_ref().map(|b| b.config.history.clone()).unwrap_or_default();
+    let mut config = base
+        .as_ref()
+        .map(|b| b.config.config.clone())
+        .unwrap_or_default();
+    let mut layers: Vec<Descriptor> = base
+        .as_ref()
+        .map(|b| b.manifest.layers.clone())
+        .unwrap_or_default();
+    let mut diff_ids: Vec<String> = base
+        .as_ref()
+        .map(|b| b.config.rootfs.diff_ids.clone())
+        .unwrap_or_default();
+    let mut history: Vec<History> = base
+        .as_ref()
+        .map(|b| b.config.history.clone())
+        .unwrap_or_default();
     let base_layers = layers.len();
 
     let mut scan_opts = ScanOptions::native_default();
-    scan_opts.exclude_contents.push("root/Library/Caches".into());
+    scan_opts
+        .exclude_contents
+        .push("root/Library/Caches".into());
     let mut before = layer::scan_tree(&build_root, &scan_opts)?;
     let placeholder = root::placeholder();
     let build_root_bytes = build_root.as_os_str().as_encoded_bytes().to_vec();
@@ -592,7 +642,11 @@ pub fn build(opts: &BuildOptions) -> Result<BuildOutcome> {
                 Instruction::Expose(ports) => {
                     for port in ports {
                         let port = expand(port, &env);
-                        let key = if port.contains('/') { port } else { format!("{port}/tcp") };
+                        let key = if port.contains('/') {
+                            port
+                        } else {
+                            format!("{port}/tcp")
+                        };
                         config.exposed_ports.insert(key, serde_json::json!({}));
                     }
                 }
@@ -632,7 +686,9 @@ pub fn build(opts: &BuildOptions) -> Result<BuildOutcome> {
             let after = layer::scan_tree(&build_root, &scan_opts)?;
             let changes = layer::diff(&before, &after);
             if !changes.is_empty() {
-                let tmp = store.tmp_dir()?.join(format!("layer-{}", super::random_hex(8)));
+                let tmp = store
+                    .tmp_dir()?
+                    .join(format!("layer-{}", super::random_hex(8)));
                 let blob = layer::write_layer(
                     &build_root,
                     &changes,
@@ -641,7 +697,8 @@ pub fn build(opts: &BuildOptions) -> Result<BuildOutcome> {
                     &tmp,
                 )?;
                 store.adopt(&tmp, &blob.digest)?;
-                let mut desc = Descriptor::new(oci::MT_OCI_LAYER_GZIP, blob.digest.clone(), blob.size);
+                let mut desc =
+                    Descriptor::new(oci::MT_OCI_LAYER_GZIP, blob.digest.clone(), blob.size);
                 if !blob.relocations.is_empty() {
                     desc.annotations.insert(
                         oci::ANN_RELOCATIONS.into(),
@@ -671,7 +728,10 @@ pub fn build(opts: &BuildOptions) -> Result<BuildOutcome> {
         architecture: oci::ARCH.into(),
         os: oci::OS.into(),
         config,
-        rootfs: RootFs { kind: "layers".into(), diff_ids },
+        rootfs: RootFs {
+            kind: "layers".into(),
+            diff_ids,
+        },
         history,
     };
     let config_bytes = serde_json::to_vec(&image_config)?;
@@ -684,7 +744,11 @@ pub fn build(opts: &BuildOptions) -> Result<BuildOutcome> {
     let manifest = Manifest {
         schema_version: 2,
         media_type: Some(oci::MT_OCI_MANIFEST.into()),
-        config: Descriptor::new(oci::MT_OCI_CONFIG, config_digest.clone(), config_bytes.len() as u64),
+        config: Descriptor::new(
+            oci::MT_OCI_CONFIG,
+            config_digest.clone(),
+            config_bytes.len() as u64,
+        ),
         layers,
         annotations,
     };
@@ -726,21 +790,43 @@ EXPOSE 8000 9000/udp
         assert_eq!(steps[0].instruction, Instruction::From("scratch".into()));
         assert_eq!(
             steps[2].instruction,
-            Instruction::Env(vec![("A".into(), "1".into()), ("B".into(), "two words".into())])
+            Instruction::Env(vec![
+                ("A".into(), "1".into()),
+                ("B".into(), "two words".into())
+            ])
         );
-        assert_eq!(steps[3].instruction, Instruction::Env(vec![("LEGACY".into(), "some value".into())]));
+        assert_eq!(
+            steps[3].instruction,
+            Instruction::Env(vec![("LEGACY".into(), "some value".into())])
+        );
         assert_eq!(
             steps[4].instruction,
-            Instruction::Copy { srcs: vec!["a.txt".into(), "b/".into()], dest: "/dest/".into() }
+            Instruction::Copy {
+                srcs: vec!["a.txt".into(), "b/".into()],
+                dest: "/dest/".into()
+            }
         );
-        assert_eq!(steps[5].instruction, Instruction::Run(Form::Shell("echo hi &&      echo there".into())));
+        assert_eq!(
+            steps[5].instruction,
+            Instruction::Run(Form::Shell("echo hi &&      echo there".into()))
+        );
         assert_eq!(steps[5].line, 8);
         assert_eq!(
             steps[6].instruction,
-            Instruction::Cmd(Form::Exec(vec!["python3".into(), "-m".into(), "http.server".into()]))
+            Instruction::Cmd(Form::Exec(vec![
+                "python3".into(),
+                "-m".into(),
+                "http.server".into()
+            ]))
         );
-        assert_eq!(steps[7].instruction, Instruction::Entrypoint(Form::Shell("/app/run.sh".into())));
-        assert_eq!(steps[9].instruction, Instruction::Expose(vec!["8000".into(), "9000/udp".into()]));
+        assert_eq!(
+            steps[7].instruction,
+            Instruction::Entrypoint(Form::Shell("/app/run.sh".into()))
+        );
+        assert_eq!(
+            steps[9].instruction,
+            Instruction::Expose(vec!["8000".into(), "9000/udp".into()])
+        );
     }
 
     #[test]
@@ -748,7 +834,10 @@ EXPOSE 8000 9000/udp
         let err = parse("FROM scratch\nADD x /x\n").unwrap_err().to_string();
         assert!(err.contains("unsupported Vatfile instruction ADD"), "{err}");
         assert!(err.contains("line 2"));
-        assert!(parse("RUN true\n").unwrap_err().to_string().contains("first instruction must be FROM"));
+        assert!(parse("RUN true\n")
+            .unwrap_err()
+            .to_string()
+            .contains("first instruction must be FROM"));
         assert!(parse("FROM a AS b\n").is_err());
         assert!(parse("FROM scratch\nFROM scratch\n").is_err());
         assert!(parse("FROM scratch\nCOPY --from=a x y\n").is_err());
@@ -759,15 +848,23 @@ EXPOSE 8000 9000/udp
 
     #[test]
     fn expansion_keeps_vat_root_literal() {
-        let env: BTreeMap<String, String> = [("PATH".to_string(), "/a".to_string())].into_iter().collect();
+        let env: BTreeMap<String, String> = [("PATH".to_string(), "/a".to_string())]
+            .into_iter()
+            .collect();
         assert_eq!(expand("$VAT_ROOT/bin:$PATH", &env), "$VAT_ROOT/bin:/a");
-        assert_eq!(expand("${VAT_ROOT}/x ${PATH}y $MISSING.", &env), "${VAT_ROOT}/x /ay .");
+        assert_eq!(
+            expand("${VAT_ROOT}/x ${PATH}y $MISSING.", &env),
+            "${VAT_ROOT}/x /ay ."
+        );
         assert_eq!(expand("cost $", &env), "cost $");
     }
 
     #[test]
     fn shell_words_handles_quotes() {
-        assert_eq!(shell_words(r#"a "b c" 'd e' f\ g"#).unwrap(), vec!["a", "b c", "d e", "f g"]);
+        assert_eq!(
+            shell_words(r#"a "b c" 'd e' f\ g"#).unwrap(),
+            vec!["a", "b c", "d e", "f g"]
+        );
         assert!(shell_words("\"open").is_err());
     }
 }

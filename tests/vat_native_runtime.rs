@@ -19,7 +19,10 @@ struct Env {
 
 impl Env {
     fn new() -> Self {
-        let tmp = tempfile::Builder::new().prefix("vnr").tempdir().expect("tempdir");
+        let tmp = tempfile::Builder::new()
+            .prefix("vnr")
+            .tempdir()
+            .expect("tempdir");
         std::fs::create_dir_all(tmp.path().join("r")).unwrap();
         Env { tmp }
     }
@@ -58,7 +61,8 @@ impl Env {
 
     fn json(&self, args: &[&str]) -> Value {
         let stdout = self.ok(args);
-        serde_json::from_str(&stdout).unwrap_or_else(|e| panic!("vat {args:?}: bad JSON ({e}): {stdout}"))
+        serde_json::from_str(&stdout)
+            .unwrap_or_else(|e| panic!("vat {args:?}: bad JSON ({e}): {stdout}"))
     }
 
     /// Write a build context from `(relative path, contents, mode)` triples.
@@ -100,10 +104,16 @@ const HELLO_SH: &str = "#!/bin/sh\necho \"$GREETING from $PWD root=$VAT_ROOT\"\n
 fn build_demo(env: &Env, tag: &str) -> String {
     let ctx = env.context(
         "demo-ctx",
-        &[("Vatfile", DEMO_VATFILE, 0o644), ("hello.sh", HELLO_SH, 0o755)],
+        &[
+            ("Vatfile", DEMO_VATFILE, 0o644),
+            ("hello.sh", HELLO_SH, 0o755),
+        ],
     );
     let out = env.json(&["image", "build", "-t", tag, "--json", ctx.to_str().unwrap()]);
-    assert!(out["relocations"].as_u64().unwrap() >= 1, "where.sh must be recorded for relocation: {out}");
+    assert!(
+        out["relocations"].as_u64().unwrap() >= 1,
+        "where.sh must be recorded for relocation: {out}"
+    );
     out["digest"].as_str().unwrap().to_string()
 }
 
@@ -122,7 +132,10 @@ fn wait_exited(env: &Env, id: &str) -> Value {
         if state["status"] == "exited" && !state["exit_code"].is_null() {
             return state;
         }
-        assert!(Instant::now() < deadline, "container {id} did not exit: {state}");
+        assert!(
+            Instant::now() < deadline,
+            "container {id} did not exit: {state}"
+        );
         std::thread::sleep(Duration::from_millis(100));
     }
 }
@@ -142,25 +155,56 @@ fn build_export_import_run_relocates_script_and_venv() {
     } else {
         eprintln!("skipping the venv half: /usr/bin/python3 is not usable on this host");
     }
-    let ctx = env.context("ctx", &[("Vatfile", &vatfile, 0o644), ("hello.sh", HELLO_SH, 0o755)]);
-    let built = env.json(&["image", "build", "-t", "demo:1", "--json", ctx.to_str().unwrap()]);
+    let ctx = env.context(
+        "ctx",
+        &[("Vatfile", &vatfile, 0o644), ("hello.sh", HELLO_SH, 0o755)],
+    );
+    let built = env.json(&[
+        "image",
+        "build",
+        "-t",
+        "demo:1",
+        "--json",
+        ctx.to_str().unwrap(),
+    ]);
     let digest = built["digest"].as_str().unwrap().to_string();
 
     let layout = env.path().join("layout");
-    env.ok(&["image", "export", "--oci-layout", layout.to_str().unwrap(), "demo:1"]);
+    env.ok(&[
+        "image",
+        "export",
+        "--oci-layout",
+        layout.to_str().unwrap(),
+        "demo:1",
+    ]);
     assert!(layout.join("index.json").is_file() && layout.join("oci-layout").is_file());
-    let index: Value = serde_json::from_slice(&std::fs::read(layout.join("index.json")).unwrap()).unwrap();
+    let index: Value =
+        serde_json::from_slice(&std::fs::read(layout.join("index.json")).unwrap()).unwrap();
     assert_eq!(index["manifests"][0]["platform"]["os"], "darwin");
     assert_eq!(index["manifests"][0]["platform"]["architecture"], "arm64");
 
     env.ok(&["image", "rm", "demo:1"]);
     let images = env.json(&["image", "ls", "--json"]);
-    assert_eq!(images.as_array().unwrap().len(), 0, "image removed: {images}");
+    assert_eq!(
+        images.as_array().unwrap().len(),
+        0,
+        "image removed: {images}"
+    );
     assert!(!env.run(&["image", "inspect", "demo:1"]).status.success());
 
-    let imported = env.json(&["image", "import", "--oci-layout", layout.to_str().unwrap(), "--json"]);
+    let imported = env.json(&[
+        "image",
+        "import",
+        "--oci-layout",
+        layout.to_str().unwrap(),
+        "--json",
+    ]);
     assert_eq!(imported[0]["name"], "demo:1");
-    assert_eq!(imported[0]["digest"], digest.as_str(), "import restores the same digest");
+    assert_eq!(
+        imported[0]["digest"],
+        digest.as_str(),
+        "import restores the same digest"
+    );
 
     let image = env.json(&["image", "inspect", "demo:1"]);
     let reloc_paths: Vec<&str> = image["relocation_paths"]
@@ -174,35 +218,69 @@ fn build_export_import_run_relocates_script_and_venv() {
     // Default CMD via a root-relative PATH entry.
     let out = env.ok(&["container", "run", "--name", "c1", "demo:1"]);
     let root = root_of(&env, "c1");
-    assert_eq!(root.as_os_str().len(), 128, "fixed-length root: {}", root.display());
-    assert_eq!(out.trim(), format!("hello from {}/app root={}", root.display(), root.display()));
+    assert_eq!(
+        root.as_os_str().len(),
+        128,
+        "fixed-length root: {}",
+        root.display()
+    );
+    assert_eq!(
+        out.trim(),
+        format!("hello from {}/app root={}", root.display(), root.display())
+    );
 
     // The RUN-baked build root was rewritten to this container's root.
     let out = env.ok(&["container", "run", "--rm", "demo:1", "where.sh"]);
     let baked = out.trim().strip_prefix("baked=").expect("where.sh output");
     assert_eq!(baked.len(), 128);
-    assert!(!baked.contains("@@VAT_ROOT@@"), "placeholder leaked: {baked}");
+    assert!(
+        !baked.contains("@@VAT_ROOT@@"),
+        "placeholder leaked: {baked}"
+    );
     assert!(Path::new(baked).is_absolute());
     // `--rm` removed that container, so its root is gone again.
     assert!(!Path::new(baked).exists(), "--rm container root removed");
 
     if python {
         let out = env.ok(&[
-            "container", "run", "--name", "py", "demo:1", "/opt/venv/bin/python", "-c",
+            "container",
+            "run",
+            "--name",
+            "py",
+            "demo:1",
+            "/opt/venv/bin/python",
+            "-c",
             "import sys, os; print(sys.prefix); print(os.environ['VAT_ROOT'])",
         ]);
         let root = root_of(&env, "py");
         let lines: Vec<&str> = out.lines().collect();
-        assert_eq!(lines[0], format!("{}/opt/venv", root.display()), "venv prefix is the container root");
+        assert_eq!(
+            lines[0],
+            format!("{}/opt/venv", root.display()),
+            "venv prefix is the container root"
+        );
         assert_eq!(lines[1], root.display().to_string());
         let activate = std::fs::read_to_string(root.join("opt/venv/bin/activate")).unwrap();
-        assert!(activate.contains(&format!("{}/opt/venv", root.display())), "activate relocated");
+        assert!(
+            activate.contains(&format!("{}/opt/venv", root.display())),
+            "activate relocated"
+        );
         assert!(!activate.contains("@@VAT_ROOT@@"));
         // A console script whose shebang was relocated runs.
-        let pip = env.ok(&["container", "run", "--rm", "demo:1", "/opt/venv/bin/pip", "--version"]);
+        let pip = env.ok(&[
+            "container",
+            "run",
+            "--rm",
+            "demo:1",
+            "/opt/venv/bin/pip",
+            "--version",
+        ]);
         assert!(pip.starts_with("pip "), "{pip}");
         let state = inspect(&env, "py");
-        assert!(state["relocation"]["applied"]["files"].as_u64().unwrap() >= 2, "{state}");
+        assert!(
+            state["relocation"]["applied"]["files"].as_u64().unwrap() >= 2,
+            "{state}"
+        );
     }
     env.ok(&["container", "rm", "c1"]);
     if python {
@@ -217,25 +295,56 @@ fn write_inside_root_is_visible_in_inspect_and_diff() {
     let env = Env::new();
     build_demo(&env, "demo:2");
     env.ok(&[
-        "container", "run", "--name", "w", "demo:2", "sh", "-c",
+        "container",
+        "run",
+        "--name",
+        "w",
+        "demo:2",
+        "sh",
+        "-c",
         "echo data > \"$VAT_ROOT/app/out.txt\" && echo more >> \"$VAT_ROOT/app/bin/hello.sh\"",
     ]);
     let root = root_of(&env, "w");
-    assert_eq!(std::fs::read_to_string(root.join("app/out.txt")).unwrap(), "data\n");
+    assert_eq!(
+        std::fs::read_to_string(root.join("app/out.txt")).unwrap(),
+        "data\n"
+    );
 
     let diff = env.json(&["container", "diff", "--json", "w"]);
-    assert!(diff["added"].as_array().unwrap().iter().any(|p| p == "app/out.txt"), "{diff}");
-    assert!(diff["modified"].as_array().unwrap().iter().any(|p| p == "app/bin/hello.sh"), "{diff}");
+    assert!(
+        diff["added"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|p| p == "app/out.txt"),
+        "{diff}"
+    );
+    assert!(
+        diff["modified"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|p| p == "app/bin/hello.sh"),
+        "{diff}"
+    );
 
     let state = inspect(&env, "w");
     let id = state["id"].as_str().unwrap().to_string();
-    assert!(state["changes"]["added"].as_array().unwrap().iter().any(|p| p == "app/out.txt"));
+    assert!(state["changes"]["added"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|p| p == "app/out.txt"));
     assert_eq!(state["exit_code"], 0);
 
     let via_state = env.json(&["state", &id]);
     assert_eq!(via_state["id"], id.as_str());
     let via_diff = env.json(&["diff", &id, "--json"]);
-    assert!(via_diff["added"].as_array().unwrap().iter().any(|p| p == "app/out.txt"));
+    assert!(via_diff["added"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|p| p == "app/out.txt"));
     env.ok(&["container", "rm", "w"]);
     assert!(!root.exists());
 }
@@ -257,8 +366,15 @@ fn seatbelt_denies_writes_outside_the_root() {
     let target = outside.join("escape.txt");
     let script = format!("echo pwned > '{}'", target.display());
     let out = env.run(&["container", "run", "--rm", "demo:3", "sh", "-c", &script]);
-    assert_ne!(out.status.code(), Some(0), "write outside the root must fail");
-    assert!(String::from_utf8_lossy(&out.stderr).contains("Operation not permitted"), "{out:?}");
+    assert_ne!(
+        out.status.code(),
+        Some(0),
+        "write outside the root must fail"
+    );
+    assert!(
+        String::from_utf8_lossy(&out.stderr).contains("Operation not permitted"),
+        "{out:?}"
+    );
     assert!(!target.exists(), "nothing escaped the root");
 
     let mount_rw = format!("{}:/data", rw.display());
@@ -267,24 +383,49 @@ fn seatbelt_denies_writes_outside_the_root() {
         "container", "run", "--name", "m", "-v", &mount_rw, "-v", &mount_ro, "demo:3", "sh", "-c",
         "cat \"$VAT_ROOT/input/input.txt\" && echo ok > \"$VAT_ROOT/data/result.txt\" && ! echo no 2>/dev/null > \"$VAT_ROOT/input/new.txt\"",
     ]);
-    assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     assert_eq!(String::from_utf8_lossy(&out.stdout), "readable\n");
-    assert_eq!(std::fs::read_to_string(rw.join("result.txt")).unwrap(), "ok\n");
-    assert!(!ro.join("new.txt").exists(), "read-only mount stayed read-only");
+    assert_eq!(
+        std::fs::read_to_string(rw.join("result.txt")).unwrap(),
+        "ok\n"
+    );
+    assert!(
+        !ro.join("new.txt").exists(),
+        "read-only mount stayed read-only"
+    );
 
     let state = inspect(&env, "m");
     assert_eq!(state["sandbox"]["backend"], "seatbelt");
-    let writable: Vec<&str> = state["sandbox"]["writable"].as_array().unwrap().iter().map(|v| v.as_str().unwrap()).collect();
-    assert_eq!(writable[0], state["root"].as_str().unwrap(), "root is the first writable path");
+    let writable: Vec<&str> = state["sandbox"]["writable"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect();
+    assert_eq!(
+        writable[0],
+        state["root"].as_str().unwrap(),
+        "root is the first writable path"
+    );
     assert!(writable.contains(&rw.to_str().unwrap()));
     assert!(!writable.contains(&ro.to_str().unwrap()));
     // Not root and no pool on CI hosts: isolation is reported, not claimed.
     if unsafe_euid() != 0 {
         assert_eq!(state["uid_isolation"], "unavailable");
-        assert!(state["uid_isolation_reason"].as_str().unwrap().contains("not running as root"));
+        assert!(state["uid_isolation_reason"]
+            .as_str()
+            .unwrap()
+            .contains("not running as root"));
     }
     env.ok(&["container", "rm", "m"]);
-    assert!(rw.join("result.txt").exists(), "rm never follows mount links into host data");
+    assert!(
+        rw.join("result.txt").exists(),
+        "rm never follows mount links into host data"
+    );
 }
 
 fn unsafe_euid() -> u32 {
@@ -317,20 +458,52 @@ fn gpu_visibility_equals_host() {
     let env = Env::new();
     build_demo(&env, "demo:4");
     let host_report = env.json(&["gpu", "--json"]);
-    let inside = env.ok(&["container", "run", "--name", "g", "demo:4", VAT, "gpu", "--json"]);
+    let inside = env.ok(&[
+        "container",
+        "run",
+        "--name",
+        "g",
+        "demo:4",
+        VAT,
+        "gpu",
+        "--json",
+    ]);
     let inside: Value = serde_json::from_str(&inside).unwrap();
     assert_eq!(inside, host_report, "vat gpu inside == outside");
-    assert_eq!(inspect(&env, "g")["gpu"], host_report, "inspect reports the host GPU");
+    assert_eq!(
+        inspect(&env, "g")["gpu"],
+        host_report,
+        "inspect reports the host GPU"
+    );
     env.ok(&["container", "rm", "g"]);
 
     if !host_python() {
         eprintln!("skipping the Metal probe: /usr/bin/python3 is not usable on this host");
         return;
     }
-    let host = Command::new("/usr/bin/python3").args(["-c", METAL_PROBE]).output().unwrap();
-    assert!(host.status.success(), "{}", String::from_utf8_lossy(&host.stderr));
-    let inside = env.ok(&["container", "run", "--rm", "demo:4", "/usr/bin/python3", "-c", METAL_PROBE]);
-    assert_eq!(inside.trim(), String::from_utf8_lossy(&host.stdout).trim(), "same Metal device");
+    let host = Command::new("/usr/bin/python3")
+        .args(["-c", METAL_PROBE])
+        .output()
+        .unwrap();
+    assert!(
+        host.status.success(),
+        "{}",
+        String::from_utf8_lossy(&host.stderr)
+    );
+    let inside = env.ok(&[
+        "container",
+        "run",
+        "--rm",
+        "demo:4",
+        "/usr/bin/python3",
+        "-c",
+        METAL_PROBE,
+    ]);
+    assert_eq!(
+        inside.trim(),
+        String::from_utf8_lossy(&host.stdout).trim(),
+        "same Metal device"
+    );
     if host_report["vendor"] == "apple" {
         assert_ne!(inside.trim(), "no-device");
     }
@@ -342,20 +515,47 @@ fn detached_lifecycle_and_exit_codes() {
     let env = Env::new();
     build_demo(&env, "demo:5");
 
-    let out = env.run(&["container", "run", "--rm", "demo:5", "sh", "-c", "echo out; echo err >&2; exit 42"]);
-    assert_eq!(out.status.code(), Some(42), "foreground exit code forwarded");
+    let out = env.run(&[
+        "container",
+        "run",
+        "--rm",
+        "demo:5",
+        "sh",
+        "-c",
+        "echo out; echo err >&2; exit 42",
+    ]);
+    assert_eq!(
+        out.status.code(),
+        Some(42),
+        "foreground exit code forwarded"
+    );
     assert_eq!(String::from_utf8_lossy(&out.stdout), "out\n");
     assert!(String::from_utf8_lossy(&out.stderr).contains("err"));
     let out = env.run(&["container", "run", "--rm", "demo:5", "no-such-binary"]);
     assert_eq!(out.status.code(), Some(127));
 
     let id = env
-        .ok(&["container", "run", "-d", "--name", "svc", "demo:5", "sh", "-c", "trap 'echo bye; exit 0' TERM; echo up; while :; do sleep 0.1; done"])
+        .ok(&[
+            "container",
+            "run",
+            "-d",
+            "--name",
+            "svc",
+            "demo:5",
+            "sh",
+            "-c",
+            "trap 'echo bye; exit 0' TERM; echo up; while :; do sleep 0.1; done",
+        ])
         .trim()
         .to_string();
     assert!(id.starts_with("ctr-"), "{id}");
     let ps = env.json(&["container", "ps", "--json"]);
-    let row = ps.as_array().unwrap().iter().find(|r| r["id"] == id.as_str()).expect("running in ps");
+    let row = ps
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|r| r["id"] == id.as_str())
+        .expect("running in ps");
     assert_eq!(row["status"], "running");
     let pid = row["pid"].as_i64().unwrap();
     let deadline = Instant::now() + Duration::from_secs(10);
@@ -363,25 +563,68 @@ fn detached_lifecycle_and_exit_codes() {
         assert!(Instant::now() < deadline, "log never arrived");
         std::thread::sleep(Duration::from_millis(50));
     }
-    let code = env.run(&["container", "exec", "svc", "sh", "-c", "exit 5"]).status.code();
+    let code = env
+        .run(&["container", "exec", "svc", "sh", "-c", "exit 5"])
+        .status
+        .code();
     assert_eq!(code, Some(5), "exec forwards its exit code");
-    env.ok(&["container", "exec", "-e", "X=1", "svc", "sh", "-c", "echo $X > \"$VAT_ROOT/exec.txt\""]);
-    assert_eq!(std::fs::read_to_string(root_of(&env, "svc").join("exec.txt")).unwrap(), "1\n");
+    env.ok(&[
+        "container",
+        "exec",
+        "-e",
+        "X=1",
+        "svc",
+        "sh",
+        "-c",
+        "echo $X > \"$VAT_ROOT/exec.txt\"",
+    ]);
+    assert_eq!(
+        std::fs::read_to_string(root_of(&env, "svc").join("exec.txt")).unwrap(),
+        "1\n"
+    );
 
     let stop = env.ok(&["container", "stop", "-t", "5", "svc"]);
     let logs = env.ok(&["container", "logs", "svc"]);
-    assert!(stop.contains("exited(0)"), "trapped TERM exits 0: {stop} logs={logs} state={}", inspect(&env, &id));
+    assert!(
+        stop.contains("exited(0)"),
+        "trapped TERM exits 0: {stop} logs={logs} state={}",
+        inspect(&env, &id)
+    );
     let state = wait_exited(&env, &id);
     assert_eq!(state["exit_code"], 0);
-    assert!(Command::new("/bin/kill").args(["-0", &pid.to_string()]).output().map(|o| !o.status.success()).unwrap());
+    assert!(Command::new("/bin/kill")
+        .args(["-0", &pid.to_string()])
+        .output()
+        .map(|o| !o.status.success())
+        .unwrap());
     assert!(env.ok(&["container", "logs", "svc"]).contains("bye"));
     let ps = env.json(&["container", "ps", "--json"]);
-    assert!(ps.as_array().unwrap().iter().all(|r| r["id"] != id.as_str()), "not listed as running");
+    assert!(
+        ps.as_array()
+            .unwrap()
+            .iter()
+            .all(|r| r["id"] != id.as_str()),
+        "not listed as running"
+    );
     let all = env.json(&["container", "ps", "--all", "--json"]);
-    assert!(all.as_array().unwrap().iter().any(|r| r["id"] == id.as_str() && r["status"] == "exited"));
+    assert!(all
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|r| r["id"] == id.as_str() && r["status"] == "exited"));
 
     // A workload that ignores TERM is killed after the timeout (137).
-    env.ok(&["container", "run", "-d", "--name", "stubborn", "demo:5", "sh", "-c", "trap '' TERM; echo ready; while :; do sleep 0.1; done"]);
+    env.ok(&[
+        "container",
+        "run",
+        "-d",
+        "--name",
+        "stubborn",
+        "demo:5",
+        "sh",
+        "-c",
+        "trap '' TERM; echo ready; while :; do sleep 0.1; done",
+    ]);
     let deadline = Instant::now() + Duration::from_secs(10);
     while !env.ok(&["container", "logs", "stubborn"]).contains("ready") {
         assert!(Instant::now() < deadline, "stubborn never became ready");
@@ -391,20 +634,63 @@ fn detached_lifecycle_and_exit_codes() {
     assert!(stop.contains("exited(137)"), "{stop}");
 
     // A detached workload's own exit code is recorded.
-    env.ok(&["container", "run", "-d", "--name", "quick", "demo:5", "sh", "-c", "exit 3"]);
+    env.ok(&[
+        "container",
+        "run",
+        "-d",
+        "--name",
+        "quick",
+        "demo:5",
+        "sh",
+        "-c",
+        "exit 3",
+    ]);
     assert_eq!(wait_exited(&env, "quick")["exit_code"], 3);
 
     // rm refuses a running container without --force.
-    env.ok(&["container", "run", "-d", "--name", "live", "demo:5", "sh", "-c", "while :; do sleep 0.1; done"]);
+    env.ok(&[
+        "container",
+        "run",
+        "-d",
+        "--name",
+        "live",
+        "demo:5",
+        "sh",
+        "-c",
+        "while :; do sleep 0.1; done",
+    ]);
     assert!(!env.run(&["container", "rm", "live"]).status.success());
-    env.ok(&["container", "rm", "--force", "live", "svc", "stubborn", "quick"]);
+    env.ok(&[
+        "container",
+        "rm",
+        "--force",
+        "live",
+        "svc",
+        "stubborn",
+        "quick",
+    ]);
     let all = env.json(&["container", "ps", "--all", "--json"]);
     assert_eq!(all.as_array().unwrap().len(), 0, "{all}");
 
     // Detached --rm removes itself after exit.
-    env.ok(&["container", "run", "-d", "--rm", "--name", "gone", "demo:5", "true"]);
+    env.ok(&[
+        "container",
+        "run",
+        "-d",
+        "--rm",
+        "--name",
+        "gone",
+        "demo:5",
+        "true",
+    ]);
     let deadline = Instant::now() + Duration::from_secs(10);
-    while env.json(&["container", "ps", "--all", "--json"]).as_array().unwrap().iter().any(|r| r["name"] == "gone") {
+    while env
+        .json(&["container", "ps", "--all", "--json"])
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|r| r["name"] == "gone")
+    {
         assert!(Instant::now() < deadline, "--rm container lingered");
         std::thread::sleep(Duration::from_millis(100));
     }
@@ -433,7 +719,11 @@ fn vat_toml_image_service_runs_on_the_native_runtime() {
         ],
     );
     env.ok(&["image", "build", "-t", "web:1", ctx.to_str().unwrap()]);
-    let port = std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
+    let port = std::net::TcpListener::bind("127.0.0.1:0")
+        .unwrap()
+        .local_addr()
+        .unwrap()
+        .port();
     let project = env.path().join("project");
     std::fs::create_dir_all(&project).unwrap();
     let toml = format!(
@@ -461,9 +751,20 @@ cmd = ["sh", "-c", "curl -fsS \"$WEB_URL\" | grep -q hello-native"]
     );
     std::fs::write(project.join("vat.toml"), toml).unwrap();
 
-    let plan = env.cmd(&["plan", "--json"]).current_dir(&project).output().unwrap();
-    assert!(plan.status.success(), "{}", String::from_utf8_lossy(&plan.stderr));
-    assert!(String::from_utf8_lossy(&plan.stdout).contains("\"native\""), "plan reports the native runtime");
+    let plan = env
+        .cmd(&["plan", "--json"])
+        .current_dir(&project)
+        .output()
+        .unwrap();
+    assert!(
+        plan.status.success(),
+        "{}",
+        String::from_utf8_lossy(&plan.stderr)
+    );
+    assert!(
+        String::from_utf8_lossy(&plan.stdout).contains("\"native\""),
+        "plan reports the native runtime"
+    );
 
     let out = env.cmd(&["run"]).current_dir(&project).output().unwrap();
     assert!(
@@ -473,8 +774,15 @@ cmd = ["sh", "-c", "curl -fsS \"$WEB_URL\" | grep -q hello-native"]
         String::from_utf8_lossy(&out.stderr)
     );
     let all = env.json(&["container", "ps", "--all", "--json"]);
-    assert_eq!(all.as_array().unwrap().len(), 0, "service container removed after the run: {all}");
-    assert!(std::net::TcpStream::connect(("127.0.0.1", port)).is_err(), "service stopped");
+    assert_eq!(
+        all.as_array().unwrap().len(),
+        0,
+        "service container removed after the run: {all}"
+    );
+    assert!(
+        std::net::TcpStream::connect(("127.0.0.1", port)).is_err(),
+        "service stopped"
+    );
 }
 
 #[cfg(feature = "registry")]
@@ -485,10 +793,15 @@ mod registry {
     mod base64_encode {
         /// Tiny standard base64 encoder (keeps the test free of extra deps).
         pub fn encode(input: &[u8]) -> String {
-            const T: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+            const T: &[u8; 64] =
+                b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
             let mut out = String::new();
             for chunk in input.chunks(3) {
-                let b = [chunk[0], *chunk.get(1).unwrap_or(&0), *chunk.get(2).unwrap_or(&0)];
+                let b = [
+                    chunk[0],
+                    *chunk.get(1).unwrap_or(&0),
+                    *chunk.get(2).unwrap_or(&0),
+                ];
                 let n = (u32::from(b[0]) << 16) | (u32::from(b[1]) << 8) | u32::from(b[2]);
                 for i in 0..4 {
                     if i <= chunk.len() {
@@ -508,10 +821,15 @@ mod registry {
         let addr = listener.local_addr().unwrap();
         listener.set_nonblocking(true).unwrap();
         std::thread::spawn(move || {
-            let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .unwrap();
             rt.block_on(async move {
                 let listener = tokio::net::TcpListener::from_std(listener).unwrap();
-                vat::registry::serve(listener, vat::registry::Config { root, auth }).await.unwrap();
+                vat::registry::serve(listener, vat::registry::Config { root, auth })
+                    .await
+                    .unwrap();
             });
         });
         format!("127.0.0.1:{}", addr.port())
@@ -530,7 +848,13 @@ mod registry {
                 child.wait_with_output()
             })
             .unwrap();
-        format!("sha256:{}", String::from_utf8_lossy(&out.stdout).split_whitespace().next().unwrap())
+        format!(
+            "sha256:{}",
+            String::from_utf8_lossy(&out.stdout)
+                .split_whitespace()
+                .next()
+                .unwrap()
+        )
     }
 
     /// Evidence 6: push → rm → pull → run against an in-test registry with
@@ -542,17 +866,24 @@ mod registry {
         let digest = build_demo(&env, "demo:6");
         let host = start(
             env.path().join("registry"),
-            vat::registry::Auth::Basic { user: "alice".into(), password: "s3cret".into() },
+            vat::registry::Auth::Basic {
+                user: "alice".into(),
+                password: "s3cret".into(),
+            },
         );
         let remote = format!("{host}/team/demo:v1");
 
         // Without credentials the registry refuses.
         let out = env.run(&["image", "push", "demo:6", &remote]);
         assert!(!out.status.success());
-        assert!(String::from_utf8_lossy(&out.stderr).contains("Basic credentials"), "{out:?}");
+        assert!(
+            String::from_utf8_lossy(&out.stderr).contains("Basic credentials"),
+            "{out:?}"
+        );
 
         std::fs::create_dir_all(env.path().join("docker")).unwrap();
-        let config = serde_json::json!({ "auths": { host.clone(): { "auth": b64(b"alice:s3cret") } } });
+        let config =
+            serde_json::json!({ "auths": { host.clone(): { "auth": b64(b"alice:s3cret") } } });
         std::fs::write(env.path().join("docker/config.json"), config.to_string()).unwrap();
 
         let pushed = env.json(&["image", "push", "demo:6", &remote, "--json"]);
@@ -562,18 +893,34 @@ mod registry {
         assert_eq!(again["uploaded_blobs"], 0, "second push only HEADs blobs");
 
         env.ok(&["image", "rm", "demo:6"]);
-        assert_eq!(env.json(&["image", "ls", "--json"]).as_array().unwrap().len(), 0);
+        assert_eq!(
+            env.json(&["image", "ls", "--json"])
+                .as_array()
+                .unwrap()
+                .len(),
+            0
+        );
         let pulled = env.json(&["image", "pull", &remote, "--json"]);
-        assert_eq!(pulled["digest"], digest.as_str(), "pull restores the pushed manifest");
+        assert_eq!(
+            pulled["digest"],
+            digest.as_str(),
+            "pull restores the pushed manifest"
+        );
         assert_eq!(pulled["tagged"], remote.as_str());
         let out = env.ok(&["container", "run", "--rm", &remote, "where.sh"]);
-        assert!(out.starts_with("baked=") && !out.contains("@@VAT_ROOT@@"), "{out}");
+        assert!(
+            out.starts_with("baked=") && !out.contains("@@VAT_ROOT@@"),
+            "{out}"
+        );
         let by_digest = format!("{host}/team/demo@{digest}");
         let pulled = env.json(&["image", "pull", &by_digest, "--json"]);
         assert_eq!(pulled["digest"], digest.as_str());
 
         // Protocol surface, spoken directly.
-        let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap();
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
         rt.block_on(async {
             let http = reqwest::Client::new();
             let base = format!("http://{host}");
@@ -712,7 +1059,10 @@ mod registry {
         let digest = build_demo(&env, "demo:7");
         let host = start(
             env.path().join("registry"),
-            vat::registry::Auth::Bearer { user: "bob".into(), password: "pw".into() },
+            vat::registry::Auth::Bearer {
+                user: "bob".into(),
+                password: "pw".into(),
+            },
         );
         std::fs::create_dir_all(env.path().join("docker")).unwrap();
         let config = serde_json::json!({ "auths": { format!("http://{host}"): { "username": "bob", "password": "pw" } } });

@@ -20,7 +20,9 @@ use std::path::PathBuf;
 
 use anyhow::{anyhow, bail, Context, Result};
 use base64::Engine as _;
-use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION, CONTENT_TYPE, LOCATION, WWW_AUTHENTICATE};
+use reqwest::header::{
+    HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION, CONTENT_TYPE, LOCATION, WWW_AUTHENTICATE,
+};
 use reqwest::{Method, StatusCode};
 use serde::Serialize;
 use sha2::{Digest as _, Sha256};
@@ -59,13 +61,20 @@ pub fn insecure_host(host: &str) -> bool {
     let bare = if let Some(rest) = host.strip_prefix('[') {
         rest.split(']').next().unwrap_or(rest).to_string()
     } else {
-        host.rsplit_once(':').map(|(h, _)| h).unwrap_or(host).to_string()
+        host.rsplit_once(':')
+            .map(|(h, _)| h)
+            .unwrap_or(host)
+            .to_string()
     };
     if matches!(bare.as_str(), "localhost" | "127.0.0.1" | "::1") {
         return true;
     }
     std::env::var("VAT_INSECURE_REGISTRIES")
-        .map(|list| list.split(',').map(str::trim).any(|h| !h.is_empty() && (h == host || h == bare)))
+        .map(|list| {
+            list.split(',')
+                .map(str::trim)
+                .any(|h| !h.is_empty() && (h == host || h == bare))
+        })
         .unwrap_or(false)
 }
 
@@ -77,7 +86,9 @@ fn docker_config_path() -> Option<PathBuf> {
 }
 
 fn normalize_auth_key(key: &str) -> String {
-    let key = key.trim_start_matches("https://").trim_start_matches("http://");
+    let key = key
+        .trim_start_matches("https://")
+        .trim_start_matches("http://");
     let host = key.split('/').next().unwrap_or(key);
     match host {
         "index.docker.io" | "docker.io" | "registry-1.docker.io" => "registry-1.docker.io".into(),
@@ -86,15 +97,24 @@ fn normalize_auth_key(key: &str) -> String {
 }
 
 /// Basic credentials for `registry_host` from a Docker config document.
-pub fn credentials_from_config(config: &serde_json::Value, registry_host: &str) -> Option<(String, String)> {
+pub fn credentials_from_config(
+    config: &serde_json::Value,
+    registry_host: &str,
+) -> Option<(String, String)> {
     let auths = config.get("auths")?.as_object()?;
     let wanted = normalize_auth_key(registry_host);
     for (key, entry) in auths {
         if normalize_auth_key(key) != wanted {
             continue;
         }
-        if let Some(encoded) = entry.get("auth").and_then(|a| a.as_str()).filter(|s| !s.is_empty()) {
-            let decoded = base64::engine::general_purpose::STANDARD.decode(encoded.trim()).ok()?;
+        if let Some(encoded) = entry
+            .get("auth")
+            .and_then(|a| a.as_str())
+            .filter(|s| !s.is_empty())
+        {
+            let decoded = base64::engine::general_purpose::STANDARD
+                .decode(encoded.trim())
+                .ok()?;
             let decoded = String::from_utf8(decoded).ok()?;
             let (user, pass) = decoded.split_once(':')?;
             return Some((user.to_string(), pass.to_string()));
@@ -177,7 +197,11 @@ struct Client {
 impl Client {
     fn new(reference: &Reference, actions: &'static str) -> Result<Self> {
         let host = reference.registry_host();
-        let scheme = if insecure_host(&host) { "http" } else { "https" };
+        let scheme = if insecure_host(&host) {
+            "http"
+        } else {
+            "https"
+        };
         let http = reqwest::Client::builder()
             .user_agent(format!("vat/{}", crate::VERSION))
             .connect_timeout(std::time::Duration::from_secs(30))
@@ -210,10 +234,16 @@ impl Client {
 
     async fn authenticate(&mut self, challenge: &str) -> Result<()> {
         let (scheme, params) = parse_challenge(challenge);
-        let param = |name: &str| params.iter().find(|(k, _)| k == name).map(|(_, v)| v.clone());
+        let param = |name: &str| {
+            params
+                .iter()
+                .find(|(k, _)| k == name)
+                .map(|(_, v)| v.clone())
+        };
         match scheme.as_str() {
             "bearer" => {
-                let realm = param("realm").ok_or_else(|| anyhow!("Bearer challenge from {} has no realm", self.host))?;
+                let realm = param("realm")
+                    .ok_or_else(|| anyhow!("Bearer challenge from {} has no realm", self.host))?;
                 let scope = param("scope")
                     .unwrap_or_else(|| format!("repository:{}:{}", self.repository, self.actions));
                 let mut query: Vec<(&str, String)> = vec![("scope", scope)];
@@ -224,15 +254,23 @@ impl Client {
                 if let Some((user, pass)) = &self.credentials {
                     request = request.basic_auth(user, Some(pass));
                 }
-                let response = request.send().await.with_context(|| format!("request token from {realm}"))?;
+                let response = request
+                    .send()
+                    .await
+                    .with_context(|| format!("request token from {realm}"))?;
                 if !response.status().is_success() {
                     bail!(
                         "token request to {realm} failed with HTTP {}{}",
                         response.status(),
-                        if self.credentials.is_none() { " (no credentials configured in the Docker config)" } else { "" }
+                        if self.credentials.is_none() {
+                            " (no credentials configured in the Docker config)"
+                        } else {
+                            ""
+                        }
                     );
                 }
-                let body: serde_json::Value = response.json().await.context("parse token response")?;
+                let body: serde_json::Value =
+                    response.json().await.context("parse token response")?;
                 let token = body
                     .get("token")
                     .or_else(|| body.get("access_token"))
@@ -242,9 +280,13 @@ impl Client {
             }
             "basic" => {
                 let (user, pass) = self.credentials.as_ref().ok_or_else(|| {
-                    anyhow!("{} requires Basic credentials; add them to the Docker config (`auths`)", self.host)
+                    anyhow!(
+                        "{} requires Basic credentials; add them to the Docker config (`auths`)",
+                        self.host
+                    )
                 })?;
-                let encoded = base64::engine::general_purpose::STANDARD.encode(format!("{user}:{pass}"));
+                let encoded =
+                    base64::engine::general_purpose::STANDARD.encode(format!("{user}:{pass}"));
                 self.authorization = Some(format!("Basic {encoded}"));
             }
             other => bail!("unsupported auth scheme {other:?} from {}", self.host),
@@ -262,7 +304,10 @@ impl Client {
     ) -> Result<reqwest::Response> {
         let mut attempt = 0;
         loop {
-            let mut request = self.http.request(method.clone(), url).headers(headers.clone());
+            let mut request = self
+                .http
+                .request(method.clone(), url)
+                .headers(headers.clone());
             if let Some(auth) = &self.authorization {
                 request = request.header(AUTHORIZATION, auth);
             }
@@ -320,18 +365,32 @@ fn accept_manifests() -> HeaderMap {
     headers
 }
 
-async fn fetch_manifest(client: &mut Client, reference: &str, expected: Option<&str>) -> Result<(String, Vec<u8>, String)> {
+async fn fetch_manifest(
+    client: &mut Client,
+    reference: &str,
+    expected: Option<&str>,
+) -> Result<(String, Vec<u8>, String)> {
     let url = client.url(&format!("manifests/{reference}"));
-    let response = client.send(Method::GET, &url, accept_manifests(), None).await?;
+    let response = client
+        .send(Method::GET, &url, accept_manifests(), None)
+        .await?;
     if !response.status().is_success() {
-        return Err(failure(format!("fetch manifest {reference} from {}", client.host), response).await);
+        return Err(failure(
+            format!("fetch manifest {reference} from {}", client.host),
+            response,
+        )
+        .await);
     }
     let content_type = response
         .headers()
         .get(CONTENT_TYPE)
         .and_then(|v| v.to_str().ok())
         .map(|s| s.split(';').next().unwrap_or(s).trim().to_string());
-    let bytes = response.bytes().await.context("read manifest body")?.to_vec();
+    let bytes = response
+        .bytes()
+        .await
+        .context("read manifest body")?
+        .to_vec();
     let digest = sha256_digest(&bytes);
     if let Some(expected) = expected {
         if expected != digest {
@@ -343,7 +402,11 @@ async fn fetch_manifest(client: &mut Client, reference: &str, expected: Option<&
         .or_else(|| {
             serde_json::from_slice::<serde_json::Value>(&bytes)
                 .ok()
-                .and_then(|v| v.get("mediaType").and_then(|m| m.as_str()).map(str::to_string))
+                .and_then(|v| {
+                    v.get("mediaType")
+                        .and_then(|m| m.as_str())
+                        .map(str::to_string)
+                })
         })
         .unwrap_or_default();
     Ok((digest, bytes, media_type))
@@ -351,7 +414,9 @@ async fn fetch_manifest(client: &mut Client, reference: &str, expected: Option<&
 
 async fn fetch_small_blob(client: &mut Client, digest: &str) -> Result<Vec<u8>> {
     let url = client.url(&format!("blobs/{digest}"));
-    let response = client.send(Method::GET, &url, HeaderMap::new(), None).await?;
+    let response = client
+        .send(Method::GET, &url, HeaderMap::new(), None)
+        .await?;
     if !response.status().is_success() {
         return Err(failure(format!("fetch blob {digest}"), response).await);
     }
@@ -365,11 +430,15 @@ async fn fetch_small_blob(client: &mut Client, digest: &str) -> Result<Vec<u8>> 
 
 async fn fetch_blob_to_store(client: &mut Client, store: &ImageStore, digest: &str) -> Result<u64> {
     let url = client.url(&format!("blobs/{digest}"));
-    let mut response = client.send(Method::GET, &url, HeaderMap::new(), None).await?;
+    let mut response = client
+        .send(Method::GET, &url, HeaderMap::new(), None)
+        .await?;
     if !response.status().is_success() {
         return Err(failure(format!("fetch blob {digest}"), response).await);
     }
-    let tmp = store.tmp_dir()?.join(format!("pull-{}", super::random_hex(8)));
+    let tmp = store
+        .tmp_dir()?
+        .join(format!("pull-{}", super::random_hex(8)));
     let result = async {
         let mut file = std::fs::File::create(&tmp)?;
         let mut hasher = Sha256::new();
@@ -402,14 +471,22 @@ pub fn pull(store: &ImageStore, raw: &str) -> Result<PullOutcome> {
 
 async fn pull_async(store: &ImageStore, reference: &Reference, raw: &str) -> Result<PullOutcome> {
     let mut client = Client::new(reference, "pull")?;
-    let (mut digest, mut bytes, mut media_type) =
-        fetch_manifest(&mut client, &reference.remote_reference(), reference.digest.as_deref()).await?;
+    let (mut digest, mut bytes, mut media_type) = fetch_manifest(
+        &mut client,
+        &reference.remote_reference(),
+        reference.digest.as_deref(),
+    )
+    .await?;
     if media_type == MT_OCI_INDEX || media_type == MT_DOCKER_LIST {
         let index: Index = serde_json::from_slice(&bytes).context("parse image index")?;
         let platforms: Vec<String> = index
             .manifests
             .iter()
-            .filter_map(|m| m.platform.as_ref().map(|p| format!("{}/{}", p.os, p.architecture)))
+            .filter_map(|m| {
+                m.platform
+                    .as_ref()
+                    .map(|p| format!("{}/{}", p.os, p.architecture))
+            })
             .collect();
         let chosen = index
             .manifests
@@ -420,7 +497,11 @@ async fn pull_async(store: &ImageStore, reference: &Reference, raw: &str) -> Res
                     "{raw} has no {}/{} manifest (available: {})",
                     oci::OS,
                     oci::ARCH,
-                    if platforms.is_empty() { "none".to_string() } else { platforms.join(", ") }
+                    if platforms.is_empty() {
+                        "none".to_string()
+                    } else {
+                        platforms.join(", ")
+                    }
                 )
             })?
             .digest
@@ -432,13 +513,19 @@ async fn pull_async(store: &ImageStore, reference: &Reference, raw: &str) -> Res
     }
     let manifest: Manifest = serde_json::from_slice(&bytes).context("parse image manifest")?;
     let config_bytes = fetch_small_blob(&mut client, &manifest.config.digest).await?;
-    let config: ImageConfig = serde_json::from_slice(&config_bytes).context("parse image config")?;
+    let config: ImageConfig =
+        serde_json::from_slice(&config_bytes).context("parse image config")?;
     config
         .require_darwin_arm64()
         .with_context(|| format!("refusing to pull {raw}"))?;
     for layer in &manifest.layers {
-        if ![MT_OCI_LAYER_GZIP, MT_OCI_LAYER_TAR, MT_DOCKER_LAYER_GZIP].contains(&layer.media_type.as_str()) {
-            bail!("unsupported layer media type {:?} in {raw}", layer.media_type);
+        if ![MT_OCI_LAYER_GZIP, MT_OCI_LAYER_TAR, MT_DOCKER_LAYER_GZIP]
+            .contains(&layer.media_type.as_str())
+        {
+            bail!(
+                "unsupported layer media type {:?} in {raw}",
+                layer.media_type
+            );
         }
         digest_hex(&layer.digest)?;
     }
@@ -483,13 +570,23 @@ pub fn push(store: &ImageStore, source: &str, destination: Option<&str>) -> Resu
     }
     runtime()?.block_on(async {
         let mut client = Client::new(&dest, "pull,push")?;
-        let mut blobs: Vec<String> = image.manifest.layers.iter().map(|l| l.digest.clone()).collect();
+        let mut blobs: Vec<String> = image
+            .manifest
+            .layers
+            .iter()
+            .map(|l| l.digest.clone())
+            .collect();
         blobs.push(image.manifest.config.digest.clone());
         let mut uploaded = 0;
         let mut existing = 0;
         for digest in &blobs {
             let head = client
-                .send(Method::HEAD, &client.url(&format!("blobs/{digest}")), HeaderMap::new(), None)
+                .send(
+                    Method::HEAD,
+                    &client.url(&format!("blobs/{digest}")),
+                    HeaderMap::new(),
+                    None,
+                )
                 .await?;
             if head.status().is_success() {
                 existing += 1;
@@ -497,10 +594,19 @@ pub fn push(store: &ImageStore, source: &str, destination: Option<&str>) -> Resu
             }
             let data = store.read_blob(digest)?;
             let start = client
-                .send(Method::POST, &client.url("blobs/uploads/"), HeaderMap::new(), None)
+                .send(
+                    Method::POST,
+                    &client.url("blobs/uploads/"),
+                    HeaderMap::new(),
+                    None,
+                )
                 .await?;
             if start.status() != StatusCode::ACCEPTED {
-                return Err(failure(format!("start upload of {digest} to {}", client.host), start).await);
+                return Err(failure(
+                    format!("start upload of {digest} to {}", client.host),
+                    start,
+                )
+                .await);
             }
             let location = start
                 .headers()
@@ -513,29 +619,45 @@ pub fn push(store: &ImageStore, source: &str, destination: Option<&str>) -> Resu
             target.push_str("digest=");
             target.push_str(&digest.replace(':', "%3A"));
             let mut headers = HeaderMap::new();
-            headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/octet-stream"));
+            headers.insert(
+                CONTENT_TYPE,
+                HeaderValue::from_static("application/octet-stream"),
+            );
             eprintln!("push: uploading {digest} ({} bytes)", data.len());
-            let put = client.send(Method::PUT, &target, headers, Some(&data)).await?;
+            let put = client
+                .send(Method::PUT, &target, headers, Some(&data))
+                .await?;
             if put.status() != StatusCode::CREATED {
                 return Err(failure(format!("upload {digest}"), put).await);
             }
             uploaded += 1;
         }
         let manifest_bytes = store.read_blob(&image.manifest_digest)?;
-        let media_type = image.manifest.media_type.clone().unwrap_or_else(|| MT_OCI_MANIFEST.to_string());
+        let media_type = image
+            .manifest
+            .media_type
+            .clone()
+            .unwrap_or_else(|| MT_OCI_MANIFEST.to_string());
         let mut headers = HeaderMap::new();
         headers.insert(
             CONTENT_TYPE,
             HeaderValue::from_str(&media_type).context("manifest media type")?,
         );
         let url = client.url(&format!("manifests/{}", dest.tag_or_latest()));
-        let put = client.send(Method::PUT, &url, headers, Some(&manifest_bytes)).await?;
+        let put = client
+            .send(Method::PUT, &url, headers, Some(&manifest_bytes))
+            .await?;
         if put.status() != StatusCode::CREATED {
             return Err(failure(format!("put manifest {}", dest.tag_or_latest()), put).await);
         }
         Ok(PushOutcome {
             source: source.to_string(),
-            destination: format!("{}/{}:{}", dest.registry_host(), dest.remote_repository(), dest.tag_or_latest()),
+            destination: format!(
+                "{}/{}:{}",
+                dest.registry_host(),
+                dest.remote_repository(),
+                dest.tag_or_latest()
+            ),
             digest: image.manifest_digest.clone(),
             uploaded_blobs: uploaded,
             existing_blobs: existing,
@@ -553,9 +675,15 @@ mod tests {
             r#"Bearer realm="https://auth.example/token",service="registry.example",scope="repository:a/b:pull,push""#,
         );
         assert_eq!(scheme, "bearer");
-        assert_eq!(params[0], ("realm".into(), "https://auth.example/token".into()));
+        assert_eq!(
+            params[0],
+            ("realm".into(), "https://auth.example/token".into())
+        );
         assert_eq!(params[1], ("service".into(), "registry.example".into()));
-        assert_eq!(params[2], ("scope".into(), "repository:a/b:pull,push".into()));
+        assert_eq!(
+            params[2],
+            ("scope".into(), "repository:a/b:pull,push".into())
+        );
         let (scheme, params) = parse_challenge(r#"Basic realm="x""#);
         assert_eq!(scheme, "basic");
         assert_eq!(params.len(), 1);
@@ -573,7 +701,10 @@ mod tests {
             credentials_from_config(&config, "registry-1.docker.io"),
             Some(("hub".into(), "secret".into()))
         );
-        assert_eq!(credentials_from_config(&config, "localhost:5000"), Some(("u".into(), "p".into())));
+        assert_eq!(
+            credentials_from_config(&config, "localhost:5000"),
+            Some(("u".into(), "p".into()))
+        );
         assert_eq!(credentials_from_config(&config, "ghcr.io"), None);
     }
 

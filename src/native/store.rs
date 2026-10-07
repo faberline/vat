@@ -19,8 +19,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest as _, Sha256};
 
 use super::oci::{
-    self, chain_ids, digest_hex, sha256_digest, Descriptor, ImageConfig, Index, Manifest,
-    Reference,
+    self, chain_ids, digest_hex, sha256_digest, Descriptor, ImageConfig, Index, Manifest, Reference,
 };
 use super::root::Relocation;
 
@@ -101,7 +100,10 @@ impl ImageStore {
 
     /// Open (creating) a store rooted at `home`.
     pub fn at(home: &Path) -> Result<Self> {
-        let store = ImageStore { root: home.join("images"), snapshots: home.join("snapshots") };
+        let store = ImageStore {
+            root: home.join("images"),
+            snapshots: home.join("snapshots"),
+        };
         std::fs::create_dir_all(store.root.join("blobs").join("sha256"))
             .with_context(|| format!("create {}", store.root.display()))?;
         std::fs::create_dir_all(&store.snapshots)?;
@@ -117,7 +119,11 @@ impl ImageStore {
     }
 
     pub fn blob_path(&self, digest: &str) -> Result<PathBuf> {
-        Ok(self.root.join("blobs").join("sha256").join(digest_hex(digest)?))
+        Ok(self
+            .root
+            .join("blobs")
+            .join("sha256")
+            .join(digest_hex(digest)?))
     }
 
     pub fn has_blob(&self, digest: &str) -> bool {
@@ -126,7 +132,8 @@ impl ImageStore {
 
     pub fn read_blob(&self, digest: &str) -> Result<Vec<u8>> {
         let path = self.blob_path(digest)?;
-        std::fs::read(&path).with_context(|| format!("blob {digest} is missing from the local store"))
+        std::fs::read(&path)
+            .with_context(|| format!("blob {digest} is missing from the local store"))
     }
 
     pub fn open_blob(&self, digest: &str) -> Result<std::fs::File> {
@@ -206,8 +213,9 @@ impl ImageStore {
     pub fn refs(&self) -> Result<BTreeMap<String, RefEntry>> {
         let path = self.refs_path();
         match std::fs::read(&path) {
-            Ok(bytes) => serde_json::from_slice(&bytes)
-                .with_context(|| format!("parse {}", path.display())),
+            Ok(bytes) => {
+                serde_json::from_slice(&bytes).with_context(|| format!("parse {}", path.display()))
+            }
             Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(BTreeMap::new()),
             Err(err) => Err(err).with_context(|| format!("read {}", path.display())),
         }
@@ -223,7 +231,10 @@ impl ImageStore {
         let mut refs = self.refs()?;
         refs.insert(
             canonical.clone(),
-            RefEntry { digest: manifest_digest.to_string(), updated_at: now() },
+            RefEntry {
+                digest: manifest_digest.to_string(),
+                updated_at: now(),
+            },
         );
         self.write_refs(&refs)?;
         Ok(canonical)
@@ -326,7 +337,10 @@ impl ImageStore {
                     .map(|(n, _)| n.clone())
                     .collect();
                 if names.len() != 1 {
-                    bail!("{name:?} matches {} names; remove them by name", names.len());
+                    bail!(
+                        "{name:?} matches {} names; remove them by name",
+                        names.len()
+                    );
                 }
                 names[0].clone()
             }
@@ -344,7 +358,9 @@ impl ImageStore {
         let mut roots: Vec<String> = self.refs()?.into_values().map(|e| e.digest).collect();
         roots.extend(keep.iter().cloned());
         for digest in roots {
-            let Ok(image) = self.load(&digest) else { continue };
+            let Ok(image) = self.load(&digest) else {
+                continue;
+            };
             live_blobs.insert(digest_hex(&digest)?.to_string());
             live_blobs.insert(digest_hex(&image.manifest.config.digest)?.to_string());
             for layer in &image.manifest.layers {
@@ -392,7 +408,9 @@ impl ImageStore {
                 continue;
             }
             let layer = &image.manifest.layers[index];
-            let tmp = self.snapshots.join(format!(".tmp-{}", super::random_hex(8)));
+            let tmp = self
+                .snapshots
+                .join(format!(".tmp-{}", super::random_hex(8)));
             match &parent {
                 Some(parent) => super::clone_tree(parent, &tmp)?,
                 None => std::fs::create_dir_all(&tmp)?,
@@ -439,26 +457,37 @@ impl ImageStore {
         for name in names {
             let image = self.resolve(name)?;
             let full = image.reference.clone().unwrap_or_else(|| name.clone());
-            let mut digests = vec![image.manifest_digest.clone(), image.manifest.config.digest.clone()];
+            let mut digests = vec![
+                image.manifest_digest.clone(),
+                image.manifest.config.digest.clone(),
+            ];
             digests.extend(image.manifest.layers.iter().map(|l| l.digest.clone()));
             for digest in digests {
                 let dst = dir.join("blobs").join("sha256").join(digest_hex(&digest)?);
                 if !dst.exists() {
                     let src = self.blob_path(&digest)?;
-                    super::clone_tree(&src, &dst)
-                        .with_context(|| format!("copy blob {digest}"))?;
+                    super::clone_tree(&src, &dst).with_context(|| format!("copy blob {digest}"))?;
                 }
             }
-            let tag = Reference::parse(&full).map(|r| r.tag_or_latest().to_string()).unwrap_or_else(|_| "latest".into());
-            index.manifests.retain(|d| d.annotations.get(oci::ANN_CONTAINERD_NAME) != Some(&full));
+            let tag = Reference::parse(&full)
+                .map(|r| r.tag_or_latest().to_string())
+                .unwrap_or_else(|_| "latest".into());
+            index
+                .manifests
+                .retain(|d| d.annotations.get(oci::ANN_CONTAINERD_NAME) != Some(&full));
             let mut desc = Descriptor::new(
-                image.manifest.media_type.as_deref().unwrap_or(oci::MT_OCI_MANIFEST),
+                image
+                    .manifest
+                    .media_type
+                    .as_deref()
+                    .unwrap_or(oci::MT_OCI_MANIFEST),
                 image.manifest_digest.clone(),
                 image.manifest_size,
             );
             desc.platform = Some(oci::Platform::darwin_arm64());
             desc.annotations.insert(oci::ANN_REF_NAME.into(), tag);
-            desc.annotations.insert(oci::ANN_CONTAINERD_NAME.into(), full.clone());
+            desc.annotations
+                .insert(oci::ANN_CONTAINERD_NAME.into(), full.clone());
             index.manifests.push(desc);
             exported.push(full);
         }
@@ -469,8 +498,12 @@ impl ImageStore {
     /// Import every darwin/arm64 image from an OCI image layout directory.
     /// `tag` overrides the name (only valid when the layout holds one image).
     pub fn import(&self, dir: &Path, tag: Option<&str>) -> Result<Vec<(String, String)>> {
-        let layout = std::fs::read_to_string(dir.join("oci-layout"))
-            .with_context(|| format!("{} is not an OCI image layout (no oci-layout file)", dir.display()))?;
+        let layout = std::fs::read_to_string(dir.join("oci-layout")).with_context(|| {
+            format!(
+                "{} is not an OCI image layout (no oci-layout file)",
+                dir.display()
+            )
+        })?;
         if !layout.contains("imageLayoutVersion") {
             bail!("{} has an invalid oci-layout file", dir.display());
         }
@@ -492,7 +525,8 @@ impl ImageStore {
                     manifests.push((desc.clone(), name))
                 }
                 oci::MT_OCI_INDEX | oci::MT_DOCKER_LIST => {
-                    let nested: Index = serde_json::from_slice(&std::fs::read(blob(&desc.digest)?)?)?;
+                    let nested: Index =
+                        serde_json::from_slice(&std::fs::read(blob(&desc.digest)?)?)?;
                     let chosen = nested
                         .manifests
                         .into_iter()
@@ -512,13 +546,20 @@ impl ImageStore {
             bail!("{} contains no darwin/arm64 image", dir.display());
         }
         if tag.is_some() && manifests.len() > 1 {
-            bail!("--tag needs a layout with exactly one image ({} found)", manifests.len());
+            bail!(
+                "--tag needs a layout with exactly one image ({} found)",
+                manifests.len()
+            );
         }
         let mut out = Vec::new();
         for (desc, name) in manifests {
             let manifest_bytes = std::fs::read(blob(&desc.digest)?)?;
             if sha256_digest(&manifest_bytes) != desc.digest {
-                bail!("manifest {} in {} fails digest verification", desc.digest, dir.display());
+                bail!(
+                    "manifest {} in {} fails digest verification",
+                    desc.digest,
+                    dir.display()
+                );
             }
             let manifest: Manifest = serde_json::from_slice(&manifest_bytes)?;
             let mut digests = vec![manifest.config.digest.clone()];
@@ -577,7 +618,10 @@ mod tests {
             architecture: "arm64".into(),
             os: "darwin".into(),
             config: ContainerConfig::default(),
-            rootfs: RootFs { kind: "layers".into(), diff_ids: vec![blob.diff_id.clone()] },
+            rootfs: RootFs {
+                kind: "layers".into(),
+                diff_ids: vec![blob.diff_id.clone()],
+            },
             history: vec![],
         };
         let config_bytes = serde_json::to_vec(&config).unwrap();
@@ -586,7 +630,11 @@ mod tests {
             schema_version: 2,
             media_type: Some(oci::MT_OCI_MANIFEST.into()),
             config: Descriptor::new(oci::MT_OCI_CONFIG, config_digest, config_bytes.len() as u64),
-            layers: vec![Descriptor::new(oci::MT_OCI_LAYER_GZIP, blob.digest, blob.size)],
+            layers: vec![Descriptor::new(
+                oci::MT_OCI_LAYER_GZIP,
+                blob.digest,
+                blob.size,
+            )],
             annotations: BTreeMap::new(),
         };
         let bytes = serde_json::to_vec(&manifest).unwrap();
@@ -606,7 +654,10 @@ mod tests {
         assert!(store.resolve(&digest[7..19]).is_ok());
 
         let snap = store.snapshot(&image).unwrap();
-        assert_eq!(std::fs::read_to_string(snap.join("hello.txt")).unwrap(), "hi");
+        assert_eq!(
+            std::fs::read_to_string(snap.join("hello.txt")).unwrap(),
+            "hi"
+        );
 
         let layout = tempfile::tempdir().unwrap();
         store.export(&["demo".to_string()], layout.path()).unwrap();

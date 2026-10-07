@@ -71,7 +71,12 @@ pub fn root_path(base: &Path, kind: RootKind, id: &str) -> Result<PathBuf> {
     if id.len() != 16 || !id.bytes().all(|b| b.is_ascii_hexdigit()) {
         bail!("native root id must be 16 hex characters, got {id:?}");
     }
-    let mut path = format!("{}/{}-{}", base_str.trim_end_matches('/'), kind.prefix(), id);
+    let mut path = format!(
+        "{}/{}-{}",
+        base_str.trim_end_matches('/'),
+        kind.prefix(),
+        id
+    );
     while path.len() < ROOT_LEN {
         path.push('_');
     }
@@ -272,7 +277,8 @@ fn relocate_file(path: &Path, meta: &std::fs::Metadata, from: &[u8], to: &[u8]) 
 
 fn relocate_symlink(path: &Path, from: &[u8], to: &[u8]) -> Result<bool> {
     use std::os::unix::ffi::{OsStrExt, OsStringExt};
-    let target = std::fs::read_link(path).with_context(|| format!("readlink {}", path.display()))?;
+    let target =
+        std::fs::read_link(path).with_context(|| format!("readlink {}", path.display()))?;
     let bytes = target.as_os_str().as_bytes();
     if memchr::memmem::find(bytes, from).is_none() {
         return Ok(false);
@@ -366,7 +372,10 @@ mod tests {
         assert_eq!(s.len(), ROOT_LEN);
         assert!(s.starts_with("/tmp/x/c-0123456789abcdef_"));
         let build = root_path(Path::new("/tmp/x/"), RootKind::Build, "0123456789abcdef").unwrap();
-        assert!(build.to_str().unwrap().starts_with("/tmp/x/b-0123456789abcdef_"));
+        assert!(build
+            .to_str()
+            .unwrap()
+            .starts_with("/tmp/x/b-0123456789abcdef_"));
     }
 
     #[test]
@@ -380,7 +389,9 @@ mod tests {
 
     #[test]
     fn macho_detection() {
-        assert!(is_macho(&[0xcf, 0xfa, 0xed, 0xfe, 0x0c, 0, 0, 1, 0, 0, 0, 0]));
+        assert!(is_macho(&[
+            0xcf, 0xfa, 0xed, 0xfe, 0x0c, 0, 0, 1, 0, 0, 0, 0
+        ]));
         assert!(is_macho(&[0xca, 0xfe, 0xba, 0xbe, 0, 0, 0, 2]));
         // Java class file: CAFEBABE + minor/major version (e.g. 0x0000_0034).
         assert!(!is_macho(&[0xca, 0xfe, 0xba, 0xbe, 0, 0, 0, 0x34]));
@@ -398,15 +409,30 @@ mod tests {
             format!("#!/bin/sh\nexec {from}/bin/tool {from}/x\n"),
         )
         .unwrap();
-        std::fs::set_permissions(root.join("script.sh"), std::fs::Permissions::from_mode(0o555))
-            .unwrap();
+        std::fs::set_permissions(
+            root.join("script.sh"),
+            std::fs::Permissions::from_mode(0o555),
+        )
+        .unwrap();
         std::os::unix::fs::symlink(format!("{from}/target"), root.join("link")).unwrap();
         std::fs::write(root.join("plain.txt"), "nothing here").unwrap();
         let relocs = vec![
-            Relocation { path: "script.sh".into(), kind: RelocKind::Text },
-            Relocation { path: "link".into(), kind: RelocKind::Symlink },
-            Relocation { path: "plain.txt".into(), kind: RelocKind::Text },
-            Relocation { path: "gone".into(), kind: RelocKind::Text },
+            Relocation {
+                path: "script.sh".into(),
+                kind: RelocKind::Text,
+            },
+            Relocation {
+                path: "link".into(),
+                kind: RelocKind::Symlink,
+            },
+            Relocation {
+                path: "plain.txt".into(),
+                kind: RelocKind::Text,
+            },
+            Relocation {
+                path: "gone".into(),
+                kind: RelocKind::Text,
+            },
         ];
         let stats = relocate(root, &relocs, from.as_bytes(), to.as_bytes()).unwrap();
         assert_eq!(stats.files, 2);
@@ -414,7 +440,10 @@ mod tests {
         assert_eq!(stats.skipped, 2);
         let script = std::fs::read_to_string(root.join("script.sh")).unwrap();
         assert_eq!(script, format!("#!/bin/sh\nexec {to}/bin/tool {to}/x\n"));
-        let mode = std::fs::metadata(root.join("script.sh")).unwrap().permissions().mode();
+        let mode = std::fs::metadata(root.join("script.sh"))
+            .unwrap()
+            .permissions()
+            .mode();
         assert_eq!(mode & 0o777, 0o555);
         assert_eq!(
             std::fs::read_link(root.join("link")).unwrap(),

@@ -34,10 +34,16 @@ use tokio::io::AsyncWriteExt;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Auth {
     None,
-    Basic { user: String, password: String },
+    Basic {
+        user: String,
+        password: String,
+    },
     /// Bearer tokens issued by `/token` to clients presenting these Basic
     /// credentials (anonymous token requests are refused).
-    Bearer { user: String, password: String },
+    Bearer {
+        user: String,
+        password: String,
+    },
 }
 
 /// Server configuration.
@@ -108,7 +114,9 @@ fn digest_hex(digest: &str) -> Option<&str> {
 fn valid_tag(tag: &str) -> bool {
     !tag.is_empty()
         && tag.len() <= 128
-        && tag.bytes().all(|b| b.is_ascii_alphanumeric() || b"._-".contains(&b))
+        && tag
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || b"._-".contains(&b))
 }
 
 fn percent_decode(raw: &str) -> String {
@@ -117,7 +125,10 @@ fn percent_decode(raw: &str) -> String {
     let mut i = 0;
     while i < bytes.len() {
         if bytes[i] == b'%' && i + 2 < bytes.len() {
-            if let Some(v) = raw.get(i + 1..i + 3).and_then(|h| u8::from_str_radix(h, 16).ok()) {
+            if let Some(v) = raw
+                .get(i + 1..i + 3)
+                .and_then(|h| u8::from_str_radix(h, 16).ok())
+            {
                 out.push(v);
                 i += 3;
                 continue;
@@ -181,7 +192,12 @@ fn parse_route(path: &str) -> Option<Route> {
 
 impl Registry {
     fn blob_path(&self, digest: &str) -> Option<PathBuf> {
-        Some(self.root.join("blobs").join("sha256").join(digest_hex(digest)?))
+        Some(
+            self.root
+                .join("blobs")
+                .join("sha256")
+                .join(digest_hex(digest)?),
+        )
     }
 
     fn repo_dir(&self, name: &str) -> PathBuf {
@@ -189,11 +205,19 @@ impl Registry {
     }
 
     fn tag_path(&self, name: &str, tag: &str) -> PathBuf {
-        self.repo_dir(name).join("_manifests").join("tags").join(tag)
+        self.repo_dir(name)
+            .join("_manifests")
+            .join("tags")
+            .join(tag)
     }
 
     fn revision_path(&self, name: &str, digest: &str) -> Option<PathBuf> {
-        Some(self.repo_dir(name).join("_manifests").join("revisions").join(digest_hex(digest)?))
+        Some(
+            self.repo_dir(name)
+                .join("_manifests")
+                .join("revisions")
+                .join(digest_hex(digest)?),
+        )
     }
 
     fn upload_path(&self, uuid: &str) -> Option<PathBuf> {
@@ -238,7 +262,8 @@ impl Registry {
                     .get(header::HOST)
                     .and_then(|v| v.to_str().ok())
                     .unwrap_or("127.0.0.1");
-                let mut v = format!("Bearer realm=\"http://{host}/token\",service=\"vat-registry\"");
+                let mut v =
+                    format!("Bearer realm=\"http://{host}/token\",service=\"vat-registry\"");
                 if let Some(scope) = scope {
                     v.push_str(&format!(",scope=\"{scope}\""));
                 }
@@ -246,7 +271,11 @@ impl Registry {
             }
             _ => "Basic realm=\"vat-registry\"".to_string(),
         };
-        let mut resp = error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "authentication required");
+        let mut resp = error(
+            StatusCode::UNAUTHORIZED,
+            "UNAUTHORIZED",
+            "authentication required",
+        );
         if let Ok(v) = HeaderValue::from_str(&value) {
             resp.headers_mut().insert(header::WWW_AUTHENTICATE, v);
         }
@@ -255,7 +284,9 @@ impl Registry {
 }
 
 fn basic_matches(presented: &str, user: &str, password: &str) -> bool {
-    let Some(encoded) = presented.strip_prefix("Basic ") else { return false };
+    let Some(encoded) = presented.strip_prefix("Basic ") else {
+        return false;
+    };
     let Ok(decoded) = base64::engine::general_purpose::STANDARD.decode(encoded.trim()) else {
         return false;
     };
@@ -276,7 +307,11 @@ fn set_header(resp: &mut Response, name: &'static str, value: &str) {
 
 /// Stream a request body onto the end of `path`; returns bytes written.
 async fn append_body(path: &Path, body: Body) -> std::io::Result<u64> {
-    let mut file = tokio::fs::OpenOptions::new().create(true).append(true).open(path).await?;
+    let mut file = tokio::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(path)
+        .await?;
     let mut body = body;
     let mut written = 0u64;
     while let Some(frame) = body.frame().await {
@@ -305,7 +340,11 @@ fn file_digest(path: &Path) -> std::io::Result<String> {
     }
     Ok(format!(
         "sha256:{}",
-        hasher.finalize().iter().map(|b| format!("{b:02x}")).collect::<String>()
+        hasher
+            .finalize()
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect::<String>()
     ))
 }
 
@@ -319,7 +358,11 @@ fn upload_response(status: StatusCode, name: &str, uuid: &str, size: u64) -> Res
     let mut resp = status.into_response();
     location(&mut resp, &format!("/v2/{name}/blobs/uploads/{uuid}"));
     set_header(&mut resp, "Docker-Upload-UUID", uuid);
-    let range = if size == 0 { "0-0".to_string() } else { format!("0-{}", size - 1) };
+    let range = if size == 0 {
+        "0-0".to_string()
+    } else {
+        format!("0-{}", size - 1)
+    };
     set_header(&mut resp, "Range", &range);
     set_header(&mut resp, "Content-Length", "0");
     resp
@@ -337,11 +380,14 @@ fn blob_created(name: &str, digest: &str) -> Response {
 fn commit_upload(reg: &Registry, upload: &Path, digest: &str) -> Result<(), Response> {
     let Some(target) = reg.blob_path(digest) else {
         let _ = std::fs::remove_file(upload);
-        return Err(error(StatusCode::BAD_REQUEST, "DIGEST_INVALID", "unsupported or malformed digest"));
+        return Err(error(
+            StatusCode::BAD_REQUEST,
+            "DIGEST_INVALID",
+            "unsupported or malformed digest",
+        ));
     };
-    let actual = file_digest(upload).map_err(|e| {
-        error(StatusCode::INTERNAL_SERVER_ERROR, "UNKNOWN", &e.to_string())
-    })?;
+    let actual = file_digest(upload)
+        .map_err(|e| error(StatusCode::INTERNAL_SERVER_ERROR, "UNKNOWN", &e.to_string()))?;
     if actual != digest {
         let _ = std::fs::remove_file(upload);
         return Err(error(
@@ -353,7 +399,11 @@ fn commit_upload(reg: &Registry, upload: &Path, digest: &str) -> Result<(), Resp
     if target.is_file() {
         let _ = std::fs::remove_file(upload);
     } else if let Err(e) = std::fs::rename(upload, &target) {
-        return Err(error(StatusCode::INTERNAL_SERVER_ERROR, "UNKNOWN", &e.to_string()));
+        return Err(error(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "UNKNOWN",
+            &e.to_string(),
+        ));
     }
     Ok(())
 }
@@ -369,15 +419,29 @@ fn manifest_references(bytes: &[u8]) -> Result<(String, Vec<(String, bool)>), St
         .to_string();
     let mut refs = Vec::new();
     if let Some(config) = value.get("config") {
-        let digest = config.get("digest").and_then(|d| d.as_str()).ok_or("config has no digest")?;
+        let digest = config
+            .get("digest")
+            .and_then(|d| d.as_str())
+            .ok_or("config has no digest")?;
         refs.push((digest.to_string(), false));
-        for layer in value.get("layers").and_then(|l| l.as_array()).cloned().unwrap_or_default() {
-            let digest = layer.get("digest").and_then(|d| d.as_str()).ok_or("layer has no digest")?;
+        for layer in value
+            .get("layers")
+            .and_then(|l| l.as_array())
+            .cloned()
+            .unwrap_or_default()
+        {
+            let digest = layer
+                .get("digest")
+                .and_then(|d| d.as_str())
+                .ok_or("layer has no digest")?;
             refs.push((digest.to_string(), false));
         }
     } else if let Some(manifests) = value.get("manifests").and_then(|m| m.as_array()) {
         for m in manifests {
-            let digest = m.get("digest").and_then(|d| d.as_str()).ok_or("manifest has no digest")?;
+            let digest = m
+                .get("digest")
+                .and_then(|d| d.as_str())
+                .ok_or("manifest has no digest")?;
             refs.push((digest.to_string(), true));
         }
     } else {
@@ -389,7 +453,11 @@ fn manifest_references(bytes: &[u8]) -> Result<(String, Vec<(String, bool)>), St
 fn list_repositories(root: &Path) -> Vec<String> {
     let base = root.join("repositories");
     let mut out = Vec::new();
-    for entry in walkdir::WalkDir::new(&base).min_depth(1).into_iter().flatten() {
+    for entry in walkdir::WalkDir::new(&base)
+        .min_depth(1)
+        .into_iter()
+        .flatten()
+    {
         if entry.file_type().is_dir() && entry.file_name() == "_manifests" {
             if let Some(parent) = entry.path().parent() {
                 if let Ok(rel) = parent.strip_prefix(&base) {
@@ -418,12 +486,24 @@ async fn handle(State(reg): State<Arc<Registry>>, req: Request) -> Response {
                     .unwrap_or("");
                 if basic_matches(presented, user, password) {
                     let body = serde_json::json!({ "token": reg.token, "access_token": reg.token, "expires_in": 3600 });
-                    ([(header::CONTENT_TYPE, "application/json")], body.to_string()).into_response()
+                    (
+                        [(header::CONTENT_TYPE, "application/json")],
+                        body.to_string(),
+                    )
+                        .into_response()
                 } else {
-                    error(StatusCode::UNAUTHORIZED, "UNAUTHORIZED", "invalid credentials")
+                    error(
+                        StatusCode::UNAUTHORIZED,
+                        "UNAUTHORIZED",
+                        "invalid credentials",
+                    )
                 }
             }
-            _ => error(StatusCode::NOT_FOUND, "UNSUPPORTED", "token auth is not enabled"),
+            _ => error(
+                StatusCode::NOT_FOUND,
+                "UNSUPPORTED",
+                "token auth is not enabled",
+            ),
         };
     }
 
@@ -433,8 +513,16 @@ async fn handle(State(reg): State<Arc<Registry>>, req: Request) -> Response {
     if !reg.authorized(&headers) {
         let scope = match &route {
             Route::Base | Route::Catalog => None,
-            Route::Tags(n) | Route::Manifest(n, _) | Route::Blob(n, _) | Route::UploadStart(n) | Route::Upload(n, _) => {
-                let actions = if matches!(method, Method::GET | Method::HEAD) { "pull" } else { "pull,push" };
+            Route::Tags(n)
+            | Route::Manifest(n, _)
+            | Route::Blob(n, _)
+            | Route::UploadStart(n)
+            | Route::Upload(n, _) => {
+                let actions = if matches!(method, Method::GET | Method::HEAD) {
+                    "pull"
+                } else {
+                    "pull,push"
+                };
                 Some(format!("repository:{n}:{actions}"))
             }
         };
@@ -458,13 +546,21 @@ async fn route_request(
 ) -> Response {
     let name_of = |route: &Route| -> Option<String> {
         match route {
-            Route::Tags(n) | Route::Manifest(n, _) | Route::Blob(n, _) | Route::UploadStart(n) | Route::Upload(n, _) => Some(n.clone()),
+            Route::Tags(n)
+            | Route::Manifest(n, _)
+            | Route::Blob(n, _)
+            | Route::UploadStart(n)
+            | Route::Upload(n, _) => Some(n.clone()),
             _ => None,
         }
     };
     if let Some(name) = name_of(&route) {
         if !valid_name(&name) {
-            return error(StatusCode::BAD_REQUEST, "NAME_INVALID", "invalid repository name");
+            return error(
+                StatusCode::BAD_REQUEST,
+                "NAME_INVALID",
+                "invalid repository name",
+            );
         }
     }
     match (route, method.clone()) {
@@ -473,35 +569,55 @@ async fn route_request(
         }
         (Route::Catalog, Method::GET) => {
             let repos = list_repositories(&reg.root);
-            ([(header::CONTENT_TYPE, "application/json")], serde_json::json!({ "repositories": repos }).to_string())
+            (
+                [(header::CONTENT_TYPE, "application/json")],
+                serde_json::json!({ "repositories": repos }).to_string(),
+            )
                 .into_response()
         }
         (Route::Tags(name), Method::GET) => {
             let dir = reg.repo_dir(&name).join("_manifests").join("tags");
             let Ok(entries) = std::fs::read_dir(&dir) else {
-                return error(StatusCode::NOT_FOUND, "NAME_UNKNOWN", "repository name not known to registry");
+                return error(
+                    StatusCode::NOT_FOUND,
+                    "NAME_UNKNOWN",
+                    "repository name not known to registry",
+                );
             };
             let mut tags: Vec<String> = entries
                 .flatten()
                 .map(|e| e.file_name().to_string_lossy().to_string())
                 .collect();
             tags.sort();
-            ([(header::CONTENT_TYPE, "application/json")], serde_json::json!({ "name": name, "tags": tags }).to_string())
+            (
+                [(header::CONTENT_TYPE, "application/json")],
+                serde_json::json!({ "name": name, "tags": tags }).to_string(),
+            )
                 .into_response()
         }
         (Route::Blob(_, digest), m @ (Method::GET | Method::HEAD)) => {
             let Some(path) = reg.blob_path(&digest) else {
-                return error(StatusCode::BAD_REQUEST, "DIGEST_INVALID", "malformed digest");
+                return error(
+                    StatusCode::BAD_REQUEST,
+                    "DIGEST_INVALID",
+                    "malformed digest",
+                );
             };
             let Ok(meta) = std::fs::metadata(&path) else {
-                return error(StatusCode::NOT_FOUND, "BLOB_UNKNOWN", "blob unknown to registry");
+                return error(
+                    StatusCode::NOT_FOUND,
+                    "BLOB_UNKNOWN",
+                    "blob unknown to registry",
+                );
             };
             let mut resp = if m == Method::HEAD {
                 StatusCode::OK.into_response()
             } else {
                 match tokio::fs::read(&path).await {
                     Ok(bytes) => Body::from(bytes).into_response(),
-                    Err(e) => return error(StatusCode::INTERNAL_SERVER_ERROR, "UNKNOWN", &e.to_string()),
+                    Err(e) => {
+                        return error(StatusCode::INTERNAL_SERVER_ERROR, "UNKNOWN", &e.to_string())
+                    }
                 }
             };
             set_header(&mut resp, "Content-Length", &meta.len().to_string());
@@ -514,7 +630,11 @@ async fn route_request(
                 let _ = std::fs::remove_file(path);
                 StatusCode::ACCEPTED.into_response()
             }
-            _ => error(StatusCode::NOT_FOUND, "BLOB_UNKNOWN", "blob unknown to registry"),
+            _ => error(
+                StatusCode::NOT_FOUND,
+                "BLOB_UNKNOWN",
+                "blob unknown to registry",
+            ),
         },
         (Route::UploadStart(name), Method::POST) => {
             if let Some(mount) = query_param(query, "mount") {
@@ -540,7 +660,11 @@ async fn route_request(
         }
         (Route::Upload(name, uuid), method) => {
             let Some(upload) = reg.upload_path(&uuid).filter(|p| p.is_file()) else {
-                return error(StatusCode::NOT_FOUND, "BLOB_UPLOAD_UNKNOWN", "blob upload unknown to registry");
+                return error(
+                    StatusCode::NOT_FOUND,
+                    "BLOB_UPLOAD_UNKNOWN",
+                    "blob upload unknown to registry",
+                );
             };
             let size = std::fs::metadata(&upload).map(|m| m.len()).unwrap_or(0);
             match method {
@@ -550,7 +674,10 @@ async fn route_request(
                     StatusCode::NO_CONTENT.into_response()
                 }
                 Method::PATCH => {
-                    if let Some(range) = headers.get(header::CONTENT_RANGE).and_then(|v| v.to_str().ok()) {
+                    if let Some(range) = headers
+                        .get(header::CONTENT_RANGE)
+                        .and_then(|v| v.to_str().ok())
+                    {
                         let start = range
                             .trim_start_matches("bytes ")
                             .split('-')
@@ -562,19 +689,29 @@ async fn route_request(
                                 "BLOB_UPLOAD_INVALID",
                                 &format!("chunk must start at offset {size}"),
                             );
-                            set_header(&mut resp, "Range", &format!("0-{}", size.saturating_sub(1)));
+                            set_header(
+                                &mut resp,
+                                "Range",
+                                &format!("0-{}", size.saturating_sub(1)),
+                            );
                             location(&mut resp, &format!("/v2/{name}/blobs/uploads/{uuid}"));
                             return resp;
                         }
                     }
                     match append_body(&upload, body).await {
                         Ok(n) => upload_response(StatusCode::ACCEPTED, &name, &uuid, size + n),
-                        Err(e) => error(StatusCode::INTERNAL_SERVER_ERROR, "UNKNOWN", &e.to_string()),
+                        Err(e) => {
+                            error(StatusCode::INTERNAL_SERVER_ERROR, "UNKNOWN", &e.to_string())
+                        }
                     }
                 }
                 Method::PUT => {
                     let Some(digest) = query_param(query, "digest") else {
-                        return error(StatusCode::BAD_REQUEST, "DIGEST_INVALID", "digest query parameter required");
+                        return error(
+                            StatusCode::BAD_REQUEST,
+                            "DIGEST_INVALID",
+                            "digest query parameter required",
+                        );
                     };
                     if let Err(e) = append_body(&upload, body).await {
                         return error(StatusCode::INTERNAL_SERVER_ERROR, "UNKNOWN", &e.to_string());
@@ -584,7 +721,11 @@ async fn route_request(
                         Err(resp) => resp,
                     }
                 }
-                _ => error(StatusCode::METHOD_NOT_ALLOWED, "UNSUPPORTED", "method not allowed"),
+                _ => error(
+                    StatusCode::METHOD_NOT_ALLOWED,
+                    "UNSUPPORTED",
+                    "method not allowed",
+                ),
             }
         }
         (Route::Manifest(name, reference), Method::PUT) => {
@@ -594,11 +735,15 @@ async fn route_request(
             }
             let bytes = match std::fs::read(&tmp) {
                 Ok(b) => b,
-                Err(e) => return error(StatusCode::INTERNAL_SERVER_ERROR, "UNKNOWN", &e.to_string()),
+                Err(e) => {
+                    return error(StatusCode::INTERNAL_SERVER_ERROR, "UNKNOWN", &e.to_string())
+                }
             };
             let digest = match file_digest(&tmp) {
                 Ok(d) => d,
-                Err(e) => return error(StatusCode::INTERNAL_SERVER_ERROR, "UNKNOWN", &e.to_string()),
+                Err(e) => {
+                    return error(StatusCode::INTERNAL_SERVER_ERROR, "UNKNOWN", &e.to_string())
+                }
             };
             let (body_type, refs) = match manifest_references(&bytes) {
                 Ok(v) => v,
@@ -617,7 +762,11 @@ async fn route_request(
                     let _ = std::fs::remove_file(&tmp);
                     return error(
                         StatusCode::BAD_REQUEST,
-                        if *is_manifest { "MANIFEST_UNKNOWN" } else { "MANIFEST_BLOB_UNKNOWN" },
+                        if *is_manifest {
+                            "MANIFEST_UNKNOWN"
+                        } else {
+                            "MANIFEST_BLOB_UNKNOWN"
+                        },
                         &format!("referenced {dep} is unknown to the registry"),
                     );
                 }
@@ -625,7 +774,11 @@ async fn route_request(
             let is_digest_ref = digest_hex(&reference).is_some();
             if is_digest_ref && reference != digest {
                 let _ = std::fs::remove_file(&tmp);
-                return error(StatusCode::BAD_REQUEST, "DIGEST_INVALID", "manifest digest does not match reference");
+                return error(
+                    StatusCode::BAD_REQUEST,
+                    "DIGEST_INVALID",
+                    "manifest digest does not match reference",
+                );
             }
             if !is_digest_ref && !valid_tag(&reference) {
                 let _ = std::fs::remove_file(&tmp);
@@ -662,18 +815,32 @@ async fn route_request(
         }
         (Route::Manifest(name, reference), m @ (Method::GET | Method::HEAD)) => {
             let Some(digest) = reg.resolve_manifest(&name, &reference) else {
-                return error(StatusCode::NOT_FOUND, "MANIFEST_UNKNOWN", "manifest unknown to registry");
+                return error(
+                    StatusCode::NOT_FOUND,
+                    "MANIFEST_UNKNOWN",
+                    "manifest unknown to registry",
+                );
             };
             let media_type = reg
                 .revision_path(&name, &digest)
                 .and_then(|p| std::fs::read_to_string(p).ok())
                 .unwrap_or_else(|| "application/vnd.oci.image.manifest.v1+json".into());
             let Some(path) = reg.blob_path(&digest) else {
-                return error(StatusCode::NOT_FOUND, "MANIFEST_UNKNOWN", "manifest unknown to registry");
+                return error(
+                    StatusCode::NOT_FOUND,
+                    "MANIFEST_UNKNOWN",
+                    "manifest unknown to registry",
+                );
             };
             let bytes = match std::fs::read(&path) {
                 Ok(b) => b,
-                Err(_) => return error(StatusCode::NOT_FOUND, "MANIFEST_UNKNOWN", "manifest blob missing"),
+                Err(_) => {
+                    return error(
+                        StatusCode::NOT_FOUND,
+                        "MANIFEST_UNKNOWN",
+                        "manifest blob missing",
+                    )
+                }
             };
             let len = bytes.len();
             let mut resp = if m == Method::HEAD {
@@ -688,10 +855,19 @@ async fn route_request(
         }
         (Route::Manifest(name, reference), Method::DELETE) => {
             if digest_hex(&reference).is_none() {
-                return error(StatusCode::BAD_REQUEST, "UNSUPPORTED", "delete manifests by digest");
+                return error(
+                    StatusCode::BAD_REQUEST,
+                    "UNSUPPORTED",
+                    "delete manifests by digest",
+                );
             }
-            let Some(revision) = reg.revision_path(&name, &reference).filter(|p| p.is_file()) else {
-                return error(StatusCode::NOT_FOUND, "MANIFEST_UNKNOWN", "manifest unknown to registry");
+            let Some(revision) = reg.revision_path(&name, &reference).filter(|p| p.is_file())
+            else {
+                return error(
+                    StatusCode::NOT_FOUND,
+                    "MANIFEST_UNKNOWN",
+                    "manifest unknown to registry",
+                );
             };
             let _ = std::fs::remove_file(revision);
             let tags_dir = reg.repo_dir(&name).join("_manifests").join("tags");
@@ -704,7 +880,11 @@ async fn route_request(
             }
             StatusCode::ACCEPTED.into_response()
         }
-        _ => error(StatusCode::METHOD_NOT_ALLOWED, "UNSUPPORTED", "method not allowed"),
+        _ => error(
+            StatusCode::METHOD_NOT_ALLOWED,
+            "UNSUPPORTED",
+            "method not allowed",
+        ),
     }
 }
 
@@ -716,7 +896,10 @@ mod tests {
     fn routes_parse_from_the_right() {
         assert_eq!(parse_route("/v2/"), Some(Route::Base));
         assert_eq!(parse_route("/v2/_catalog"), Some(Route::Catalog));
-        assert_eq!(parse_route("/v2/a/b/tags/list"), Some(Route::Tags("a/b".into())));
+        assert_eq!(
+            parse_route("/v2/a/b/tags/list"),
+            Some(Route::Tags("a/b".into()))
+        );
         assert_eq!(
             parse_route("/v2/team/app/manifests/v1"),
             Some(Route::Manifest("team/app".into(), "v1".into()))
@@ -754,7 +937,10 @@ mod tests {
         let m = br#"{"schemaVersion":2,"mediaType":"application/vnd.oci.image.manifest.v1+json","config":{"digest":"sha256:a"},"layers":[{"digest":"sha256:b"}]}"#;
         let (mt, refs) = manifest_references(m).unwrap();
         assert_eq!(mt, "application/vnd.oci.image.manifest.v1+json");
-        assert_eq!(refs, vec![("sha256:a".into(), false), ("sha256:b".into(), false)]);
+        assert_eq!(
+            refs,
+            vec![("sha256:a".into(), false), ("sha256:b".into(), false)]
+        );
         assert!(manifest_references(b"{}").is_err());
     }
 }

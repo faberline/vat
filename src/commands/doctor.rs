@@ -258,7 +258,10 @@ fn service_requires_docker_probe(service: &ServiceConfig) -> bool {
         return true;
     }
     if service.image.is_some() {
-        return !matches!(service.runtime, ServiceRuntime::MicroVm | ServiceRuntime::Native);
+        return !matches!(
+            service.runtime,
+            ServiceRuntime::MicroVm | ServiceRuntime::Native
+        );
     }
     let Some(preset) = service.preset else {
         return matches!(service.runtime, ServiceRuntime::Docker);
