@@ -122,7 +122,9 @@ pub fn exec(args: Args) -> Result<ExitCode> {
     if !dockerfile.exists() {
         bail!("dockerfile not found: {}", dockerfile.display());
     }
-    let builder = resolve_image_builder(ServiceRuntime::MicroVm)?;
+    // vat's Docker Engine (the shared machine, booted on demand) unless
+    // DOCKER_HOST/DOCKER_CONTEXT or VAT_ENGINE=external point elsewhere.
+    let builder = resolve_image_builder(ServiceRuntime::Docker)?;
 
     // Dispatch: JSON mode calls build_image (captured output), human mode streams direct.
     if args.json {
@@ -155,16 +157,19 @@ pub fn exec(args: Args) -> Result<ExitCode> {
     }
 }
 
-/// In-process MicroVM build entry point for the existing `vat build` surface.
-/// Compose callers must use [`resolve_image_builder`] plus
-/// [`build_image_with_builder`] so image placement matches their runtime.
+/// In-process build entry point for the `vat build` surface: builds through
+/// vat's Docker Engine. Compose callers must use [`resolve_image_builder`]
+/// plus [`build_image_with_builder`] so image placement matches their runtime.
 pub fn build_image(
     context: &Path,
     dockerfile: &Path,
     tag: &str,
     build_args: &[(String, String)],
 ) -> Result<BuildReport> {
-    let builder = resolve_image_builder(ServiceRuntime::MicroVm)?;
+    if !dockerfile.exists() {
+        bail!("dockerfile not found: {}", dockerfile.display());
+    }
+    let builder = resolve_image_builder(ServiceRuntime::Docker)?;
     build_image_with_builder(builder, context, dockerfile, tag, build_args)
 }
 

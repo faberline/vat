@@ -85,6 +85,18 @@ evidence afterward.
   restarts. K3s uses the machine's Docker Engine as its container runtime, so
   images built with `docker build` against VAT's engine are visible to pods
   without a registry push.
+- For GKE-like local GCP, the machine also serves (`vat gcp status --json`):
+  a metadata server at `metadata.google.internal` with Workload Identity (a
+  KSA annotated `iam.gke.io/gcp-service-account: <gsa>` acts as that GSA;
+  tokens are fake and grant nothing), a local Artifact Registry at
+  `us-central1-docker.pkg.dev/<project>/...` (`docker push` there, pods pull),
+  and Pub/Sub + Cloud Storage emulators whose env
+  (`PUBSUB_EMULATOR_HOST`, `STORAGE_EMULATOR_HOST`) is injected into pods
+  unless the pod sets it or opts out (`vat.dev/gcp-emulators: "false"`
+  annotation, or namespace label `vat.dev/gcp-emulators=disabled`). Google
+  client libraries work unmodified. `vat gcp env` prints the host-side env for
+  the same emulator state; `vat gcp config --project P --zone Z` changes the
+  project (default `vat-local`) on the next machine start.
 - For Docker, use VAT's Docker Engine: run `vat machine start`, then the
   stock `docker` CLI (including `docker compose`) works against it. VAT sets
   `DOCKER_HOST=unix://~/.vat/run/docker.sock` for its own child processes
@@ -438,6 +450,8 @@ file-length totals are needed; it walks every retained rootfs. Add
   (`vat k8s up`), not a multi-node, multi-version, or Desktop-integrated
   cluster manager. `cluster = "machine"` services isolate runs by namespace,
   not by cluster.
+- Local GCP is not a GCP account: no IAM enforcement, quotas, or billing;
+  Ingress/GCLB, Secret Manager, and multi-node are not emulated yet.
 - The runner is always a host process (never containerized) — the GPU story.
   Docker is only an option for run-scoped dependency *services*.
 - Services in `vat.toml` are run-scoped dependencies of one runner invocation;

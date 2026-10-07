@@ -11,16 +11,15 @@
 //!
 //! ## Why vat doesn't have the problem
 //!
-//! A vat is **not a VM**. The workload runs as a sandboxed *host* process over
-//! a copy-on-write workspace (see [`crate::overlay`] and
-//! [`crate::sandbox`]). Because the process never leaves macOS, the Metal
-//! device is simply present — the GPU was never taken away, so there is
-//! nothing to "bridge".
+//! A vat, and an Apple-native container, is **not a VM**. The workload runs
+//! as a sandboxed *host* process over a copy-on-write root (see
+//! [`crate::overlay`], [`crate::sandbox`], and [`crate::native`]). Because
+//! the process never leaves macOS, the Metal device is simply present — the
+//! GPU was never taken away, so there is nothing to "bridge".
 //!
-//! For workloads that need VM isolation for other reasons (e.g., full
-//! Dockerfile compatibility), vat offers an opt-in `--isolation micro_vm`
-//! backend (see [`crate::sandbox::microvm`]); note that GPU access is
-//! categorically impossible in that mode (Virtualization.framework constraint).
+//! Linux workloads (Docker images, K3s pods) run in vat's shared machine or
+//! the opt-in `--isolation micro_vm` backend, both on Virtualization.framework,
+//! where GPU access is categorically impossible.
 //!
 //! This module reports what the host (and therefore every vat) can see, so an
 //! agent can answer "do I have a GPU, and can my vat use it?" from

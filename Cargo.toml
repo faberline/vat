@@ -39,7 +39,7 @@ version = "0.4.5"
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "vat — agent-native, GPU-native dev containers for macOS/Linux. No VM: workloads run as sandboxed host processes, so the Apple GPU just works."
+description = "vat — agent-native dev environments for Apple Silicon: Apple-native containers with the GPU, one shared machine for Docker, and K3s with local GCP/GKE."
 
 [lib]
 name = "vat"

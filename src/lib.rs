@@ -15,12 +15,17 @@
 //!    document to understand "what is this environment right now" instead of
 //!    parsing the scrollback of `docker ps/inspect/diff/logs`.
 //!
-//! 2. **GPU-native because there is no VM.** On Apple Silicon, Docker runs
-//!    Linux containers inside a Linux VM, and Metal has no compute passthrough
-//!    into that guest — so the M-series GPU is invisible to the container.
-//!    vat does not use a VM. A vat is a **sandboxed host process** over a
-//!    copy-on-write workspace, so the workload runs natively on macOS and the
+//! 2. **GPU-native where it runs on macOS.** On Apple Silicon, Linux
+//!    containers run inside a Linux VM, and Metal has no compute passthrough
+//!    into that guest — so the M-series GPU is invisible to them. A vat and an
+//!    Apple-native container ([`native`]) are **sandboxed host processes** over
+//!    a copy-on-write root, so the workload runs natively on macOS and the
 //!    Apple GPU (Metal / MPS / MLX) is simply present. See [`gpu`].
+//!
+//! Linux workloads go to one shared machine ([`vm`], Virtualization.framework)
+//! that serves a Docker Engine, a persistent K3s cluster, and local GCP
+//! services ([`gcp`]: metadata server with Workload Identity, Artifact
+//! Registry, emulators). That machine has no GPU.
 //!
 //! ## The model
 //!

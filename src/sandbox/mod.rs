@@ -11,10 +11,12 @@
 //!   profile (`sandbox-exec`) that confines writes to the rootfs while leaving
 //!   the Metal GPU reachable (it's still a host process).
 //!
-//! A future Linux backend will add a namespaces + overlayfs implementation
-//! behind this same trait; the VM path (Virtualization.framework) would slot
-//! in here too — at the cost of the GPU story, which is the whole point of
-//! *not* taking that path on Apple Silicon.
+//! - [`microvm`] — opt-in Apple Container microVM for an OCI image, at the
+//!   cost of the GPU.
+//!
+//! Linux images otherwise run in vat's shared machine ([`crate::vm`]) through
+//! its Docker Engine, not through this trait: the runner stays a host process
+//! so it keeps the GPU.
 
 pub mod microvm;
 pub mod process;

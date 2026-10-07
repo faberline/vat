@@ -223,7 +223,7 @@ enum Cmd {
         #[command(subcommand)]
         cmd: GcpCmd,
     },
-    /// Build a local OCI image from a Dockerfile using the container CLI.
+    /// Build a local OCI image from a Dockerfile through vat's Docker Engine.
     Build {
         /// Path to Dockerfile (defaults to Dockerfile in context dir).
         #[arg(long)]
