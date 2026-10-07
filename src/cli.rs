@@ -256,11 +256,6 @@ enum Cmd {
         #[command(subcommand)]
         cmd: ComposeCmd,
     },
-    /// Install or inspect the opt-in headless `docker` command shim.
-    Docker {
-        #[command(subcommand)]
-        cmd: DockerShimCmd,
-    },
     /// Run one disposable, Docker-free local Kubernetes session over Apple Container.
     K8s {
         #[command(subcommand)]
@@ -498,25 +493,6 @@ pub enum ComposeCmd {
         project: String,
         /// Service name.
         service: String,
-    },
-}
-
-/// `vat docker` manages the opt-in `docker -> vat` multicall shim. The shim
-/// translates only a narrow, fail-closed Docker CLI subset to Apple Container;
-/// it never creates a Docker Engine socket/API or a GUI/Desktop surface.
-#[derive(Subcommand)]
-enum DockerShimCmd {
-    /// Create a safe `docker -> vat` symlink in an explicit directory.
-    InstallShim {
-        /// Directory that will contain the `docker` symlink; add it to PATH yourself.
-        #[arg(long)]
-        dir: PathBuf,
-    },
-    /// Report whether this explicit directory contains VAT's own Docker shim.
-    Status {
-        /// Directory that should contain the `docker` symlink.
-        #[arg(long)]
-        dir: PathBuf,
     },
 }
 
@@ -880,10 +856,6 @@ pub fn run() -> Result<ExitCode> {
             no_forward,
         ),
         Cmd::Compose { cmd } => commands::compose::exec(cmd),
-        Cmd::Docker { cmd } => match cmd {
-            DockerShimCmd::InstallShim { dir } => commands::docker_shim::install_shim(dir),
-            DockerShimCmd::Status { dir } => commands::docker_shim::shim_status(dir),
-        },
         Cmd::K8s { cmd } => match cmd {
             K8sCmd::Ephemeral { cmd } => match cmd {
                 EphemeralK8sCmd::Image { cmd } => match cmd {
