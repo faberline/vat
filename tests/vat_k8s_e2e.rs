@@ -196,6 +196,88 @@ fn read_data(m: &Machine) -> String {
     )
 }
 
+/// A `cluster = "machine"` vat.toml service on the running cluster: the
+/// runner gets a namespaced `KUBECONFIG`, its objects land in
+/// `VAT_K8S_NAMESPACE`, and a passing run deletes that namespace.
+/// Returns the namespace and how long `vat run` took.
+fn machine_cluster_service_run(m: &Machine) -> (String, u64) {
+    let project = tempfile::tempdir().expect("project");
+    let vat_home = tempfile::tempdir().expect("vat home");
+    let seen = project.path().join("namespace.out");
+    let kubectl = m.home.join("bin/kubectl");
+    let script = format!(
+        "set -eu; test -n \"$VAT_K8S_NAMESPACE\"; \
+         {k} create configmap vat-e2e-probe --from-literal=k=v; \
+         got=$({k} get configmap vat-e2e-probe -o jsonpath='{{.metadata.namespace}}'); \
+         [ \"$got\" = \"$VAT_K8S_NAMESPACE\" ]; printf %s \"$got\" > {out}",
+        k = kubectl.display(),
+        out = seen.display(),
+    );
+    std::fs::write(
+        project.path().join("vat.toml"),
+        format!(
+            r#"version = 1
+default_runner = "e2e"
+
+[network]
+egress = "open"
+
+[[services]]
+id = "k8s"
+cluster = "machine"
+
+[[runners]]
+id = "e2e"
+requires = ["k8s"]
+cmd = ["/bin/sh", "-c", {script:?}]
+"#
+        ),
+    )
+    .unwrap();
+
+    let t0 = Instant::now();
+    let out = Command::new(vat_bin())
+        .args(["run", "e2e"])
+        .current_dir(project.path())
+        .env("VAT_HOME", vat_home.path())
+        .env("VAT_MACHINE_HOME", &m.home)
+        .env_remove("KUBECONFIG")
+        .output()
+        .expect("spawn vat run");
+    let run_ms = t0.elapsed().as_millis() as u64;
+    assert!(
+        out.status.success(),
+        "vat run with a machine cluster service failed\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let namespace = std::fs::read_to_string(&seen).expect("runner recorded its namespace");
+    assert!(
+        namespace.ends_with("-k8s"),
+        "namespace is <run-id>-<service-id>: {namespace}"
+    );
+
+    // Teardown deletes with --wait=false; the namespace drains shortly after.
+    let t0 = Instant::now();
+    loop {
+        let get = m.cmd(
+            vat_bin(),
+            &["k8s", "kubectl", "--", "get", "ns", &namespace],
+        );
+        if !get.status.success() {
+            let stderr = String::from_utf8_lossy(&get.stderr);
+            assert!(stderr.contains("NotFound"), "get ns failed: {stderr}");
+            break;
+        }
+        assert!(
+            t0.elapsed() < Duration::from_secs(120),
+            "run namespace {namespace} was not deleted"
+        );
+        std::thread::sleep(Duration::from_secs(1));
+    }
+    (namespace, run_ms)
+}
+
 #[test]
 #[ignore = "boots a real VM with K3s; run with VAT_K8S_E2E_REQUIRED=1 -- --ignored"]
 fn k8s_persistent_cluster_end_to_end() {
@@ -293,12 +375,16 @@ fn k8s_persistent_cluster_end_to_end() {
 
     m.kubectl(&["delete", "-f", &manifest.to_string_lossy(), "--wait=false"]);
 
+    let (namespace, run_ms) = machine_cluster_service_run(&m);
+
     let evidence = serde_json::json!({
         "cold_k8s_ready_ms": up["ready_ms"],
         "docker_build_ms": build_ms,
         "deploy_ready_ms": deploy_ms,
         "restart_to_pod_ready_ms": warm_ms,
         "crash_to_pod_ready_ms": crash_ms,
+        "machine_service_run_ms": run_ms,
+        "machine_service_namespace": namespace,
         "k3s_version": up["k3s_version"],
     });
     let out = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("vat-k8s-e2e.json");
