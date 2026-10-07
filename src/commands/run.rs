@@ -3350,12 +3350,25 @@ fn prepare_native_image_service(
     }
     command.push(image.to_string());
     let env = image_exports(service, port);
+    // Host network: the endpoint is known up front, so `{host}`/`{port}` in
+    // `ready_http` resolve now (like `cmd` and `micro_vm` services).
+    let ready_http = service
+        .ready_http
+        .as_deref()
+        .map(|url| substitute_endpoint(url, "127.0.0.1", port));
+    let ready_probe = match &ready_http {
+        Some(url) => ReadyProbe::Http(url.clone()),
+        None => ReadyProbe::Tcp {
+            host: "127.0.0.1".to_string(),
+            port,
+        },
+    };
     Ok(ServicePlan {
         id: service.id.clone(),
         command,
         host: Some("127.0.0.1".to_string()),
-        ready_http: service.ready_http.clone(),
-        ready_probe: docker_ready_probe(service, port),
+        ready_http,
+        ready_probe,
         timeout_s: service.timeout_s,
         preset: None,
         port: Some(port),

@@ -410,6 +410,73 @@ fn detached_lifecycle_and_exit_codes() {
     }
 }
 
+/// `vat.toml`: an `image` service with `runtime = "native"` runs as a native
+/// container on the host network, becomes ready, serves the runner, and is
+/// removed afterwards.
+#[test]
+fn vat_toml_image_service_runs_on_the_native_runtime() {
+    if !host_python() {
+        eprintln!("skipping: /usr/bin/python3 is not usable on this host");
+        return;
+    }
+    let env = Env::new();
+    let ctx = env.context(
+        "web-ctx",
+        &[
+            (
+                "Vatfile",
+                "FROM scratch\nWORKDIR /app\nCOPY index.html /app/index.html\n\
+                 CMD [\"sh\", \"-c\", \"exec /usr/bin/python3 -m http.server \\\"$PORT\\\" --bind 127.0.0.1\"]\n",
+                0o644,
+            ),
+            ("index.html", "hello-native\n", 0o644),
+        ],
+    );
+    env.ok(&["image", "build", "-t", "web:1", ctx.to_str().unwrap()]);
+    let port = std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
+    let project = env.path().join("project");
+    std::fs::create_dir_all(&project).unwrap();
+    let toml = format!(
+        r#"version = 1
+name = "native-service"
+
+[workspace]
+base = "."
+workdir = "."
+
+[[services]]
+id = "web"
+image = "web:1"
+runtime = "native"
+container_port = {port}
+ready_http = "http://127.0.0.1:{{port}}/"
+export = {{ WEB_URL = "http://{{host}}:{{port}}/" }}
+timeout_s = 20
+
+[[runners]]
+id = "e2e"
+requires = ["web"]
+cmd = ["sh", "-c", "curl -fsS \"$WEB_URL\" | grep -q hello-native"]
+"#
+    );
+    std::fs::write(project.join("vat.toml"), toml).unwrap();
+
+    let plan = env.cmd(&["plan", "--json"]).current_dir(&project).output().unwrap();
+    assert!(plan.status.success(), "{}", String::from_utf8_lossy(&plan.stderr));
+    assert!(String::from_utf8_lossy(&plan.stdout).contains("\"native\""), "plan reports the native runtime");
+
+    let out = env.cmd(&["run"]).current_dir(&project).output().unwrap();
+    assert!(
+        out.status.success(),
+        "vat run failed\nstdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let all = env.json(&["container", "ps", "--all", "--json"]);
+    assert_eq!(all.as_array().unwrap().len(), 0, "service container removed after the run: {all}");
+    assert!(std::net::TcpStream::connect(("127.0.0.1", port)).is_err(), "service stopped");
+}
+
 #[cfg(feature = "registry")]
 mod registry {
     use super::*;
