@@ -591,7 +591,9 @@ cmd = ["true"]
             .expect("compose down with failed Docker cleanup");
         if matches!(failure, DockerCleanupFailure::Hang) {
             assert!(
-                started.elapsed() < Duration::from_secs(4),
+                // Teardown allows a real daemon 3s for `docker rm -f` plus a
+                // 1s absence window; anything beyond that is unbounded.
+                started.elapsed() < Duration::from_secs(6),
                 "hung Docker cleanup escaped its bounded teardown: {:?}",
                 started.elapsed()
             );

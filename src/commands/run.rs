@@ -5077,14 +5077,16 @@ where
     }
 }
 
-fn container_diagnostic(args: &[&str]) -> String {
-    container_diagnostic_until(args, Instant::now() + Duration::from_secs(1))
-}
+/// Budget for one standalone Apple Container diagnostic.
+const CONTAINER_DIAGNOSTIC_BUDGET: Duration = Duration::from_secs(1);
 
-/// Run one read-only Apple Container diagnostic under a caller-owned hard
-/// deadline. The command's output is bounded before it reaches memory and the
-/// caller never waits on a descendant that inherited its pipes.
-pub(crate) fn container_diagnostic_until(args: &[&str], deadline: Instant) -> String {
+/// Run one read-only Apple Container diagnostic under a hard
+/// [`CONTAINER_DIAGNOSTIC_BUDGET`]. The command's output is bounded before it
+/// reaches memory and the caller never waits on a descendant that inherited
+/// its pipes.
+fn container_diagnostic(args: &[&str]) -> String {
+    let budget = CONTAINER_DIAGNOSTIC_BUDGET;
+    let deadline = Instant::now() + budget;
     let command = format!("container {}", args.join(" "));
     if deadline <= Instant::now() {
         return format!("{command}: skipped because diagnostic deadline expired");
@@ -5124,7 +5126,7 @@ pub(crate) fn container_diagnostic_until(args: &[&str], deadline: Instant) -> St
             Ok(None) if Instant::now() >= deadline => {
                 let _ = child.kill();
                 let _ = child.wait();
-                return format!("{command}: timed out before diagnostic deadline");
+                return format!("{command}: timed out after {}ms", budget.as_millis());
             }
             Ok(None) => {
                 let remaining = deadline.saturating_duration_since(Instant::now());
@@ -5763,6 +5765,29 @@ impl RuntimeCleanupKind {
         }
     }
 
+    /// Bound for the force-delete inside a run's own teardown. A hung MicroVM
+    /// delete must not hold the run's failure evidence hostage; a slow one is
+    /// retained as unconfirmed cleanup, and `vat compose down` retries it
+    /// under [`Self::remove_timeout`].
+    fn teardown_remove_timeout(self) -> Duration {
+        match self {
+            // A real daemon takes 0.5-1s to force-delete a running container
+            // even when idle, and killing the client early can cancel it.
+            Self::Docker => Duration::from_secs(3),
+            Self::MicroVm => Duration::from_millis(1500),
+        }
+    }
+
+    /// Window in which a run's own teardown keeps re-probing after a failed
+    /// or timed-out `rm -f`. The daemon keeps removing after the client gives
+    /// up, so a delete that is merely slow under load still confirms here.
+    fn teardown_absence_window(self) -> Duration {
+        match self {
+            Self::Docker => Duration::from_secs(1),
+            Self::MicroVm => Duration::from_millis(500),
+        }
+    }
+
     fn absence_probe_timeout(self) -> Duration {
         match self {
             Self::Docker => Duration::from_secs(1),
@@ -5776,6 +5801,19 @@ impl RuntimeCleanupKind {
 /// auto-removal without letting an object-specific inspect failure, an
 /// unavailable daemon, a timeout, or malformed query output release a live
 /// compose binding.
+fn runtime_object_absent_within(kind: RuntimeCleanupKind, name: &str, window: Duration) -> bool {
+    let deadline = Instant::now() + window;
+    loop {
+        if runtime_object_confirmed_absent(kind, name) {
+            return true;
+        }
+        if Instant::now() >= deadline {
+            return false;
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+}
+
 fn runtime_object_confirmed_absent(kind: RuntimeCleanupKind, name: &str) -> bool {
     match kind {
         RuntimeCleanupKind::Docker => {
@@ -5904,6 +5942,29 @@ pub(crate) fn retry_unconfirmed_service_cleanup(vat: &mut store::Vat) -> Result<
 fn stop_services(services: &mut [ServiceHandle], delete_clusters: bool) -> Result<()> {
     let mut owned_group_failures = Vec::new();
     for service in services.iter_mut().rev() {
+        // Force-remove the container regardless of how the `docker run` child
+        // fares — a detached or wedged container must never outlive the run.
+        // Remove it before stopping the client: stopping `docker run --rm`
+        // first lets the daemon's own auto-remove race this `rm -f`, which
+        // then fails with "removal already in progress".
+        if let Some(name) = service.docker_name.clone() {
+            match run_quiet_bounded(
+                "docker",
+                &["rm", "-f", &name],
+                RuntimeCleanupKind::Docker.teardown_remove_timeout(),
+            ) {
+                Ok(()) => {}
+                Err(_)
+                    if runtime_object_absent_within(
+                        RuntimeCleanupKind::Docker,
+                        &name,
+                        RuntimeCleanupKind::Docker.teardown_absence_window(),
+                    ) => {}
+                Err(error) => {
+                    record_runtime_cleanup_failure(service, "Docker", "docker", &name, &error);
+                }
+            }
+        }
         let mut group_cleanup_failed = false;
         let child_exit = match service.child.as_mut() {
             Some(child) => match child.finalize(&format!("service `{}`", service.record.id)) {
@@ -5942,31 +6003,21 @@ fn stop_services(services: &mut [ServiceHandle], delete_clusters: bool) -> Resul
                 service.record.status = ProcessStatus::Exited;
             }
         }
-        // Force-remove the container regardless of how the `docker run` child
-        // fared — a detached or wedged container must never outlive the run.
-        if let Some(name) = service.docker_name.clone() {
-            match run_quiet_bounded(
-                "docker",
-                &["rm", "-f", &name],
-                RuntimeCleanupKind::Docker.remove_timeout(),
-            ) {
-                Ok(()) => {}
-                Err(_) if runtime_object_confirmed_absent(RuntimeCleanupKind::Docker, &name) => {}
-                Err(error) => {
-                    record_runtime_cleanup_failure(service, "Docker", "docker", &name, &error);
-                }
-            }
-        }
         // Same force-removal guarantee for a `container run` (MicroVM) child,
         // parallel to the docker_name branch above (R5).
         if let Some(name) = service.microvm_name.clone() {
             match run_quiet_bounded(
                 "container",
                 &["rm", "-f", &name],
-                RuntimeCleanupKind::MicroVm.remove_timeout(),
+                RuntimeCleanupKind::MicroVm.teardown_remove_timeout(),
             ) {
                 Ok(()) => {}
-                Err(_) if runtime_object_confirmed_absent(RuntimeCleanupKind::MicroVm, &name) => {}
+                Err(_)
+                    if runtime_object_absent_within(
+                        RuntimeCleanupKind::MicroVm,
+                        &name,
+                        RuntimeCleanupKind::MicroVm.teardown_absence_window(),
+                    ) => {}
                 Err(error) => {
                     record_runtime_cleanup_failure(service, "MicroVM", "container", &name, &error);
                 }
