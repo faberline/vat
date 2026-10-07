@@ -467,7 +467,7 @@ fn up_cmd(project: Option<String>, detach: bool) -> Result<ExitCode> {
         // or publishes the VAT id. Reacquiring before every post-poll update
         // prevents parent/child/ps lost updates and keeps project.json
         // serialized across processes.
-        let _final_claim = StartupClaim::acquire_blocking(&registry_dir, &project_name)?;
+        let mut final_claim = StartupClaim::acquire_blocking(&registry_dir, &project_name)?;
         let mut record = read_registry(&registry_dir)?;
         let observed_vat_id = match observed_vat_id {
             Ok(vat_id) => vat_id,
@@ -498,7 +498,30 @@ fn up_cmd(project: Option<String>, detach: bool) -> Result<ExitCode> {
                 "detached compose startup for `{project_name}` lost registry ownership; inspect `vat compose ps {project_name}`"
             );
         }
-        match reconcile_detached_startup(&record)? {
+        // Within the same bounded handoff window, keep watching a service set
+        // that is still starting: one that fails fast is reported as a
+        // startup failure instead of a false `starting` success. The claim is
+        // released meanwhile so the child and `compose ps` are not blocked.
+        let mut startup = reconcile_detached_startup(&record)?;
+        if matches!(startup, DetachedStartup::Starting) && Instant::now() < handoff_deadline {
+            drop(final_claim);
+            while matches!(startup, DetachedStartup::Starting) && Instant::now() < handoff_deadline
+            {
+                std::thread::sleep(Duration::from_millis(200));
+                startup = reconcile_detached_startup(&record)?;
+            }
+            final_claim = StartupClaim::acquire_blocking(&registry_dir, &project_name)?;
+            let current = read_registry(&registry_dir)?;
+            if current.vat_id != record.vat_id {
+                bail!(
+                    "detached compose startup for `{project_name}` lost registry ownership; inspect `vat compose ps {project_name}`"
+                );
+            }
+            record = current;
+            startup = reconcile_detached_startup(&record)?;
+        }
+        let _final_claim = final_claim;
+        match startup {
             DetachedStartup::Starting => record.status = "starting".to_string(),
             DetachedStartup::Ready => record.status = "ready".to_string(),
             DetachedStartup::Stopping => record.status = "stopping".to_string(),
