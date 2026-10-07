@@ -121,7 +121,7 @@ fn cli_convention_llm_topics_are_task_scoped() {
         ("core", "vat run"),
         ("services", "vat.toml"),
         ("container", "vat compose"),
-        ("k8s", "vat k8s ephemeral"),
+        ("k8s", "vat k8s up"),
     ] {
         let out = Command::new(vat())
             .args(["llm", "--topic", topic])

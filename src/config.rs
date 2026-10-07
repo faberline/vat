@@ -151,11 +151,12 @@ pub struct ServiceConfig {
     /// are always native.
     #[serde(default)]
     pub runtime: ServiceRuntime,
-    /// Declares this service as an ephemeral local Kubernetes cluster (kind /
-    /// k3d / minikube). Mutually exclusive with cmd/preset/image. vat creates
-    /// the cluster before the runner, exports KUBECONFIG into the runner, and
-    /// deletes it at teardown subject to the workspace `keep` policy. `auto`
-    /// resolves to the first installed backend whose Docker daemon is reachable.
+    /// Declares this service as a run-scoped namespace on the machine's
+    /// persistent K3s cluster (`cluster = "machine"`, the only backend).
+    /// Mutually exclusive with cmd/preset/image/external. vat ensures the
+    /// cluster is up (as `vat k8s up` does), creates a per-run namespace,
+    /// exports a per-run `KUBECONFIG` whose `vat` context selects it, and
+    /// deletes the namespace at teardown subject to the workspace `keep` policy.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cluster: Option<ClusterBackend>,
     /// Attach to a service already provisioned by the surrounding environment,
@@ -163,11 +164,12 @@ pub struct ServiceConfig {
     /// exports env, and records evidence, but never starts or stops it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub external: Option<ExternalServiceConfig>,
-    /// Optional Kubernetes version for the cluster node image (e.g. "1.30").
-    /// Only meaningful with `cluster`.
+    /// Retired: the machine cluster runs one pinned Kubernetes version.
+    /// Accepted by the parser only so validation can reject it clearly.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub k8s_version: Option<String>,
-    /// Cluster node count (default 1). Only meaningful with `cluster`.
+    /// Retired: the machine cluster is a single node. Accepted by the parser
+    /// only so validation can reject it clearly.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub nodes: Option<u32>,
     /// Path (relative to vat.toml) to an OpenAPI document. Required for the
@@ -332,22 +334,39 @@ pub enum ServiceRuntime {
     MicroVm,
 }
 
-/// Local Kubernetes cluster backend for a `cluster` service. `auto` (the
-/// default when the field is present) prefers the first installed of kind,
-/// then k3d, then minikube whose Docker daemon is reachable. All require Docker
-/// on Apple Silicon.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, clap::ValueEnum)]
+/// Kubernetes backend for a `cluster` service. `machine` (the persistent K3s
+/// in vat's shared Linux machine, see `vat k8s`) is the only backend; the old
+/// kind / k3d / minikube / auto values are rejected with a pointer to it.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ClusterBackend {
-    /// Prefer the first installed backend whose Docker daemon is reachable.
+    /// K3s in the shared machine; each run gets its own namespace.
     #[default]
-    Auto,
-    /// kind — Kubernetes in Docker.
-    Kind,
-    /// k3d — k3s in Docker.
-    K3d,
-    /// minikube with the docker driver.
-    Minikube,
+    Machine,
+}
+
+impl ClusterBackend {
+    pub fn name(self) -> &'static str {
+        match self {
+            ClusterBackend::Machine => "machine",
+        }
+    }
+}
+
+impl<'de> Deserialize<'de> for ClusterBackend {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let value = String::deserialize(deserializer)?;
+        match value.as_str() {
+            "machine" => Ok(ClusterBackend::Machine),
+            "auto" | "kind" | "k3d" | "minikube" => Err(serde::de::Error::custom(format!(
+                "cluster = \"{value}\" is no longer supported; use cluster = \"machine\" \
+                 (the persistent K3s in vat's machine, see `vat k8s up`)"
+            ))),
+            other => Err(serde::de::Error::custom(format!(
+                "unknown cluster backend `{other}`; the only backend is \"machine\""
+            ))),
+        }
+    }
 }
 
 /// Port policy for a service. Presets default to `auto` to avoid conflicts.
@@ -695,8 +714,8 @@ fn validate_image_service(service: &ServiceConfig) -> Result<()> {
     Ok(())
 }
 
-/// A `cluster` service spins up an ephemeral local Kubernetes cluster, so it
-/// rejects the container/preset-only knobs and bounds the node count.
+/// A `cluster` service is a namespace on the machine's single-node K3s, so it
+/// rejects the container/preset-only knobs and the retired node-shape knobs.
 fn validate_cluster_service(service: &ServiceConfig) -> Result<()> {
     if service.container_port.is_some() || !service.image_env.is_empty() || !service.seed.is_empty()
     {
@@ -705,13 +724,18 @@ fn validate_cluster_service(service: &ServiceConfig) -> Result<()> {
             service.id
         );
     }
-    if let Some(nodes) = service.nodes {
-        if !(1..=9).contains(&nodes) {
-            bail!(
-                "service `{}` cluster nodes must be between 1 and 9",
-                service.id
-            );
-        }
+    if service.k8s_version.is_some() {
+        bail!(
+            "service `{}` cluster does not accept `k8s_version`: the machine cluster is pinned \
+             to one K3s release (see `vat k8s status`)",
+            service.id
+        );
+    }
+    if service.nodes.is_some() {
+        bail!(
+            "service `{}` cluster does not accept `nodes`: the machine cluster is a single node",
+            service.id
+        );
     }
     Ok(())
 }
@@ -1269,7 +1293,7 @@ network = "hermetic"
     #[test]
     fn accepts_cluster_service() {
         let mut svc = bare_service("svc");
-        svc.cluster = Some(ClusterBackend::Auto);
+        svc.cluster = Some(ClusterBackend::Machine);
         assert!(validate(&cfg_with_service(svc)).is_ok());
     }
 
@@ -1341,7 +1365,7 @@ network = "hermetic"
     #[test]
     fn rejects_cluster_and_cmd_together() {
         let mut svc = bare_service("svc");
-        svc.cluster = Some(ClusterBackend::Kind);
+        svc.cluster = Some(ClusterBackend::Machine);
         svc.cmd = vec!["true".into()];
         assert!(validate(&cfg_with_service(svc)).is_err());
     }
@@ -1349,7 +1373,7 @@ network = "hermetic"
     #[test]
     fn rejects_cluster_and_preset_together() {
         let mut svc = bare_service("svc");
-        svc.cluster = Some(ClusterBackend::Kind);
+        svc.cluster = Some(ClusterBackend::Machine);
         svc.preset = Some(ServicePreset::Postgres);
         assert!(validate(&cfg_with_service(svc)).is_err());
     }
@@ -1357,7 +1381,7 @@ network = "hermetic"
     #[test]
     fn rejects_cluster_and_image_together() {
         let mut svc = bare_service("svc");
-        svc.cluster = Some(ClusterBackend::Kind);
+        svc.cluster = Some(ClusterBackend::Machine);
         svc.image = Some("postgres:16".into());
         svc.container_port = Some(5432);
         assert!(validate(&cfg_with_service(svc)).is_err());
@@ -1366,7 +1390,7 @@ network = "hermetic"
     #[test]
     fn rejects_cluster_with_container_port() {
         let mut svc = bare_service("svc");
-        svc.cluster = Some(ClusterBackend::Auto);
+        svc.cluster = Some(ClusterBackend::Machine);
         svc.container_port = Some(6443);
         assert!(validate(&cfg_with_service(svc)).is_err());
     }
@@ -1374,42 +1398,72 @@ network = "hermetic"
     #[test]
     fn rejects_cluster_with_seed() {
         let mut svc = bare_service("svc");
-        svc.cluster = Some(ClusterBackend::Auto);
+        svc.cluster = Some(ClusterBackend::Machine);
         svc.seed = vec![PathBuf::from("schema.sql")];
         assert!(validate(&cfg_with_service(svc)).is_err());
     }
 
     #[test]
-    fn rejects_cluster_nodes_zero() {
-        let mut svc = bare_service("svc");
-        svc.cluster = Some(ClusterBackend::Auto);
-        svc.nodes = Some(0);
-        assert!(validate(&cfg_with_service(svc)).is_err());
-    }
-
-    #[test]
-    fn rejects_cluster_nodes_too_many() {
-        let mut svc = bare_service("svc");
-        svc.cluster = Some(ClusterBackend::Auto);
-        svc.nodes = Some(10);
-        assert!(validate(&cfg_with_service(svc)).is_err());
-    }
-
-    #[test]
-    fn cluster_backend_parses_k3d_kebab() {
-        // serde round-trips the backend tokens used in vat.toml / --backend.
-        for (token, backend) in [
-            ("auto", ClusterBackend::Auto),
-            ("kind", ClusterBackend::Kind),
-            ("k3d", ClusterBackend::K3d),
-            ("minikube", ClusterBackend::Minikube),
-        ] {
-            let parsed: ClusterBackend =
-                serde_json::from_value(serde_json::Value::String(token.into())).unwrap();
-            assert_eq!(parsed, backend);
-            let dumped = serde_json::to_value(backend).unwrap();
-            assert_eq!(dumped, serde_json::Value::String(token.into()));
+    fn rejects_cluster_nodes() {
+        // The machine cluster is a single node; any `nodes` value is an error.
+        for nodes in [1, 3] {
+            let mut svc = bare_service("svc");
+            svc.cluster = Some(ClusterBackend::Machine);
+            svc.nodes = Some(nodes);
+            let err = validate(&cfg_with_service(svc)).unwrap_err().to_string();
+            assert!(err.contains("`nodes`"), "{err}");
+            assert!(err.contains("single node"), "{err}");
         }
+    }
+
+    #[test]
+    fn rejects_cluster_k8s_version() {
+        let mut svc = bare_service("svc");
+        svc.cluster = Some(ClusterBackend::Machine);
+        svc.k8s_version = Some("1.30".into());
+        let err = validate(&cfg_with_service(svc)).unwrap_err().to_string();
+        assert!(err.contains("`k8s_version`"), "{err}");
+        assert!(err.contains("pinned"), "{err}");
+    }
+
+    #[test]
+    fn cluster_backend_is_machine_only() {
+        let parsed: ClusterBackend =
+            serde_json::from_value(serde_json::Value::String("machine".into())).unwrap();
+        assert_eq!(parsed, ClusterBackend::Machine);
+        assert_eq!(
+            serde_json::to_value(ClusterBackend::Machine).unwrap(),
+            serde_json::Value::String("machine".into())
+        );
+        for retired in ["auto", "kind", "k3d", "minikube"] {
+            let err =
+                serde_json::from_value::<ClusterBackend>(serde_json::Value::String(retired.into()))
+                    .unwrap_err()
+                    .to_string();
+            assert!(err.contains("no longer supported"), "{err}");
+            assert!(err.contains("cluster = \"machine\""), "{err}");
+        }
+        assert!(
+            serde_json::from_value::<ClusterBackend>(serde_json::Value::String("gke".into()))
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn parses_machine_cluster_service_from_toml() {
+        let cfg: VatConfig = toml::from_str(concat!(
+            "version = 1\n[[services]]\nid = \"k8s\"\ncluster = \"machine\"\n",
+            "[[runners]]\nid = \"e2e\"\nrequires = [\"k8s\"]\ncmd = [\"true\"]\n",
+        ))
+        .unwrap();
+        assert_eq!(cfg.services[0].cluster, Some(ClusterBackend::Machine));
+        validate(&cfg).unwrap();
+        let err = toml::from_str::<VatConfig>(
+            "version = 1\n[[services]]\nid = \"k8s\"\ncluster = \"kind\"\n",
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(err.contains("no longer supported"), "{err}");
     }
 
     #[test]

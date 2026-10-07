@@ -58,9 +58,11 @@ matrix in [STATUS.md](STATUS.md); what it commits to **next** is
    pod with no load step, with PVCs and survival across sessions; a GCE
    metadata server plus Workload Identity emulation so GCP clients inside pods
    resolve to vat emulators automatically; a local Artifact Registry; and later
-   Ingress/GCLB behavior, Secret Manager, and multi-node. The existing
-   kind/k3d/minikube wrapping and the one-boot Apple Container K3s session are
-   legacy paths scheduled to be superseded.
+   Ingress/GCLB behavior, Secret Manager, and multi-node. The first step has
+   landed: `vat k8s up` runs persistent single-node K3s in the shared machine,
+   and a `cluster = "machine"` service gives each run its own namespace on it.
+   It replaced the kind/k3d/minikube wrapping and the one-boot Apple Container
+   K3s session, which are removed.
 
 The operating surface faces the agent, not a human developer. Docker's
 ergonomics (a daemon, a desktop app, `ps`/`inspect`/`logs`/`diff` as separate
@@ -88,7 +90,7 @@ the commands named in each row are the only part that runs.
 | Agent-Native State and Copy-on-Write Lifecycle | #4152 | The core every pillar shares: `vat.toml` run protocol, one structured `vat state`/`vat diff` document, copy-on-write fork/snapshot over APFS `clonefile`, interrupt-safe cleanup, and production-like scenarios. |
 | Native macOS Runtime (pillar 1, shipped part) | - | Sandboxed host-process execution with host GPU visibility, opt-in seatbelt isolation, and the fail-closed egress policy. Also native containers: OCI `darwin/arm64` images (`vat image`), seatbelt-confined copy-on-write roots with fixed-length path relocation and a process-group lifecycle (`vat container`), and `image` services with `runtime = "native"`. No VM, no Linux, no chroot. The dedicated UID requires root and is not verified by the gate. |
 | Local GCP Emulation and Transparent Routing (pillar 3, shipped part) | - | Built-in Rust emulators (REST + gRPC), gcloud-wrapped emulator presets, the http-mock/OpenAPI proxy, and transparent HTTP/gRPC routing of real GCP hosts to local emulators. GKE realism (persistent K3s, metadata server, Workload Identity, Artifact Registry) is roadmap. |
-| Container and Kubernetes Paths Scheduled for Supersession | - | Shipped, bounded, still gated: `vat build`/`vat compose`, the MicroVM service backend, Docker-backed `vat cluster` (kind/k3d/minikube), and the one-boot Apple Container K3s session. ROADMAP outcomes for pillar 2 and GKE replace them; nothing here is removed before its replacement passes its gate. |
+| Container and Kubernetes Paths Scheduled for Supersession | - | Shipped, bounded, still gated: `vat build`/`vat compose` and the MicroVM service backend. The Docker-backed kind/k3d/minikube cluster wrapping and the one-boot Apple Container K3s session were removed in favor of the machine's persistent K3s (`vat k8s`). ROADMAP outcomes for pillar 2 and GKE replace them; nothing here is removed before its replacement passes its gate. |
 | Developer & Agent Experience | #1819 | Offline command contracts, task-scoped onboarding, and host preflight evidence for local agents. |
 
 ### Agent-Native State and Copy-on-Write Lifecycle
@@ -230,28 +232,24 @@ Kubernetes paths the current tree can keep. The product direction replaces them
 with the shared Linux VM, the Docker Engine API, and persistent K3s (see
 [ROADMAP.md](ROADMAP.md)). Until a replacement passes its own gate, each row
 below stays supported exactly as bounded in the [CLI](#cli) table and in
-[STATUS.md](STATUS.md). `vat compose` is not general Compose, and the Apple
-Container K3s session is not persistent Kubernetes.
+[STATUS.md](STATUS.md). `vat compose` is not general Compose.
 
 - Root WI: -
-- Surfaces: CLI: `vat build`, `vat compose`, `vat.toml` `runtime = "micro_vm"`
-  and `cluster = ...` services, `vat cluster`, and `vat k8s ephemeral|session`.
+- Surfaces: CLI: `vat build`, `vat compose`, and `vat.toml`
+  `runtime = "micro_vm"` services.
 - Gate — behavior: `cargo test -p vat` - deterministic fake coverage for
-  Compose, the MicroVM backend, cluster drivers, and K3s session;
+  Compose and the MicroVM backend;
   real-host E2Es are opt-in `--ignored` runs named per row.
 - Gate: `cargo test -p vat`
 - Gate:
-  `cargo test -p vat --test vat_build --test vat_compose --test vat_compose_import --test vat_compose_build --test vat_cluster --test vat_sandbox_microvm --test vat_k8s_ephemeral -- --nocapture`
+  `cargo test -p vat --test vat_build --test vat_compose --test vat_compose_import --test vat_compose_build --test vat_sandbox_microvm -- --nocapture`
 
 | Work Root | Kind | WI | Gate / Evidence |
 |---|---|---:|---|
-| Local Kubernetes cluster service and `vat cluster` | change | #141 | `cargo test -p vat --test vat_cluster -- --nocapture` |
 | MicroVm sandbox backend for vat run | change | #1474 | `cargo test -p vat --test vat_sandbox_microvm --test vat_sandbox_microvm_fail_closed -- --nocapture` |
 | vat build: Dockerfile build via container CLI | change | #1479 | `cargo test -p vat --test vat_build -- --nocapture` |
 | vat compose: bounded compose subset, up/down/ps/logs | change | #1484 | `cargo test -p vat --test vat_compose --test vat_compose_import -- --nocapture` |
 | Compose runtime-local build artifacts | change | #1529 | `cargo test -p vat --test vat_compose_build -- --nocapture` |
-| Headless Apple Container K3s one-shot, lease, local-image delivery, and loopback Service port-forward | change | #1693 | deterministic fake regression passed, including bounded session-exec lifecycle/marker coverage; independent-kubectl one-shot E2E passed 1/1 (36 filtered, 28.38s), leased E2E passed 1/1 (36 filtered, 29.97s), local-image E2E passed 1/1 (36 filtered, 49.73s), and Service-forward E2E passed 1/1 (36 filtered, 49.57s). Requires an independently installed PATH `kubectl`; VAT rejects OrbStack-provided kubectl. Evidence is bounded to text commands, strict one-document JSON exec with explicit `--timeout 30`, one already-local Apple `alpine:3.20` pod with `imagePullPolicy=Never` and a marker log, and one Service-only loopback JSON tunnel; it does not claim registry-pull generality, persistent Kubernetes, GUI, Docker Engine/API, or OS-sandbox behavior. Gate: `RUST_TEST_THREADS=1 VAT_K8S_LOCAL_IMAGE_E2E_REQUIRED=1 cargo test -p vat --test vat_k8s_ephemeral -- --ignored --nocapture` |
-| Apple Container k3s local Kubernetes | epic | #1537 | one-shot, leased, local-image, and Service-forward independent-kubectl real-host E2Es passed; each remains bounded. Phase 0 is a bounded Docker-free path: `vat k8s ephemeral` runs one foreground host command and cleans up, while `vat k8s session create/exec/port-forward/image/status/delete` keeps one running guest and private credentials across explicit agent calls until its bounded lease is deleted or reclaimed. Every K3s command requires an independently installed `kubectl` first on PATH and rejects an OrbStack-provided binary. Persistent/reboot-safe kubeconfig, storage/PVC, ingress/LB, multi-node networking, and `microvm-k3s` remain blocked. |
 
 ### Developer & Agent Experience
 
@@ -303,15 +301,14 @@ project has a `vat.toml`.
   confinement, a copy-on-write rootfs, and (on the roadmap) a dedicated UID per
   container give resource isolation for cooperative workloads — weaker than a
   VM. A workload that must be contained as untrusted belongs in the shared Linux
-  VM of pillar 2, where the kernel is the boundary. The same-UID host-child
-  hygiene in `vat k8s session port-forward` and the `micro_vm` service path are
-  likewise not adversarial-child boundaries.
+  VM of pillar 2, where the kernel is the boundary. The `micro_vm` service
+  path is likewise not an adversarial-child boundary.
 - **Not a Linux runtime on the native pillar.** Pillar 1 is pure Apple
   ecosystem: `darwin/arm64` layers, Homebrew bottles, macOS processes. Linux
   images and Linux-only workloads go through the shared Linux VM of pillar 2.
-  Besides `vat machine`, today's Linux routes are the bounded Apple Container
-  paths (`runtime = "micro_vm"` services and the K3s session); they are
-  scheduled to be superseded, not extended.
+  Besides `vat machine` (and the K3s inside it), today's only other Linux
+  route is the bounded Apple Container `runtime = "micro_vm"` service path; it
+  is scheduled to be superseded, not extended.
 - **Not "no VM at all".** The native runtime has no VM, which is why the host
   GPU is reachable. The Docker and GKE pillars use exactly **one shared Linux
   VM**; vat never starts one VM per container. Metal does not pass into that VM,
@@ -319,21 +316,18 @@ project has a `vat.toml`.
   explicitly deferred and is not a commitment.
 - **Not a `docker` command shim.** vat no longer installs a `docker`
   symlink or translates Docker argv. Docker work goes through `vat machine
-  start`, which serves a Docker Engine at `~/.vat/run/docker.sock`; vat sets
+  start`, which serves the Docker Engine/API at `~/.vat/run/docker.sock`; vat sets
   `DOCKER_HOST` to it for its own child processes, and you export
   `DOCKER_HOST=unix://$HOME/.vat/run/docker.sock` yourself to use the stock
   `docker` CLI from your shell.
-- **Not persistent Kubernetes today.** `vat cluster` and the `cluster`
-  service wrap kind/k3d/minikube, which need a Docker daemon on Apple Silicon.
-  `vat k8s ephemeral` is a one-boot Apple Container K3s guest for one foreground
-  command; `vat k8s session` adds a bounded lease so an agent can make several
-  explicit calls with the same private kubeconfig. Neither is a daemon nor
-  restart-safe, and neither promises reboot-safe kubeconfig, storage/PVC,
-  ingress or load balancer, multi-node networking, or registry-pull generality.
-  Every `vat k8s` command requires an independently installed `kubectl` first
-  on `PATH` and rejects an OrbStack-provided binary. Persistent K3s inside the
-  shared VM, with shared images and PVCs, is a [ROADMAP.md](ROADMAP.md)
-  outcome.
+- **Not a multi-node or multi-version Kubernetes.** vat's persistent Kubernetes
+  is one single-node K3s cluster inside the shared machine (`vat k8s up`); its
+  state, PVCs, and kubeconfig (`~/.vat/kube/config`, context `vat`) survive
+  machine restarts. It is pinned to one K3s release, and `vat.toml`
+  `cluster = "machine"` services isolate runs by namespace, not by cluster.
+  The kind/k3d/minikube wrapping and the one-boot Apple Container K3s guest
+  were removed. Ingress/load balancer, multi-node, and GKE metadata/Workload
+  Identity are [ROADMAP.md](ROADMAP.md) outcomes.
 - **Not a GCP account.** The emulators reproduce the API behavior local tests
   depend on (the common client operations, REST and gRPC where both exist).
   They do not reproduce IAM, quotas, billing, regional behavior, or every
@@ -347,11 +341,8 @@ project has a `vat.toml`.
   `cap run --label "vat train" -- vat run -- python train.py`.
 - **Not a long-lived process manager.** Services in `vat.toml` are dependencies
   of one runner invocation. vat starts them, waits for readiness, runs the
-  runner, captures evidence, and terminates them. Standalone `vat cluster`
-  clusters and `vat k8s session` leases outlive a run as a convenience, but vat
-  does not *supervise* them (no daemon, no restart, no health monitoring) — it
-  creates/lists/deletes/reports only on explicit command. The shared Linux VM of
-  pillar 2 will be the one exception: it is a long-lived substrate vat starts on
+  runner, captures evidence, and terminates them. The shared Linux VM of
+  pillar 2, with the K3s cluster inside it, is the one exception: it is a long-lived substrate vat starts on
   demand and reports on, and its lifecycle contract is a roadmap outcome.
 - **Not a shared Apple Container builder manager.** `vat capabilities --json`
   reports `apple_container.builder` as a bounded, read-only advisory
@@ -394,35 +385,11 @@ vat machine start
 export DOCKER_HOST="unix://$HOME/.vat/run/docker.sock"
 docker run --rm alpine:3.20 uname -a
 
-# Keep one Docker-free local K3s guest across explicit agent steps (bounded lease).
-# Prerequisite: an independently installed kubectl must be first on PATH; VAT rejects
-# an OrbStack-provided kubectl. On this host Homebrew kubectl is at /opt/homebrew/bin.
-# Independent-kubectl one-shot, leased, local-image, and Service-forward E2Es
-# passed. The local-image proof is one already-local Apple alpine:3.20 pod with
-# imagePullPolicy=Never and a marker log, followed by exact session cleanup; it
-# is not registry-pull generality. All remain bounded one-guest evidence rather
-# than a durable cluster claim.
-vat k8s ephemeral image build
-vat k8s session create --ttl 30m
-# stdout returns id; use it in subsequent tool calls
-vat k8s session status --verify-api <id>
-vat k8s session exec --timeout 30 <id> -- kubectl get nodes
-vat k8s session exec <id> -- kubectl get namespaces
-# Text exec is unchanged. For one agent document rather than raw child streams,
-# use JSON exec; its process exit remains the child exit code.
-vat k8s session exec --format json --timeout 30 <id> -- kubectl get nodes -o json
-# move a pre-existing Apple Container image into this active K3s lease only
-vat k8s session image load <id> alpine:3.20
-# prove the workload cannot fall back to a registry pull
-vat k8s session exec <id> -- kubectl run local-alpine --image=alpine:3.20 --restart=Never --image-pull-policy=Never --command -- /bin/sh -ec 'echo local'
-# Test one already-created ClusterIP Service through a loopback-only tunnel.
-# VAT strips KUBECONFIG, VAT_K8S_CACHE_DIR, VAT_K8S_API_SERVER, and VAT_HOME
-# from the child environment. The child shares kubectl's tracked process group,
-# so keep it cooperative and non-daemonizing; this hygiene is not a same-UID OS sandbox.
-# Text preserves direct child streams. JSON waits for verified tunnel cleanup,
-# then emits one bounded agent document with no raw child-stream replay.
-vat k8s session port-forward run --format json <id> service/api 8080 -- /bin/sh -ec 'curl -fsS "http://$VAT_K8S_PORT_FORWARD_ADDR/healthz"'
-vat k8s session delete <id>
+# Kubernetes: persistent single-node K3s inside the same machine
+vat k8s up                     # boots the machine if needed; writes ~/.vat/kube/config
+vat k8s kubectl -- get nodes   # the pinned kubectl, context `vat`
+docker build -t api:dev .      # with DOCKER_HOST set, pods see this image (no push)
+vat k8s status --json
 
 # what GPU can my vats see? (the headline claim, in one command)
 vat gpu
@@ -500,14 +467,8 @@ The command an agent calls to understand a vat. One document, no log-scraping:
 | `vat upgrade` | Self-update to the latest `vat@*` GitHub release (`--check` to report only, `--version <tag>` to pin). One of the three mandatory CLI-convention verbs (`llm`/`upgrade`/`issue`), via the shared `cli-std` crate. |
 | `vat issue search\|view\|create` | Search, read, and file diagnostics-rich GitHub issues under `app:vat`; `issue create --dry-run --title <t>` previews version + target + OS/arch diagnostics without submitting. |
 | `vat machine start` | Boot the shared Linux machine (creating it on first use) and wait for its Docker Engine at `~/.vat/run/docker.sock`. vat sets `DOCKER_HOST` to that socket for its own child processes; export `DOCKER_HOST=unix://$HOME/.vat/run/docker.sock` yourself to use the stock `docker` CLI. `vat machine --help` lists the other verbs. |
-| K3s host CLI prerequisite | Every `vat k8s` command requires an independently installed `kubectl` first on `PATH`; VAT rejects an OrbStack-provided binary before K3s use. This is host-tool provenance, not a GUI or Docker Engine requirement. Homebrew `kubernetes-cli` at `/opt/homebrew/bin/kubectl` is installed on this host. Independent-kubectl one-shot, leased, local-image, and Service-forward E2Es each passed 1/1 (36 filtered) in 28.38s, 29.97s, 49.73s, and 49.57s respectively; the local-image proof is one already-local Apple `alpine:3.20` pod with `imagePullPolicy=Never`, a marker log, and exact session cleanup—not registry-pull generality. |
-| `vat k8s ephemeral image build` | Explicitly build VAT's embedded systemd image into the Apple Container image store. Its local tag identifies the embedded build-asset revision, not a verified supply-chain image digest. It never starts a cluster. |
-| `vat k8s ephemeral run [--image <ref>] -- <command...>` | Start exactly one disposable Apple K3s guest, prove host API access through a private kubeconfig, run one foreground command, then delete credentials and the exact owned machine. The child receives `KUBECONFIG`, `VAT_K8S_CACHE_DIR`, `VAT_K8S_API_SERVER`, and an isolated `HOME`; direct kubectl keeps its normal cache under that private HOME. Its final stdout line is a `vat_k8s_ephemeral_result` terminal JSON record. The independent-kubectl one-shot real-host E2E passed 1/1 (36 filtered) in 28.38s. On bootstrap failure, VAT renders the root error first, then a best-effort 6-second total / 1-second-per-probe read-only diagnostic block with exactly `guest_install_log`, `guest_k3s_system`, `backing_container_logs`, `machine_boot_log`, `machine_inspect`, and `container_system_status`; staged installer evidence is non-sensitive, private kubeconfig/cache and host credentials are excluded, and the existing exact cleanup still runs. This does not fix or retry the existing 300-second bootstrap behavior, rerun `k3s --version`, or add a wrapper/recovery command. `vat k8s ephemeral cleanup` reconciles interrupted sessions only after the recorded PID is gone; an interrupted create retains its marker until Apple Container can prove a terminal create/cancellation state. |
-| `vat k8s session create [--ttl 30m]` | Create one bounded, one-boot Apple K3s lease with private 0600 credentials. The result includes an opaque id and runnable `next`; it never exposes the kubeconfig path. TTL accepts whole seconds or `s`/`m`/`h`, from 1 minute through 4 hours. Its shared K3s bootstrap path uses the same primary-error-first, fixed read-only diagnostic block and exact cleanup on failure; advisory diagnostics never make this a persistent Kubernetes backend. |
-| `vat k8s session exec [--format json] [--timeout <seconds>] <id> -- <command...>` | Both text and JSON exec prove the active lease, exact Apple backing-ID/API endpoint, private credentials, and owned host API under the private operation lock. Omit `--timeout` to use the remaining lease TTL; an explicit timeout is 1..=14400 seconds and cannot exceed that remaining TTL. VAT rechecks expiry immediately before spawn, puts every credentialed host command in an owned process group, and holds the lock through its cleanup. Normal exit, deadline, or SIGINT/SIGTERM stops and reaps that group; the private exec marker is removed only after the group is absent. If VAT crashes after marker creation, a starting or live exec marker makes later exec, delete, or cleanup fail closed rather than signal an arbitrary recovered command; this is not a crash-safe termination guarantee. `--format json` then emits exactly one `schema="vat.k8s.session.exec.v1"`, `format="vat_json"` document with separate stdout/stderr, child exit code, stream truncation/lossy flags, `api_verified=true`, `runtime_invoked=true`, `session_record_mutated=false`, and a `status --verify-api` next step; raw child streams are not replayed. Both streams drain concurrently and retain only a latest suffix whose serialized JSON string is at most 64 KiB. JSON errors mask private credential/cache paths. The child intentionally receives credentials, so this is not an untrusted-child security boundary. Deterministic fake/unit coverage exists. The independent-kubectl leased real-host E2E passed 1/1 (36 filtered) in 29.97s and proved text commands, strict one-document JSON exec with `--timeout 30`, `status --verify-api`, and exact delete; it does not establish crash recovery termination or persistent Kubernetes. |
-| `vat k8s session port-forward run [--format json] <id> service/<name> <remote-port> [--namespace <ns>] [--local-port <port>] -- <command...>` | Requires an independently installed `kubectl` first on `PATH`; VAT rejects an OrbStack-provided binary before K3s use. Text forwards exactly one literal Service port to `127.0.0.1` for one foreground host child and writes its terminal record on a new line after child output. `--format json` is the only JSON form. It remains Service-only, loopback-only, and credential-free for the host child: `--local-port 0` (the default) lets kubectl choose a loopback port; the child receives only `VAT_K8S_PORT_FORWARD_{HOST,PORT,ADDR,RESOURCE,NAMESPACE}` and a private `HOME`, while VAT strips `KUBECONFIG`, `VAT_K8S_CACHE_DIR`, `VAT_K8S_API_SERVER`, `VAT_K8S_EPHEMERAL`, and `VAT_HOME`. This is credential hygiene rather than a same-UID OS sandbox or adversarial-child security boundary. The child joins kubectl's authenticated process group, and VAT holds the private operation lock through group cleanup: normal cleanup reaps the leader and confirms ordinary cooperative, non-daemonizing descendants are gone before `cleanup=confirmed`; children that daemonize or escape the group are outside the contract. JSON emits exactly one `schema="vat.k8s.session.port-forward.v1"`, `format="vat_json"` document only after cleanup is confirmed, with separate 64 KiB serialized-capped stdout/stderr, truncation/lossy flags, child exit, and a `status --verify-api` next step; it never replays raw child streams. VAT-owned lease/setup/API/tunnel/cleanup failures are masked, while opaque credential-free child output is preserved in a successful document. It rechecks the lease silently after API proof and immediately before exact kubectl and host-child spawns, so expiry prevents a tunnel; a partial reader setup reaps the direct child and completes outer-group cleanup before joining readers. The independent-kubectl Service-forward E2E passed 1/1 (36 filtered) in 49.57s, including one loopback Service text and strict one-document JSON tunnel with a credential-free child, confirmed cleanup, and closed local ports. This is not ingress/LB, a public listener, a background tunnel, arbitrary resource forwarding, persistent Kubernetes, or a same-UID OS sandbox. |
-| `vat k8s session image load <id> <local-ref> [--platform linux/arm64]` | Deliver one already-local Apple Container image into the active lease's K3s `k8s.io` namespace without Docker or a registry pull. VAT requires exactly one inspected `linux/arm64` variant, uses a private 2 GiB-bounded OCI archive, verifies the canonical reference after import, then removes archive copies from host and guest. The opt-in real-host local-image E2E passed 1/1 (36 filtered) in 49.73s: one already-local Apple `alpine:3.20` loaded into one lease, a pod ran it with `imagePullPolicy=Never` and emitted its marker log, then exact session cleanup completed. This is not registry-pull generality, persistence, GUI, or Docker Engine/API evidence. Arbitrary tar files and cross-platform delivery fail closed. |
-| `vat k8s session status [--verify-api] <id> \| delete <id> \| cleanup` | No-flag `status` is unchanged: it reports only non-secret lease and exact-machine state. `status --verify-api <id>` only probes an active, unexpired session with no retained port-forward or exec marker. Under the private operation lock it rechecks expiry, proves the exact backing identity/endpoint and private credentials, rechecks expiry immediately before one bounded API probe, then reports `api_checked=true`, `api_state="reachable"` on success. Expired/recovery-marker paths do not probe and report `api_checked=false`, `api_state="not_checked"`; busy, unavailable, and identity-mismatched sessions fail closed without mutating the lease or credentials. A live or starting exec marker similarly blocks exec, delete, and cleanup rather than claiming it safely terminated a prior credentialed group. Focused fake status coverage passed 4/4; the precise status unit passed 1/1. The independent-kubectl leased E2E passed 1/1 (36 filtered) in 29.97s and includes `status --verify-api` after text and strict JSON exec; this is bounded active-lease evidence, not persistence or a general API-status guarantee. This remains a one-boot, nonpersistent Apple Container lease with no GUI or Docker Engine/API. `delete` confirms removal of the exact machine before removing credentials. `cleanup` reclaims expired leases and abandoned creates; there is no background cleanup daemon. |
+| `vat k8s up [--api-port P] [--timeout S] [--json]` | Enable the persistent single-node K3s cluster in the shared machine (booting the machine when stopped), wait for the API and node, write `~/.vat/kube/config` (context `vat`), and install the pinned kubectl at `~/.vat/bin/kubectl`. `--api-port` picks the host API port (default 6443; remembered). K3s runs on the machine's Docker Engine, so images built against `~/.vat/run/docker.sock` are visible to pods without a push. |
+| `vat k8s status\|kubeconfig\|down [--json]` / `vat k8s kubectl -- <args>` | Report cluster state, API forwarding, kubeconfig, and kubectl; refresh and print the kubeconfig path; disable K3s and stop its pods (cluster state stays on the machine disk); or run the pinned kubectl against the cluster. |
 | `vat ls` | List vats (one line each, or `--json` array of full states). |
 | `vat state <id>` | Full agent-legible state as JSON (`--compact` for one line). |
 | `vat diff <id>` | Every filesystem change vs. the vat's base (`--json`). |
@@ -524,7 +485,6 @@ The command an agent calls to understand a vat. One document, no log-scraping:
 | `vat container run [--name N] [-d] [--rm] [-e K=V] [-v HOST:PATH[:ro]] [-w DIR] [--network host\|none] IMAGE [CMD...]` | Run a native container: an APFS `clonefile` copy-on-write root of a fixed 128-byte path, relocated for that root, under a seatbelt profile that confines writes to the root, read-write mounts, and the per-user cache dir. No chroot, so `VAT_ROOT` is set and `PATH` is root-relative. Foreground forwards the exit code (127 if the command is not found); `-d` prints the `ctr-…` id. Host network only. |
 | `vat container ps [-a] [--json]` / `logs [-f]` / `exec [-e] [-w] ID CMD...` / `stop [-t SECS]` / `rm [-f]` / `inspect [--json]` / `diff [--json]` | Detached lifecycle over the container's process group. `stop` sends TERM, then KILL after the timeout (exit 143 or 137 unless the workload exits itself). `inspect` reports image, root, sandbox paths, relocation, changes, GPU, and `uid_isolation`. `vat state ctr-…` and `vat diff ctr-…` accept the same ids. |
 | `vat native users setup [--count N] [--first-id ID] [--print]` / `vat native users ls [--json]` | Create (as root) or list the hidden `_vat` user pool for dedicated per-container UIDs. Workloads use the pool only when vat runs as root; otherwise containers report `uid_isolation: "unavailable"`. |
-| `vat cluster create\|ls\|delete\|kubeconfig` | Manage standalone local Kubernetes clusters (kind/k3d/minikube), independent of a run. |
 
 ### Disk cleanup
 
@@ -604,11 +564,9 @@ external = { host = "postgres", port = 5432 }
 export = { DATABASE_URL = "postgres://postgres@{host}:{port}/app" }
 
 [[services]]
-id = "k8s"                 # ephemeral local Kubernetes cluster
-cluster = "auto"           # auto (kind→k3d→minikube) | kind | k3d | minikube
-# k8s_version = "1.30"
-# nodes = 1
-export = { KUBECONFIG = "{kubeconfig}" }
+id = "k8s"                 # per-run namespace on the machine's K3s (`vat k8s up`)
+cluster = "machine"        # the only backend; k8s_version / nodes are rejected
+export = { TEST_NAMESPACE = "{namespace}" }  # KUBECONFIG is exported anyway
 
 [[services]]
 id = "web"                 # app under test; {port} is auto-allocated
@@ -745,15 +703,19 @@ preferred**:
   `{host}`/`{port}` in `ready_http`, `ready_cmd`, and `export`, injects
   `VAT_SERVICE_<ID>_{HOST,PORT}`, and records `owned_by_vat = false` in
   `vat state`.
-- `cluster` — an ephemeral local Kubernetes cluster, for testing K8s-native
-  targets. `auto` picks the first installed of kind → k3d → minikube (all need
-  Docker on Apple Silicon); `kind`/`k3d`/`minikube` force one. Optional
-  `k8s_version` and `nodes`. vat creates the cluster before the runner with an
-  isolated kubeconfig (it never touches `~/.kube/config`), exports `KUBECONFIG`
-  (the `{kubeconfig}` token) and `VAT_SERVICE_<ID>_KUBECONFIG`, probes readiness
-  with `kubectl get nodes`, and deletes it at teardown per the `keep` policy. A
-  missing backend fails with a structured `cluster_backend_unavailable` error
-  (never a panic). `vat cluster` manages clusters standalone, outside a run.
+- `cluster = "machine"` — a per-run namespace on the machine's persistent
+  K3s, for testing K8s-native targets. Before the runner starts, vat brings the
+  cluster up through the same path as `vat k8s up` (a cold machine boot may take
+  minutes), creates namespace `<run-id>-<service-id>`, and writes a per-run
+  kubeconfig in the run's state dir whose `vat` context selects it (it never
+  touches `~/.kube/config`). It exports `KUBECONFIG`, `VAT_K8S_NAMESPACE`, and
+  `VAT_SERVICE_<ID>_KUBECONFIG`; `export` templates may use `{kubeconfig}` and
+  `{namespace}`. Readiness waits for the namespace's default ServiceAccount. At
+  teardown vat deletes the namespace (`--wait=false`) per the `keep` policy; the
+  cluster itself persists. `k8s_version` and `nodes` are rejected (one pinned
+  K3s release, single node), as are the retired `auto`/`kind`/`k3d`/`minikube`
+  backends. Failures emit structured `cluster_up_failed` or
+  `cluster_namespace_failed` errors (never a panic).
 - `cmd` — an explicit native command. When the command owns an IPv4 endpoint on
   literal `127.0.0.1` (through `port`, `{host}`/`{port}`, or a fixed
   `127.0.0.1` `ready_http`), vat reserves that exact endpoint for the run

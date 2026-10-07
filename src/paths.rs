@@ -51,18 +51,6 @@ pub fn vat_dir(id: &str) -> Result<PathBuf> {
     Ok(vats_dir()?.join(id))
 }
 
-/// Directory holding standalone `vat cluster` registry entries
-/// (`<root>/clusters`). Standalone clusters are not vats, so they live in a
-/// sibling tree, one directory per cluster.
-pub fn clusters_dir() -> Result<PathBuf> {
-    Ok(root()?.join("clusters"))
-}
-
-/// Directory for a single standalone cluster (`<root>/clusters/<name>`).
-pub fn cluster_dir(name: &str) -> Result<PathBuf> {
-    Ok(clusters_dir()?.join(name))
-}
-
 /// Root of the native-runtime store (OCI darwin images, unpacked snapshots,
 /// native containers, fixed-length container roots).
 ///

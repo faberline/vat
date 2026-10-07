@@ -9,7 +9,6 @@ use std::time::Duration;
 use anyhow::Result;
 use serde::Serialize;
 
-use crate::cluster;
 use crate::commands::capabilities::{self, CapabilitiesReport};
 use crate::commands::plan::{self, PlanTarget, RunPlan};
 use crate::config::{self, ServiceConfig, ServicePreset, ServiceRuntime};
@@ -138,13 +137,20 @@ pub fn host_only_exec(json: bool) -> Result<ExitCode> {
             .clone()
             .unwrap_or_else(|| "Docker daemon reachable".to_string()),
     );
+    let (k8s_ok, k8s_message) = match crate::commands::kube::probe() {
+        Ok(probe) => (
+            probe.ready,
+            format!("machine K3s {} (`vat k8s up` starts it)", probe.state()),
+        ),
+        Err(error) => (false, format!("machine K3s status unavailable: {error:#}")),
+    };
     push_check(
         &mut checks,
         "kubernetes",
-        "kubectl",
-        crate::commands::k8s::independent_kubectl_available(),
-        "independent_kubectl",
-        "independent kubectl available (OrbStack compatibility binary is rejected)".to_string(),
+        "machine",
+        k8s_ok,
+        "machine_k8s",
+        k8s_message,
     );
     let report = HostOnlyDoctorReport {
         // This is an observation-only command: an unavailable optional host
@@ -220,8 +226,8 @@ fn checks_for(
 /// Docker is probed only when the selected plan can use it. Looking at
 /// `plan.services` rather than every service in vat.toml keeps an unrelated
 /// Docker service from breaking a deliberate Apple-Container-only invocation.
-/// A cluster is intentionally conservative: `cluster::resolve_backend` itself
-/// executes `docker info`, so selected clusters must take the normal path.
+/// A `cluster = "machine"` service needs no host Docker daemon: K3s runs in
+/// vat's own machine.
 fn selected_plan_docker_probe_skip_reason(
     cfg: &config::VatConfig,
     plan: &RunPlan,
@@ -254,9 +260,6 @@ fn selected_plan_requires_docker_probe(cfg: &config::VatConfig, plan: &RunPlan) 
 }
 
 fn service_requires_docker_probe(service: &ServiceConfig) -> bool {
-    if service.cluster.is_some() {
-        return true;
-    }
     if service.image.is_some() {
         return !matches!(
             service.runtime,
@@ -370,21 +373,21 @@ fn check_service_host(
         );
     }
 
-    if let Some(cluster_backend) = service.cluster {
-        let resolved = cluster::resolve_backend(cluster_backend);
-        let ok = resolved.is_ok();
-        let message = match resolved {
-            Ok(backend) => format!("cluster backend available: {}", backend.name()),
-            Err(unavailable) => unavailable.message(),
+    if service.cluster.is_some() {
+        // Informational: the run brings the cluster up itself (as `vat k8s
+        // up` does), so only an unreadable machine state fails the check.
+        let (ok, message) = match crate::commands::kube::probe() {
+            Ok(probe) if probe.ready => (true, "machine K3s ready".to_string()),
+            Ok(probe) => (
+                true,
+                format!(
+                    "machine K3s {}; the run starts it via `vat k8s up` (a cold boot may take minutes)",
+                    probe.state()
+                ),
+            ),
+            Err(error) => (false, format!("machine K3s status unavailable: {error:#}")),
         };
-        push_check(
-            checks,
-            "cluster",
-            &service.id,
-            ok,
-            "cluster_backend",
-            message,
-        );
+        push_check(checks, "cluster", &service.id, ok, "machine_k8s", message);
     }
 
     if !service.cmd.is_empty() {

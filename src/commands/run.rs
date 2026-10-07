@@ -29,10 +29,9 @@ use signal_hook::{
 };
 use walkdir::WalkDir;
 
-use crate::cluster::{self, ClusterSpec, ResolvedBackend};
 use crate::config::{
-    self, ClusterBackend, PortSpec, RetentionPolicy, RunnerConfig, ScenarioConfig,
-    ScenarioNetworkMode, ServiceConfig, ServicePreset, ServiceRuntime, VatConfig, VolumeMount,
+    self, PortSpec, RetentionPolicy, RunnerConfig, ScenarioConfig, ScenarioNetworkMode,
+    ServiceConfig, ServicePreset, ServiceRuntime, VatConfig, VolumeMount,
 };
 use crate::event::{Event, EventKind};
 use crate::gpu;
@@ -2029,7 +2028,7 @@ struct ServicePlan {
     microvm_name: Option<String>,
     /// The Docker image, when this service runs as a container.
     image: Option<String>,
-    /// Set when the service is a local Kubernetes cluster; carries the cluster
+    /// Set when the service is a machine-cluster namespace; carries the
     /// evidence so teardown can delete it and `vat state` can surface it.
     cluster: Option<ClusterRunRecord>,
     /// False when the service is provided by CI/local infrastructure and vat is
@@ -2098,8 +2097,8 @@ struct ServiceHandle {
     /// `container --name` when the service runs via Apple's `container` CLI
     /// (MicroVM isolation); force-removed on stop, parallel to `docker_name`.
     microvm_name: Option<String>,
-    /// Cluster evidence when the service is a local Kubernetes cluster; the
-    /// cluster is deleted on stop subject to the `keep` policy.
+    /// Cluster evidence when the service is a machine-cluster namespace; the
+    /// namespace is deleted on stop subject to the `keep` policy.
     cluster: Option<ClusterRunRecord>,
 }
 
@@ -2110,10 +2109,11 @@ fn prepare_service(
     force_hermetic_proxy: bool,
 ) -> Result<ServicePlan> {
     let started = Instant::now();
-    let plan = if let Some(backend) = service.cluster {
-        // Cluster: an ephemeral local Kubernetes cluster (kind / k3d / minikube).
-        // Created here in the prepare phase; the runner reaches it via KUBECONFIG.
-        prepare_cluster_service(vat, service, backend)?
+    let plan = if service.cluster.is_some() {
+        // Cluster: a per-run namespace on the machine's persistent K3s. The
+        // cluster is brought up here in the prepare phase; the runner reaches
+        // its namespace via KUBECONFIG.
+        prepare_cluster_service(vat, service)?
     } else if let Some(image) = &service.image {
         // Explicit image: a container-backed service (e.g. AlloyDB) with no
         // native equivalent. `runtime: microvm` routes to Apple's `container`
@@ -2245,84 +2245,80 @@ fn prepare_service(
     Ok(plan)
 }
 
-/// Prepare a `cluster` service: resolve a backend, create an ephemeral local
-/// Kubernetes cluster with an isolated kubeconfig, and model it as a run-scoped
-/// service whose readiness is `kubectl get nodes`. The cluster is created here
-/// (a one-shot, minutes-long operation) and kept alive by a trivial child so it
-/// slots into the existing service start/stop machinery; the runner reaches it
-/// through the exported `KUBECONFIG`.
-fn prepare_cluster_service(
-    vat: &store::Vat,
-    service: &ServiceConfig,
-    backend: ClusterBackend,
-) -> Result<ServicePlan> {
-    let resolved = match cluster::resolve_backend(backend) {
-        Ok(resolved) => resolved,
-        Err(unavailable) => {
-            emit_jsonl(serde_json::json!({
-                "type": "error",
-                "code": "cluster_backend_unavailable",
-                "service": service.id.as_str(),
-                "requested": unavailable.requested_name(),
-                "installed": unavailable.installed,
-                "docker": unavailable.docker,
-            }))?;
-            bail!(
-                "service `{}` cluster: {}",
-                service.id,
-                unavailable.message()
-            );
-        }
-    };
+/// Minimum wait for `vat k8s up` from a `cluster` service: a cold machine boot
+/// plus K3s start takes minutes, far beyond the generic service timeout.
+const CLUSTER_UP_MIN_TIMEOUT_S: u64 = 900;
 
-    let name = cluster::cluster_name(&vat.meta.id, &service.id);
-    let kubeconfig = vat
-        .dir
-        .join("services")
-        .join(&service.id)
-        .join("kubeconfig");
-    let nodes = service.nodes.unwrap_or(1);
+/// Prepare a `cluster = "machine"` service: bring the machine's K3s up through
+/// the same path as `vat k8s up`, create a per-run namespace, and write a
+/// per-run kubeconfig (in the run's state dir) whose `vat` context selects it.
+/// The service itself is a trivial child that keeps the namespace in the
+/// existing start/stop machinery; readiness waits for the namespace's default
+/// ServiceAccount, without which pods cannot be created.
+fn prepare_cluster_service(vat: &store::Vat, service: &ServiceConfig) -> Result<ServicePlan> {
+    use crate::commands::kube;
+    use crate::vm::k8s;
 
     emit_jsonl(serde_json::json!({
         "type": "prepare",
         "service": service.id.as_str(),
         "kind": "cluster",
-        "backend": resolved.name(),
-        "note": "creating local Kubernetes cluster (may take minutes)",
+        "backend": "machine",
+        "note": "ensuring the machine's K3s is up (`vat k8s up`; a cold boot may take minutes)",
     }))?;
+    let up = kube::ensure_up(&kube::UpArgs {
+        timeout_s: service.timeout_s.max(CLUSTER_UP_MIN_TIMEOUT_S),
+        api_port: None,
+        json: true,
+    })
+    .map_err(|err| {
+        let _ = emit_jsonl(serde_json::json!({
+            "type": "error",
+            "code": "cluster_up_failed",
+            "service": service.id.as_str(),
+            "backend": "machine",
+            "reason": format!("{err:#}"),
+        }));
+        err
+    })
+    .with_context(|| format!("bring up the machine cluster for service `{}`", service.id))?;
 
-    let spec = ClusterSpec {
-        name: &name,
-        k8s_version: service.k8s_version.as_deref(),
-        nodes,
-        kubeconfig: &kubeconfig,
-    };
-    let info = match resolved.create(&spec, Duration::from_secs(service.timeout_s)) {
-        Ok(info) => info,
-        Err(err) => {
-            // Best-effort cleanup so a half-created cluster does not leak.
-            let _ = resolved.delete(&name);
-            emit_jsonl(serde_json::json!({
-                "type": "error",
-                "code": "cluster_create_failed",
-                "service": service.id.as_str(),
-                "backend": resolved.name(),
-                "reason": err.to_string(),
-            }))?;
-            return Err(err)
-                .with_context(|| format!("create cluster for service `{}`", service.id));
-        }
-    };
+    let namespace = k8s::run_namespace(&vat.meta.id, &service.id);
+    let kubeconfig = vat
+        .dir
+        .join("services")
+        .join(&service.id)
+        .join("kubeconfig");
+    if let Err(err) = kube::provision_namespace(&up, &namespace, &vat.meta.id, &kubeconfig) {
+        emit_jsonl(serde_json::json!({
+            "type": "error",
+            "code": "cluster_namespace_failed",
+            "service": service.id.as_str(),
+            "namespace": namespace.as_str(),
+            "reason": format!("{err:#}"),
+        }))?;
+        // Best-effort cleanup so a half-created namespace does not leak.
+        let _ = delete_run_namespace(&up.kubectl, &up.kubeconfig, &namespace);
+        return Err(err).with_context(|| {
+            format!(
+                "create namespace `{namespace}` for service `{}`",
+                service.id
+            )
+        });
+    }
 
-    let kubeconfig_str = info.kubeconfig.to_string_lossy().into_owned();
+    let kubeconfig_str = kubeconfig.to_string_lossy().into_owned();
     let mut env = BTreeMap::new();
     for (key, template) in &service.export {
         env.insert(
             key.clone(),
-            template.replace("{kubeconfig}", &kubeconfig_str),
+            template
+                .replace("{kubeconfig}", &kubeconfig_str)
+                .replace("{namespace}", &namespace),
         );
     }
     env.insert("KUBECONFIG".to_string(), kubeconfig_str.clone());
+    env.insert("VAT_K8S_NAMESPACE".to_string(), namespace.clone());
     let upper = service.id.to_uppercase().replace(['-', '.'], "_");
     env.insert(
         format!("VAT_SERVICE_{upper}_KUBECONFIG"),
@@ -2330,10 +2326,13 @@ fn prepare_cluster_service(
     );
 
     let record = ClusterRunRecord {
-        backend: info.backend.to_string(),
-        name: info.name.clone(),
-        kubeconfig: kubeconfig_str,
-        node_count: info.node_count,
+        backend: "machine".to_string(),
+        namespace: namespace.clone(),
+        context: k8s::CONTEXT.to_string(),
+        server: up.server.clone(),
+        kubeconfig: kubeconfig_str.clone(),
+        k3s_version: k8s::k3s_version().to_string(),
+        namespace_deleted: None,
         ready_ms: None,
     };
 
@@ -2346,11 +2345,19 @@ fn prepare_cluster_service(
         ],
         host: None,
         ready_http: None,
-        ready_probe: ReadyProbe::Cmd(resolved.ready_argv(&info.kubeconfig)),
+        ready_probe: ReadyProbe::Cmd(vec![
+            up.kubectl.to_string_lossy().into_owned(),
+            "--kubeconfig".to_string(),
+            kubeconfig_str,
+            "get".to_string(),
+            "serviceaccount".to_string(),
+            "default".to_string(),
+            "--request-timeout=5s".to_string(),
+        ]),
         timeout_s: service.timeout_s,
         preset: None,
         port: None,
-        prepare_mode: "cluster_create".to_string(),
+        prepare_mode: "cluster_namespace".to_string(),
         cache_key: None,
         prepare_duration_ms: 0,
         exported_env: sorted_keys(&env),
@@ -2363,6 +2370,25 @@ fn prepare_cluster_service(
         requires_live_child: false,
         endpoint_reservations: Vec::new(),
     })
+}
+
+/// Delete a run namespace without waiting for its finalizers.
+fn delete_run_namespace(kubectl: &Path, kubeconfig: &Path, namespace: &str) -> Result<()> {
+    let kubeconfig = kubeconfig.to_string_lossy();
+    run_quiet_bounded(
+        &kubectl.to_string_lossy(),
+        &[
+            "--kubeconfig",
+            &kubeconfig,
+            "delete",
+            "namespace",
+            namespace,
+            "--wait=false",
+            "--ignore-not-found",
+            "--request-timeout=10s",
+        ],
+        Duration::from_secs(15),
+    )
 }
 
 /// vat's own spawned services (emulators, the http-mock/record-replay proxy)
@@ -5946,13 +5972,22 @@ fn stop_services(services: &mut [ServiceHandle], delete_clusters: bool) -> Resul
                 }
             }
         }
-        // A cluster is an external object, so removing the vat dir does NOT
-        // remove it. Delete it explicitly when the run policy says to; keep it
-        // for `kubectl` diagnosis otherwise.
+        // The run namespace lives in the persistent machine cluster, so
+        // removing the vat dir does NOT remove it. Delete it when the run
+        // policy says to; keep it for `kubectl` diagnosis otherwise.
         if delete_clusters {
             if let Some(record) = &service.cluster {
-                if let Some(backend) = ResolvedBackend::from_name(&record.backend) {
-                    let _ = backend.delete(&record.name);
+                let deleted = match (
+                    crate::vm::k8s::kubectl_path(),
+                    crate::vm::k8s::kubeconfig_path(),
+                ) {
+                    (Ok(kubectl), Ok(kubeconfig)) => {
+                        delete_run_namespace(&kubectl, &kubeconfig, &record.namespace).is_ok()
+                    }
+                    _ => false,
+                };
+                if let Some(cluster) = service.record.cluster.as_mut() {
+                    cluster.namespace_deleted = Some(deleted);
                 }
             }
         }
@@ -6024,9 +6059,9 @@ fn finalize_configured_children(
     }
 }
 
-/// Whether run-scoped clusters should be deleted at teardown, mirroring the
-/// workspace removal decision: removed → delete the cluster; kept → keep it for
-/// diagnosis. `code < 0` (an error before a clean exit) is treated as failure.
+/// Whether run-scoped cluster namespaces should be deleted at teardown,
+/// mirroring the workspace removal decision: removed → delete the namespace;
+/// kept → keep it for diagnosis. `code < 0` (an error before a clean exit) is treated as failure.
 fn should_delete_clusters(keep: &RetentionPolicy, code: i32) -> bool {
     match keep {
         RetentionPolicy::Always => false,

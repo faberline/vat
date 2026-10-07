@@ -87,17 +87,30 @@ pub struct ConfigRef {
     pub digest: String,
 }
 
-/// Captured state of a local Kubernetes cluster backing a `cluster` service.
+/// Captured state of a `cluster` service: a per-run namespace on the
+/// machine's persistent K3s cluster.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ClusterRunRecord {
-    /// Backend that provisioned the cluster: "kind", "k3d", or "minikube".
+    /// Always "machine" (K3s in vat's shared Linux machine).
     pub backend: String,
-    /// Cluster name as known to the backend.
-    pub name: String,
-    /// Path to the isolated kubeconfig exported to the runner.
+    /// The per-run namespace vat created (and deletes at teardown when the
+    /// `keep` policy removes the run).
+    #[serde(default)]
+    pub namespace: String,
+    /// Kubeconfig context the runner uses (`vat`).
+    #[serde(default)]
+    pub context: String,
+    /// API server address, e.g. `https://127.0.0.1:6443`.
+    #[serde(default)]
+    pub server: String,
+    /// Path to the per-run kubeconfig exported to the runner.
     pub kubeconfig: String,
-    /// Number of nodes requested for the cluster.
-    pub node_count: u32,
+    /// The pinned K3s release serving the run.
+    #[serde(default)]
+    pub k3s_version: String,
+    /// Whether teardown deleted the namespace (`--wait=false`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub namespace_deleted: Option<bool>,
     /// Time from create to first readiness, when measured.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub ready_ms: Option<u64>,
