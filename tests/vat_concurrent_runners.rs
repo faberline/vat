@@ -3,7 +3,6 @@
 //! run side by side, and fold into one result with worst-wins exit.
 
 use std::process::Command;
-use std::time::Instant;
 
 use serde_json::Value;
 
@@ -45,6 +44,16 @@ cmd = ["/bin/sh", "-c", "echo from-a; sleep 1"]
 id = "b"
 cmd = ["/bin/sh", "-c", "echo from-b; sleep 1"]
 
+# Each marks itself up in the shared workspace, then waits (10s max) for the
+# other's mark. Both exit 0 only if they ran side by side.
+[[runners]]
+id = "pa"
+cmd = ["/bin/sh", "-c", "echo from-pa; touch pa.up; i=0; while [ ! -e pb.up ] && [ $i -lt 100 ]; do sleep 0.1; i=$((i+1)); done; [ -e pb.up ]"]
+
+[[runners]]
+id = "pb"
+cmd = ["/bin/sh", "-c", "echo from-pb; touch pb.up; i=0; while [ ! -e pa.up ] && [ $i -lt 100 ]; do sleep 0.1; i=$((i+1)); done; [ -e pa.up ]"]
+
 [[runners]]
 id = "bad"
 cmd = ["/bin/sh", "-c", "exit 7"]
@@ -59,34 +68,28 @@ fn concurrent_runners_overlap_and_report_each() {
     let vat_home = tempfile::tempdir().unwrap();
     write_config(project.path());
 
-    let started = Instant::now();
     let output = Command::new(vat_bin())
-        .args(["run", "a", "b"])
+        .args(["run", "pa", "pb"])
         .current_dir(project.path())
         .env("VAT_HOME", vat_home.path())
         .output()
         .unwrap();
-    let wall = started.elapsed();
-    assert!(output.status.success(), "vat run a b failed: {output:?}");
+    assert!(output.status.success(), "vat run pa pb failed: {output:?}");
 
     let events = jsonl(&output.stdout);
     let result = result_event(&events);
     assert_eq!(result["ok"], true);
     assert_eq!(result["exit_code"], 0);
-    assert_eq!(result["runner"], "a+b");
+    assert_eq!(result["runner"], "pa+pb");
     let runners = result["runners"].as_array().unwrap();
     assert_eq!(runners.len(), 2);
     assert!(runners.iter().all(|r| r["exit_code"] == 0));
 
-    // Two 1s runners side by side: well under the 2s a sequential run needs.
-    // Generous bound (clone + spawn overhead) while still proving overlap.
-    assert!(
-        wall.as_secs_f64() < 1.9,
-        "runners did not overlap: wall = {wall:?}"
-    );
+    // Overlap is proven by the barrier: a sequential run would leave the
+    // first runner waiting for a mark that never appears, and it exits 1.
 
     // Both runner subtrees emitted started+exited events.
-    for id in ["a", "b"] {
+    for id in ["pa", "pb"] {
         assert!(events
             .iter()
             .any(|e| e["type"] == "runner" && e["id"] == id && e["state"] == "started"));
