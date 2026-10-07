@@ -43,13 +43,23 @@ pub fn exec_streaming(paths: &MachinePaths, script: &str, sink: &mut dyn Write) 
         if reader.read_until(b'\n', &mut line)? == 0 {
             bail!("guest command ended without an exit status");
         }
-        if let Some(rest) = line.strip_prefix(b"__VAT_EXIT__ ") {
-            let code = String::from_utf8_lossy(rest).trim().parse().unwrap_or(1);
+        if let Some((output, code)) = split_exit(&line) {
+            sink.write_all(output)?;
+            sink.flush()?;
             return Ok(code);
         }
         sink.write_all(&line)?;
         sink.flush()?;
     }
+}
+
+/// The agent writes `__VAT_EXIT__ <code>\n` straight after the command's
+/// output, so it shares a line with output that lacks a trailing newline.
+pub(crate) fn split_exit(line: &[u8]) -> Option<(&[u8], i32)> {
+    const MARK: &[u8] = b"__VAT_EXIT__ ";
+    let at = line.windows(MARK.len()).rposition(|w| w == MARK)?;
+    let code = std::str::from_utf8(&line[at + MARK.len()..]).ok()?.trim();
+    Some((&line[..at], code.parse().ok()?))
 }
 
 /// Run `script` in the guest and capture its combined output.
@@ -160,7 +170,15 @@ pub fn base64(input: &[u8]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::base64;
+    use super::{base64, split_exit};
+
+    #[test]
+    fn exit_marker_after_unterminated_output() {
+        assert_eq!(split_exit(b"__VAT_EXIT__ 0\n"), Some((&b""[..], 0)));
+        assert_eq!(split_exit(b"{}__VAT_EXIT__ 3\n"), Some((&b"{}"[..], 3)));
+        assert_eq!(split_exit(b"plain output\n"), None);
+        assert_eq!(split_exit(b"__VAT_EXIT__ soon\n"), None);
+    }
 
     #[test]
     fn base64_matches_rfc4648_vectors() {

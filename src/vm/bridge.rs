@@ -104,8 +104,16 @@ pub async fn serve_control(path: PathBuf, dialer: Dialer) -> Result<()> {
     }
 }
 
+/// A service served inside the VMM: gets the guest stream (header consumed,
+/// payload still buffered) and the caller's address.
+pub type Builtin = Arc<dyn Fn(BufReader<UnixStream>, String) + Send + Sync>;
+
 /// Handle one guest->host uplink stream: `VATPEER <peer> <service>\n`, then bytes.
-pub async fn handle_uplink(stream: UnixStream, uplinks: Arc<Vec<Uplink>>) -> Result<()> {
+pub async fn handle_uplink(
+    stream: UnixStream,
+    uplinks: Arc<Vec<Uplink>>,
+    builtins: Arc<HashMap<String, Builtin>>,
+) -> Result<()> {
     let mut reader = BufReader::new(stream);
     let mut header = String::new();
     reader.read_line(&mut header).await?;
@@ -118,6 +126,13 @@ pub async fn handle_uplink(stream: UnixStream, uplinks: Arc<Vec<Uplink>>) -> Res
     let Some(up) = uplinks.iter().find(|u| u.service == service) else {
         bail!("unknown uplink service {service:?}");
     };
+    if let Some(name) = up.target.strip_prefix("builtin:") {
+        let Some(serve) = builtins.get(name) else {
+            bail!("uplink {service}: built-in {name:?} is not running");
+        };
+        serve(reader, peer);
+        return Ok(());
+    }
     let buffered = reader.buffer().to_vec();
     let guest = reader.into_inner();
     let mut prefix = Vec::new();
@@ -144,6 +159,29 @@ pub async fn handle_uplink(stream: UnixStream, uplinks: Arc<Vec<Uplink>>) -> Res
         bail!("uplink {service}: unsupported target {}", up.target);
     }
     Ok(())
+}
+
+/// Run `sh -c <script>` in the guest; returns the exit code and output.
+pub async fn exec(dialer: &Dialer, script: &str) -> Result<(i32, String)> {
+    let s = dial(
+        dialer,
+        &format!("exec {}", super::client::base64(script.as_bytes())),
+    )
+    .await?;
+    let mut reader = BufReader::new(s);
+    let mut out = String::new();
+    let mut line = String::new();
+    loop {
+        line.clear();
+        if reader.read_line(&mut line).await? == 0 {
+            bail!("guest command ended without an exit status");
+        }
+        if let Some((rest, code)) = super::client::split_exit(line.as_bytes()) {
+            out.push_str(&String::from_utf8_lossy(rest));
+            return Ok((code, out));
+        }
+        out.push_str(&line);
+    }
 }
 
 /// Ask the guest to power off cleanly.

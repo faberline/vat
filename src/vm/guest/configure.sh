@@ -32,10 +32,26 @@ for svc in vat-net vat-agent k3s; do
   cp "$G/$svc.initd" "$R/etc/init.d/$svc"
   chmod 755 "$R/etc/init.d/$svc"
 done
+# The system bundle is rebuilt at boot (vat-net) when the CA changed: the
+# initramfs chroot cannot run update-ca-certificates reliably.
+C="$R/usr/local/share/ca-certificates/vat-ca.crt"
 if [ -f "$G/ca.pem" ]; then
   mkdir -p "$R/usr/local/share/ca-certificates"
-  cp "$G/ca.pem" "$R/usr/local/share/ca-certificates/vat-ca.crt"
-  chroot "$R" update-ca-certificates >/dev/null 2>&1 || true
+  if ! cmp -s "$G/ca.pem" "$C"; then
+    cp "$G/ca.pem" "$C"
+    : > "$R/etc/ssl/.vat-ca-stale"
+  fi
+  # dockerd trusts the local Artifact Registry through its per-registry CA dir.
+  if [ -f "$G/registry.hosts" ]; then
+    while read -r h; do
+      [ -n "$h" ] || continue
+      mkdir -p "$R/etc/docker/certs.d/$h"
+      cp "$G/ca.pem" "$R/etc/docker/certs.d/$h/ca.crt"
+    done < "$G/registry.hosts"
+  fi
+elif [ -f "$C" ]; then
+  rm -f "$C"
+  : > "$R/etc/ssl/.vat-ca-stale"
 fi
 link() { mkdir -p "$R/etc/runlevels/$1"; ln -sf "/etc/init.d/$2" "$R/etc/runlevels/$1/$2"; }
 link sysinit devfs
@@ -60,6 +76,14 @@ if [ -f "$G/k3s.enabled" ]; then
     mv "$R/usr/local/bin/k3s.part" "$R/usr/local/bin/k3s"
   fi
   link default k3s
+  # K3s applies (and on removal deletes) everything in its manifests dir.
+  M="$R/var/lib/rancher/k3s/server/manifests"
+  mkdir -p "$M"
+  if [ -f "$G/k3s-vat-gcp.yaml" ]; then
+    cp "$G/k3s-vat-gcp.yaml" "$M/vat-gcp.yaml"
+  else
+    rm -f "$M/vat-gcp.yaml"
+  fi
 else
   rm -f "$R/etc/runlevels/default/k3s"
 fi

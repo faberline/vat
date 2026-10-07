@@ -364,4 +364,28 @@ pub async fn serve(host_port: &str) -> Result<()> {
         .context("serve pubsub emulator")?;
     Ok(())
 }
+
+/// Serve the Pub/Sub emulator over connections accepted elsewhere (the
+/// machine's VMM feeds guest uplinks and host clients into one stream).
+pub async fn serve_incoming<S, IO, E>(incoming: S) -> Result<()>
+where
+    S: tokio_stream::Stream<Item = Result<IO, E>> + Send + 'static,
+    IO: tokio::io::AsyncRead
+        + tokio::io::AsyncWrite
+        + tonic::transport::server::Connected
+        + Send
+        + Unpin
+        + 'static,
+    IO::ConnectInfo: Clone + Send + Sync + 'static,
+    E: Into<Box<dyn std::error::Error + Send + Sync>>,
+{
+    let emulator = PubsubEmulator::default();
+    Server::builder()
+        .add_service(PublisherServer::new(emulator.clone()))
+        .add_service(SubscriberServer::new(emulator))
+        .serve_with_incoming(incoming)
+        .await
+        .context("serve pubsub emulator")?;
+    Ok(())
+}
 // CODEGEN-END

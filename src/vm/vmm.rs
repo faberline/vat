@@ -345,6 +345,61 @@ async fn sync_k8s_api(
     }
 }
 
+/// Start the services the VMM itself serves to the guest (local GCP), and
+/// record their endpoints in `gcp.json`.
+#[cfg(feature = "gcp")]
+async fn start_builtins(
+    paths: &MachinePaths,
+    cfg: &MachineConfig,
+    dialer: &Dialer,
+) -> std::collections::HashMap<String, bridge::Builtin> {
+    use crate::gcp::{conn, services};
+    let state = paths.dir.join("gcp.json");
+    let mut builtins = std::collections::HashMap::new();
+    if !cfg.gcp.enabled {
+        let _ = std::fs::remove_file(&state);
+        return builtins;
+    }
+    let exec_dialer = dialer.clone();
+    let exec: services::GuestExec = Arc::new(move |script: String| {
+        let dialer = exec_dialer.clone();
+        Box::pin(async move { bridge::exec(&dialer, &script).await })
+    });
+    match services::start(&paths.dir, &cfg.gcp, exec).await {
+        Ok(running) => {
+            for (name, inbox) in running.inboxes {
+                let serve: bridge::Builtin = Arc::new(move |stream, peer: String| {
+                    let inbox = inbox.clone();
+                    tokio::spawn(async move {
+                        let _ = inbox
+                            .send(conn::Conn::new(stream, conn::parse_peer(&peer)))
+                            .await;
+                    });
+                });
+                builtins.insert(name, serve);
+            }
+            let mut report = running.report;
+            report["running"] = serde_json::json!(true);
+            let _ = super::write_atomic(&state, report.to_string().as_bytes());
+        }
+        Err(err) => {
+            eprintln!("vmm: local GCP services: {err:#}");
+            let report = serde_json::json!({ "running": false, "error": format!("{err:#}") });
+            let _ = super::write_atomic(&state, report.to_string().as_bytes());
+        }
+    }
+    builtins
+}
+
+#[cfg(not(feature = "gcp"))]
+async fn start_builtins(
+    _paths: &MachinePaths,
+    _cfg: &MachineConfig,
+    _dialer: &Dialer,
+) -> std::collections::HashMap<String, bridge::Builtin> {
+    std::collections::HashMap::new()
+}
+
 /// Entry point of the hidden `vat machine __vmm` verb.
 pub fn run(name: &str, assets: BootAssets) -> Result<()> {
     let t0 = Instant::now();
@@ -435,14 +490,16 @@ pub fn run(name: &str, assets: BootAssets) -> Result<()> {
             cfg.publish_addr.clone(),
             paths.dir.join("ports.json"),
         ));
-        let uplinks = Arc::new(cfg.uplinks.clone());
+        let builtins = Arc::new(start_builtins(&paths, &cfg, &dialer).await);
+        let uplinks = Arc::new(cfg.effective_uplinks());
         tokio::spawn(async move {
             while let Some(fd) = uplink_rx.recv().await {
                 let uplinks = uplinks.clone();
+                let builtins = builtins.clone();
                 tokio::spawn(async move {
                     match fd_to_stream(fd) {
                         Ok(s) => {
-                            if let Err(err) = bridge::handle_uplink(s, uplinks).await {
+                            if let Err(err) = bridge::handle_uplink(s, uplinks, builtins).await {
                                 eprintln!("uplink: {err:#}");
                             }
                         }

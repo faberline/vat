@@ -168,6 +168,9 @@ pub struct MachineConfig {
     /// Bind address for published container ports on the host.
     #[serde(default = "default_publish_addr")]
     pub publish_addr: String,
+    /// Local GCP services (metadata server, Artifact Registry, emulators).
+    #[serde(default)]
+    pub gcp: crate::gcp::GcpConfig,
 }
 
 fn default_k8s_api_port() -> u16 {
@@ -194,6 +197,7 @@ impl Default for MachineConfig {
             uplinks: Vec::new(),
             extra_hosts: Vec::new(),
             publish_addr: default_publish_addr(),
+            gcp: Default::default(),
         }
     }
 }
@@ -230,6 +234,24 @@ impl MachineConfig {
             Err(err) if err.kind() == std::io::ErrorKind::NotFound => Ok(None),
             Err(err) => Err(err).with_context(|| format!("read {}", path.display())),
         }
+    }
+
+    /// Configured uplinks plus the built-in GCP ones.
+    pub fn effective_uplinks(&self) -> Vec<Uplink> {
+        let mut all = self.uplinks.clone();
+        if cfg!(feature = "gcp") {
+            all.extend(self.gcp.uplinks());
+        }
+        all
+    }
+
+    /// Extra guest `/etc/hosts` lines, including the GCP names.
+    pub fn effective_hosts(&self) -> Vec<String> {
+        let mut all = self.extra_hosts.clone();
+        if cfg!(feature = "gcp") {
+            all.extend(self.gcp.hosts());
+        }
+        all
     }
 
     pub fn save(&self, path: &Path) -> Result<()> {

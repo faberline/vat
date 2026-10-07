@@ -38,6 +38,7 @@ pub mod config;
 #[cfg(feature = "emulator")]
 pub mod emulator;
 pub mod event;
+pub mod gcp;
 pub mod gpu;
 pub mod id;
 pub mod lumen_release;

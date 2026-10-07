@@ -57,6 +57,30 @@ const GUEST_FILES: &[(&str, &str, bool)] = &[
     ("daemon.json", include_str!("guest/daemon.json"), false),
     ("versions.env", super::k8s::VERSIONS_ENV, false),
 ];
+/// Guest side of the local GCP services: the CA (trusted by dockerd for the
+/// Artifact Registry host) and the K3s manifest for CoreDNS and the webhook.
+fn write_gcp_files(paths: &MachinePaths, cfg: &MachineConfig) -> Result<()> {
+    let ca = paths.guest.join("ca.pem");
+    let registries = paths.guest.join("registry.hosts");
+    let manifest = paths.guest.join("k3s-vat-gcp.yaml");
+    #[cfg(feature = "gcp")]
+    if cfg.gcp.enabled {
+        let authority = crate::gcp::ca::Ca::ensure(&crate::gcp::services::ca_dir(&paths.dir))?;
+        write_atomic(&ca, authority.pem().as_bytes())?;
+        write_atomic(
+            &registries,
+            format!("{}\n", cfg.gcp.registry_host()).as_bytes(),
+        )?;
+        write_atomic(&manifest, cfg.gcp.k3s_manifest(authority.pem()).as_bytes())?;
+        return Ok(());
+    }
+    let _ = cfg;
+    for stale in [ca, registries, manifest] {
+        let _ = std::fs::remove_file(stale);
+    }
+    Ok(())
+}
+
 /// The static in-VM agent (vsock dialer, uplinks, status heartbeat), built
 /// from `guest-agent/` by `scripts/build-guest-agent.sh`.
 const GUEST_AGENT: &[u8] = include_bytes!("../../guest-agent/dist/vat-guest-aarch64");
@@ -220,12 +244,17 @@ pub fn write_guest_files(paths: &MachinePaths, cfg: &MachineConfig) -> Result<()
     }
     write_atomic(&paths.guest.join("host-mounts"), mounts.as_bytes())?;
     let mut uplinks = String::new();
-    for u in &cfg.uplinks {
+    for u in &cfg.effective_uplinks() {
         uplinks.push_str(&format!("{} {} {}\n", u.bind, u.port, u.service));
     }
     write_atomic(&paths.guest.join("uplinks"), uplinks.as_bytes())?;
-    let hosts: String = cfg.extra_hosts.iter().map(|l| format!("{l}\n")).collect();
+    let hosts: String = cfg
+        .effective_hosts()
+        .iter()
+        .map(|l| format!("{l}\n"))
+        .collect();
     write_atomic(&paths.guest.join("hosts.extra"), hosts.as_bytes())?;
+    write_gcp_files(paths, cfg)?;
     let k3s_flag = paths.guest.join("k3s.enabled");
     if cfg.k8s {
         super::k8s::stage_k3s(paths)?;

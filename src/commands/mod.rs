@@ -14,6 +14,7 @@ pub mod diff;
 pub mod doctor;
 pub mod emulator;
 pub mod gc;
+pub mod gcp;
 pub mod gpu;
 pub mod k8s;
 pub mod kube;

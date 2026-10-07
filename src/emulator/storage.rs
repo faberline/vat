@@ -48,10 +48,22 @@ struct AppState {
 
 /// Serve the Cloud Storage emulator until the process is killed.
 pub async fn serve(host_port: &str) -> Result<()> {
+    let app = router();
+    let listener = tokio::net::TcpListener::bind(host_port)
+        .await
+        .with_context(|| format!("bind cloud-storage emulator on {host_port}"))?;
+    axum::serve(listener, app)
+        .await
+        .context("serve cloud-storage emulator")?;
+    Ok(())
+}
+
+/// The emulator's routes over fresh in-memory state.
+pub fn router() -> Router {
     let state = AppState {
         inner: Arc::new(Mutex::new(Store::default())),
     };
-    let app = Router::new()
+    Router::new()
         .route("/storage/v1/b", post(create_bucket).get(list_buckets))
         .route(
             "/storage/v1/b/{bucket}",
@@ -71,16 +83,33 @@ pub async fn serve(host_port: &str) -> Result<()> {
             post(upload_object).put(resumable_put),
         )
         .layer(DefaultBodyLimit::max(MAX_OBJECT_UPLOAD_BYTES))
-        .with_state(state);
-
-    let listener = tokio::net::TcpListener::bind(host_port)
-        .await
-        .with_context(|| format!("bind cloud-storage emulator on {host_port}"))?;
-    axum::serve(listener, app)
-        .await
-        .context("serve cloud-storage emulator")?;
-    Ok(())
+        .layer(axum::middleware::from_fn(with_base_url))
+        .with_state(state)
 }
+
+tokio::task_local! {
+    /// `http://<Host>` of the request being served, for absolute links.
+    static BASE_URL: String;
+}
+
+/// Clients follow `mediaLink` / `selfLink` as-is (the Python SDK downloads
+/// through `mediaLink` after an upload), so they must be absolute, as on GCS.
+async fn with_base_url(req: axum::extract::Request, next: axum::middleware::Next) -> Response {
+    let base = req
+        .headers()
+        .get(header::HOST)
+        .and_then(|h| h.to_str().ok())
+        .map(|h| format!("http://{h}"))
+        .unwrap_or_default();
+    BASE_URL.scope(base, next.run(req)).await
+}
+
+/// Object names are a single path segment in API URLs.
+const NAME: &percent_encoding::AsciiSet = &percent_encoding::NON_ALPHANUMERIC
+    .remove(b'-')
+    .remove(b'.')
+    .remove(b'_')
+    .remove(b'~');
 
 fn decode(name: &str) -> String {
     percent_encoding::percent_decode_str(name)
@@ -98,6 +127,8 @@ fn now() -> String {
 }
 
 fn object_resource(bucket: &str, name: &str, obj: &Object) -> Value {
+    let base = BASE_URL.try_with(Clone::clone).unwrap_or_default();
+    let enc = percent_encoding::utf8_percent_encode(name, NAME);
     json!({
         "kind": "storage#object",
         "bucket": bucket,
@@ -108,8 +139,11 @@ fn object_resource(bucket: &str, name: &str, obj: &Object) -> Value {
         "md5Hash": obj.md5,
         "updated": obj.updated,
         "timeCreated": obj.updated,
-        "selfLink": format!("/storage/v1/b/{bucket}/o/{name}"),
-        "mediaLink": format!("/download/storage/v1/b/{bucket}/o/{name}?alt=media"),
+        "selfLink": format!("{base}/storage/v1/b/{bucket}/o/{enc}"),
+        "mediaLink": format!(
+            "{base}/download/storage/v1/b/{bucket}/o/{enc}?generation={}&alt=media",
+            obj.generation
+        ),
     })
 }
 
@@ -210,6 +244,13 @@ async fn get_object(
         let mut headers = HeaderMap::new();
         if let Ok(ct) = obj.content_type.parse() {
             headers.insert(header::CONTENT_TYPE, ct);
+        }
+        // SDKs verify downloads against this, as on GCS.
+        if let Ok(hash) = format!("md5={}", obj.md5).parse() {
+            headers.insert("x-goog-hash", hash);
+        }
+        if let Ok(generation) = obj.generation.to_string().parse() {
+            headers.insert("x-goog-generation", generation);
         }
         (headers, obj.data.clone()).into_response()
     } else {

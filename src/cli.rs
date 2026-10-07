@@ -222,6 +222,12 @@ enum Cmd {
         #[command(subcommand)]
         cmd: MachineCmd,
     },
+    /// Local GCP in the machine: metadata server with Workload Identity, a
+    /// local Artifact Registry, and shared Pub/Sub / Storage emulators.
+    Gcp {
+        #[command(subcommand)]
+        cmd: GcpCmd,
+    },
     /// Build a local OCI image from a Dockerfile using the container CLI.
     Build {
         /// Path to Dockerfile (defaults to Dockerfile in context dir).
@@ -337,6 +343,41 @@ pub enum EmulatorKind {
     CloudStorage,
     HttpMock,
     Openapi,
+}
+
+/// `vat gcp` verbs.
+#[derive(Subcommand)]
+enum GcpCmd {
+    /// Show the project, endpoints, and whether the services are running.
+    Status {
+        #[arg(long)]
+        json: bool,
+    },
+    /// Print env for host processes that share the machine's emulators.
+    Env {
+        #[arg(long)]
+        json: bool,
+    },
+    /// Change the local project, zone, or host ports (applies on the next
+    /// machine start).
+    Config {
+        #[arg(long)]
+        project: Option<String>,
+        #[arg(long)]
+        zone: Option<String>,
+        /// Host port for the shared Pub/Sub emulator (0 = guest only).
+        #[arg(long)]
+        host_pubsub_port: Option<u16>,
+        /// Host port for the shared Storage emulator (0 = guest only).
+        #[arg(long)]
+        host_storage_port: Option<u16>,
+        #[arg(long, conflicts_with = "disable")]
+        enable: bool,
+        #[arg(long)]
+        disable: bool,
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// `vat machine` verbs. One shared Linux VM (Virtualization.framework) runs
@@ -878,6 +919,32 @@ pub fn run() -> Result<ExitCode> {
                 kernel,
                 initramfs,
             } => commands::machine::vmm(&name, kernel, initramfs),
+        },
+        Cmd::Gcp { cmd } => match cmd {
+            GcpCmd::Status { json } => commands::gcp::status(json),
+            GcpCmd::Env { json } => commands::gcp::env(json),
+            GcpCmd::Config {
+                project,
+                zone,
+                host_pubsub_port,
+                host_storage_port,
+                enable,
+                disable,
+                json,
+            } => commands::gcp::config(commands::gcp::ConfigArgs {
+                project,
+                zone,
+                host_pubsub_port,
+                host_storage_port,
+                enabled: if enable {
+                    Some(true)
+                } else if disable {
+                    Some(false)
+                } else {
+                    None
+                },
+                json,
+            }),
         },
         Cmd::Build {
             file,
