@@ -55,7 +55,7 @@ const GUEST_FILES: &[(&str, &str, bool)] = &[
     ),
     ("k3s.initd", include_str!("guest/k3s.initd"), true),
     ("daemon.json", include_str!("guest/daemon.json"), false),
-    ("versions.env", include_str!("guest/versions.env"), false),
+    ("versions.env", super::k8s::VERSIONS_ENV, false),
 ];
 /// The static in-VM agent (vsock dialer, uplinks, status heartbeat), built
 /// from `guest-agent/` by `scripts/build-guest-agent.sh`.
@@ -228,6 +228,7 @@ pub fn write_guest_files(paths: &MachinePaths, cfg: &MachineConfig) -> Result<()
     write_atomic(&paths.guest.join("hosts.extra"), hosts.as_bytes())?;
     let k3s_flag = paths.guest.join("k3s.enabled");
     if cfg.k8s {
+        super::k8s::stage_k3s(paths)?;
         write_atomic(&k3s_flag, b"1")?;
     } else if k3s_flag.exists() {
         std::fs::remove_file(&k3s_flag)?;
@@ -315,15 +316,21 @@ fn write_exec(path: &Path, body: &[u8]) -> Result<()> {
     Ok(())
 }
 
-fn download(url: &str, dest: &Path, sha256: &str) -> Result<()> {
-    let tmp = dest.with_extension("part");
+pub(crate) fn download(url: &str, dest: &Path, sha256: &str) -> Result<()> {
+    // Append rather than replace the extension: versions carry dots.
+    let mut tmp = dest.as_os_str().to_owned();
+    tmp.push(".part");
+    let tmp = std::path::PathBuf::from(tmp);
+    // `-C -` resumes an interrupted download of the same pinned file.
     let status = Command::new("curl")
-        .args(["-fsSL", "-o"])
+        .args(["-fsSL", "--retry", "3", "-C", "-", "-o"])
         .arg(&tmp)
         .arg(url)
         .status()
         .context("run curl")?;
-    if !status.success() {
+    // A complete leftover `.part` makes the resume fail with 416; accept it if
+    // it verifies, otherwise keep it for the next resume.
+    if !status.success() && !sha256_file(&tmp).is_ok_and(|h| h == sha256) {
         bail!("download failed: {url}");
     }
     let got = sha256_file(&tmp)?;

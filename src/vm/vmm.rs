@@ -301,6 +301,46 @@ fn build_config(
     }
 }
 
+/// Start or stop the host listener for the K3s API to match `cfg`, recording
+/// the outcome in `k8s-api.json` for `vat k8s status`.
+async fn sync_k8s_api(
+    paths: &MachinePaths,
+    cfg: &MachineConfig,
+    dialer: &Dialer,
+    task: &mut Option<tokio::task::JoinHandle<()>>,
+) {
+    let record = |v: serde_json::Value| {
+        let _ = super::write_atomic(&paths.dir.join("k8s-api.json"), v.to_string().as_bytes());
+    };
+    if !cfg.k8s {
+        if let Some(t) = task.take() {
+            t.abort();
+        }
+        let _ = std::fs::remove_file(paths.dir.join("k8s-api.json"));
+        return;
+    }
+    if task.is_some() {
+        return;
+    }
+    let addr = format!("127.0.0.1:{}", cfg.k8s_api_port);
+    match tokio::net::TcpListener::bind(&addr).await {
+        Ok(listener) => {
+            *task = Some(tokio::spawn(bridge::forward_port(
+                listener,
+                super::k8s::GUEST_API_PORT,
+                dialer.clone(),
+            )));
+            record(serde_json::json!({ "addr": addr, "listening": true }));
+        }
+        Err(err) => {
+            eprintln!("vmm: cannot forward the K3s API on {addr}: {err}");
+            record(
+                serde_json::json!({ "addr": addr, "listening": false, "error": err.to_string() }),
+            );
+        }
+    }
+}
+
 /// Entry point of the hidden `vat machine __vmm` verb.
 pub fn run(name: &str, assets: BootAssets) -> Result<()> {
     let t0 = Instant::now();
@@ -408,9 +448,15 @@ pub fn run(name: &str, assets: BootAssets) -> Result<()> {
             }
         });
 
+        // The K3s API forwarder follows the config; SIGHUP re-reads it so
+        // `vat k8s up|down` can toggle K8s without restarting the VM.
+        let mut k8s_api: Option<tokio::task::JoinHandle<()>> = None;
+        sync_k8s_api(&paths, &cfg, &dialer, &mut k8s_api).await;
+
         use tokio::signal::unix::{signal, SignalKind};
         let mut term = signal(SignalKind::terminate())?;
         let mut int = signal(SignalKind::interrupt())?;
+        let mut hup = signal(SignalKind::hangup())?;
         let mut tick = tokio::time::interval(Duration::from_millis(500));
         let stopped = |s: VZVirtualMachineState| {
             s == VZVirtualMachineState::Stopped || s == VZVirtualMachineState::Error
@@ -419,6 +465,13 @@ pub fn run(name: &str, assets: BootAssets) -> Result<()> {
             tokio::select! {
                 _ = term.recv() => break,
                 _ = int.recv() => break,
+                _ = hup.recv() => {
+                    match MachineConfig::load(&paths.config) {
+                        Ok(Some(fresh)) => sync_k8s_api(&paths, &fresh, &dialer, &mut k8s_api).await,
+                        Ok(None) => {}
+                        Err(err) => eprintln!("vmm: reload config: {err:#}"),
+                    }
+                }
                 _ = tick.tick() => {
                     let m = machine.clone();
                     let s = tokio::task::spawn_blocking(move || m.state()).await?;
@@ -436,6 +489,9 @@ pub fn run(name: &str, assets: BootAssets) -> Result<()> {
         // among them) so dockerd exits without waiting on them.
         publisher.abort();
         docker.abort();
+        if let Some(task) = k8s_api.take() {
+            task.abort();
+        }
         let _ = shutdown_tx.send(true);
         let _ = tokio::time::timeout(Duration::from_secs(3), bridge::poweroff(&dialer)).await;
         let deadline = Instant::now() + Duration::from_secs(20);

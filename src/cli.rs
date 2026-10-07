@@ -541,6 +541,39 @@ enum DockerShimCmd {
 /// semantics are not yet sufficient for durable cluster ownership.
 #[derive(Subcommand)]
 enum K8sCmd {
+    /// Enable the persistent K3s cluster in the machine, wait for its API,
+    /// write ~/.vat/kube/config, and install the pinned kubectl.
+    Up {
+        /// Seconds to wait for the machine and the API server.
+        #[arg(long, default_value_t = 900)]
+        timeout: u64,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Report cluster state, API forwarding, kubeconfig, and kubectl.
+    Status {
+        #[arg(long)]
+        json: bool,
+    },
+    /// Refresh and print the host kubeconfig path (context `vat`).
+    Kubeconfig {
+        #[arg(long)]
+        json: bool,
+    },
+    /// Run the pinned kubectl against the cluster.
+    Kubectl {
+        #[arg(
+            trailing_var_arg = true,
+            allow_hyphen_values = true,
+            value_name = "ARGS"
+        )]
+        args: Vec<String>,
+    },
+    /// Disable K3s and stop its pods; cluster state stays on the data disk.
+    Down {
+        #[arg(long)]
+        json: bool,
+    },
     /// Start a single disposable K3s machine for one foreground command.
     Ephemeral {
         #[command(subcommand)]
@@ -903,6 +936,14 @@ pub fn run() -> Result<ExitCode> {
             DockerShimCmd::Status { dir } => commands::docker_shim::shim_status(dir),
         },
         Cmd::K8s { cmd } => match cmd {
+            K8sCmd::Up { timeout, json } => commands::kube::up(commands::kube::UpArgs {
+                timeout_s: timeout,
+                json,
+            }),
+            K8sCmd::Status { json } => commands::kube::status(json),
+            K8sCmd::Kubeconfig { json } => commands::kube::kubeconfig(json),
+            K8sCmd::Kubectl { args } => commands::kube::kubectl(args),
+            K8sCmd::Down { json } => commands::kube::down(json),
             K8sCmd::Ephemeral { cmd } => match cmd {
                 EphemeralK8sCmd::Image { cmd } => match cmd {
                     EphemeralImageCmd::Build => commands::k8s::build_default_image(),

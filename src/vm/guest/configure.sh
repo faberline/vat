@@ -49,16 +49,13 @@ link default chronyd
 link default docker
 link default vat-agent
 if [ -f "$G/k3s.enabled" ]; then
-  # K3s is pinned and fetched from the upstream release (it bundles
-  # cri-dockerd for `--docker`); only machines with K8s enabled pay for it.
+  # The host stages the pinned K3s binary (it bundles cri-dockerd for
+  # `--docker`); only machines with K8s enabled pay for it.
   . "$G/versions.env"
   have=$("$R/usr/local/bin/k3s" --version 2>/dev/null | head -n1 | cut -d' ' -f3 || true)
   if [ "$have" != "$K3S_VERSION" ]; then
-    echo "configure: fetching k3s $K3S_VERSION"
-    mkdir -p "$R/usr/local/bin"
-    tag=$(echo "$K3S_VERSION" | sed 's/+/%2B/')
-    wget -q -O "$R/usr/local/bin/k3s.part" "https://github.com/k3s-io/k3s/releases/download/$tag/k3s-arm64"
-    echo "$K3S_SHA256  $R/usr/local/bin/k3s.part" | sha256sum -c -s
+    echo "configure: installing k3s $K3S_VERSION"
+    cp "$G/k3s" "$R/usr/local/bin/k3s.part"
     chmod 755 "$R/usr/local/bin/k3s.part"
     mv "$R/usr/local/bin/k3s.part" "$R/usr/local/bin/k3s"
   fi

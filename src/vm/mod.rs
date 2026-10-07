@@ -29,6 +29,7 @@ pub mod assets;
 mod bridge;
 pub mod client;
 pub mod engine;
+pub mod k8s;
 #[cfg(all(target_os = "macos", feature = "machine"))]
 pub mod vmm;
 
@@ -154,6 +155,9 @@ pub struct MachineConfig {
     pub mac: Option<String>,
     #[serde(default)]
     pub k8s: bool,
+    /// Host loopback port forwarded to the K3s API server.
+    #[serde(default = "default_k8s_api_port")]
+    pub k8s_api_port: u16,
     #[serde(default)]
     pub host_mounts: Vec<HostMount>,
     #[serde(default)]
@@ -164,6 +168,10 @@ pub struct MachineConfig {
     /// Bind address for published container ports on the host.
     #[serde(default = "default_publish_addr")]
     pub publish_addr: String,
+}
+
+fn default_k8s_api_port() -> u16 {
+    6443
 }
 
 fn default_publish_addr() -> String {
@@ -181,6 +189,7 @@ impl Default for MachineConfig {
             disk_gib: 64,
             mac: None,
             k8s: false,
+            k8s_api_port: default_k8s_api_port(),
             host_mounts: default_host_mounts(),
             uplinks: Vec::new(),
             extra_hosts: Vec::new(),

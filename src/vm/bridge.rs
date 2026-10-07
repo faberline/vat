@@ -278,7 +278,8 @@ async fn wait_for_container_event(dialer: &Dialer) {
     tokio::time::sleep(Duration::from_millis(150)).await;
 }
 
-async fn forward_port(listener: TcpListener, port: u16, dialer: Dialer) {
+/// Relay every connection on `listener` to `127.0.0.1:<port>` in the guest.
+pub async fn forward_port(listener: TcpListener, port: u16, dialer: Dialer) {
     loop {
         let Ok((client, _)) = listener.accept().await else {
             continue;

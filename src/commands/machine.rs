@@ -35,7 +35,7 @@ const ENTITLEMENTS: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
 <plist version="1.0"><dict><key>com.apple.security.virtualization</key><true/></dict></plist>
 "#;
 
-fn read_json(path: &Path) -> Option<Value> {
+pub(crate) fn read_json(path: &Path) -> Option<Value> {
     std::fs::read(path)
         .ok()
         .and_then(|b| serde_json::from_slice(&b).ok())
@@ -48,7 +48,25 @@ fn vmm_state(paths: &MachinePaths) -> Option<VmmState> {
 }
 
 /// PID of the live VMM, if any.
-fn running_pid(paths: &MachinePaths) -> Option<u32> {
+/// Exclusive lock held for the whole of [`boot`]; released when dropped.
+fn lock_boot(paths: &MachinePaths) -> Result<std::fs::File> {
+    use std::os::fd::AsRawFd;
+    let file = std::fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .write(true)
+        .open(paths.dir.join("boot.lock"))
+        .context("open the machine boot lock")?;
+    if unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX) } != 0 {
+        bail!(
+            "lock the machine for boot: {}",
+            std::io::Error::last_os_error()
+        );
+    }
+    Ok(file)
+}
+
+pub(crate) fn running_pid(paths: &MachinePaths) -> Option<u32> {
     let st = vmm_state(paths)?;
     (st.state != "stopped" && vm::pid_alive(st.pid)).then_some(st.pid)
 }
@@ -92,6 +110,20 @@ fn tail(path: &Path, lines: usize) -> String {
 }
 
 pub fn start(args: StartArgs) -> Result<ExitCode> {
+    let b = boot(&args)?;
+    report_start(&args, &b.paths, &b.cfg, b.pid, b.timings)
+}
+
+/// A machine whose VMM is up (and, unless `no_wait`, whose dockerd answers).
+pub(crate) struct Booted {
+    pub paths: MachinePaths,
+    pub cfg: MachineConfig,
+    pub pid: u32,
+    pub timings: Value,
+}
+
+/// Create or boot the machine and wait for dockerd, without printing.
+pub(crate) fn boot(args: &StartArgs) -> Result<Booted> {
     if !cfg!(target_os = "macos") {
         bail!("vat machine requires macOS on Apple Silicon (Virtualization.framework)");
     }
@@ -124,6 +156,10 @@ pub fn start(args: StartArgs) -> Result<ExitCode> {
         cfg.k8s = v;
     }
 
+    // Serialize starters: preparing can take minutes (downloads), and a second
+    // starter must see the first one's VMM instead of racing it for the disk.
+    std::fs::create_dir_all(&paths.dir)?;
+    let _boot_lock = lock_boot(&paths)?;
     if let Some(pid) = running_pid(&paths) {
         if changed && !first_create {
             bail!(
@@ -132,19 +168,14 @@ pub fn start(args: StartArgs) -> Result<ExitCode> {
             );
         }
         let ready = client::docker_ping(&paths.docker_sock);
-        return report_start(
-            &args,
-            &paths,
-            &cfg,
+        return Ok(Booted {
+            paths,
+            cfg,
             pid,
-            json!({
-                "already_running": true,
-                "docker_ready": ready,
-            }),
-        );
+            timings: json!({ "already_running": true, "docker_ready": ready }),
+        });
     }
 
-    std::fs::create_dir_all(&paths.dir)?;
     cfg.save(&paths.config)?;
     let boot = assets::ensure_boot_assets(&paths)?;
     assets::ensure_data_disk(&paths, &cfg)?;
@@ -175,13 +206,12 @@ pub fn start(args: StartArgs) -> Result<ExitCode> {
     std::mem::forget(child);
 
     if args.no_wait {
-        return report_start(
-            &args,
-            &paths,
-            &cfg,
+        return Ok(Booted {
+            paths,
+            cfg,
             pid,
-            json!({ "prepare_ms": prepare_ms }),
-        );
+            timings: json!({ "prepare_ms": prepare_ms }),
+        });
     }
     let boot_t0 = Instant::now();
     let deadline = boot_t0 + Duration::from_secs(args.timeout_s);
@@ -226,18 +256,17 @@ pub fn start(args: StartArgs) -> Result<ExitCode> {
     }
     let docker_ready_ms = boot_t0.elapsed().as_millis() as u64;
     let vm_start_ms = vmm_state(&paths).map(|s| s.vm_start_ms);
-    report_start(
-        &args,
-        &paths,
-        &cfg,
-        pid,
-        json!({
+    Ok(Booted {
+        timings: json!({
             "prepare_ms": prepare_ms,
             "vm_start_ms": vm_start_ms,
             "docker_ready_ms": docker_ready_ms,
             "first_boot_provisioned": provisioned,
         }),
-    )
+        paths,
+        cfg,
+        pid,
+    })
 }
 
 fn report_start(
