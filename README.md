@@ -1,34 +1,76 @@
-# vat — local agent test runner capsules
+# vat — agent-native local runtime for macOS: native containers, Docker, and local GCP
 
 ## Brief
 
-`vat` is a headless local development test runner for the one operator Docker
-was never designed for: a **coding/ML agent**. GUI and Desktop surfaces are
-permanently out of scope; agents use the CLI and structured output. vat is not a
-long-lived process manager. An agent writes `vat.toml`; vat prepares an
-ephemeral copy-on-write workspace, starts run-scoped services, waits for
-readiness, runs the named runner, captures logs/artifacts/diff/state, and then
-cleans up according to the run policy.
+`vat` is a headless local runtime for the one operator Docker was never
+designed for: a **coding/ML agent**. GUI and Desktop surfaces are permanently
+out of scope; agents use the CLI and structured JSON output. An agent writes
+`vat.toml`; vat prepares an ephemeral copy-on-write workspace, starts
+run-scoped services, waits for readiness, runs the named runner, captures
+logs/artifacts/diff/state, and cleans up according to the run policy. One
+[`vat state`](#vat-state) JSON document, git-like copy-on-write
+[fork/snapshot](#the-model), and forwarded exit codes are the **unflagged**
+path and stay core across everything below.
 
-1. **The GPU just works — because there is no VM.** On Apple Silicon, Docker
-   runs Linux containers inside a Linux VM, and Metal has no compute
-   passthrough into that guest. So `torch.mps`, MLX, and `tensorflow-metal` all
-   report *no GPU* inside a container, and there is no `--gpus all` that fixes
-   it. A vat is **not a VM** — it's a sandboxed *host process* over a
-   copy-on-write workspace. The workload never leaves macOS, so the Apple GPU
-   was never taken away. Nothing to "bridge".
+vat is built on three pillars. What each pillar can do **today** is the support
+matrix in [STATUS.md](STATUS.md); what it commits to **next** is
+[ROADMAP.md](ROADMAP.md); how the pieces fit is
+[docs/product/architecture.md](docs/product/architecture.md).
 
-2. **The operating surface faces the agent, not a human dev.** Docker's
-   ergonomics (a daemon, a desktop app, `ps`/`inspect`/`logs`/`diff` as
-   separate human-readable text dumps) are tradeoffs *for developers*. vat's
-   tradeoffs are *for agents*: one structured [`vat state`](#vat-state) JSON
-   that answers "what is this environment right now", forwarded exit codes,
-   copy-on-write disposability, and git-like fork/snapshot — all on the
-   **unflagged** path.
+1. **Lightweight Apple-native containers — pure Apple ecosystem.** A
+   macOS-native container runtime: workloads are macOS processes over an APFS
+   `clonefile` copy-on-write rootfs, confined by seatbelt, with a dedicated UID
+   per container and process-group lifecycle, fed by OCI images carrying
+   `darwin/arm64` layers (Python environments, Homebrew bottles, and the like).
+   Because the workload never leaves macOS, the **Apple GPU just works**:
+   Metal, PyTorch MPS, MLX, and `tensorflow-metal` see the native device, with
+   no VM in the path and nothing to bridge. There is **no Linux in this pillar**.
+   Honesty clause: macOS has no namespaces or cgroups, so this isolation is
+   weaker than a VM and is **not** a security boundary for hostile code. Today
+   this pillar is the shipped sandboxed host-process runtime (`vat run`,
+   `--isolation none|seatbelt`); darwin OCI images, the dedicated UID, and the
+   chroot-versus-seatbelt path-confinement decision are roadmap work.
+
+2. **Complete Docker, with efficiency as the goal.** The direction is a Docker
+   Engine API served over a unix socket (`DOCKER_HOST`) so the real `docker`
+   CLI, `docker compose` v2, Testcontainers, and the Docker SDKs work
+   unmodified, backed by **one shared lightweight Linux VM** (libkrun on Apple
+   Hypervisor.framework) running containerd, with virtiofs file sharing, an
+   in-VM bridge network with service-name DNS, and Rosetta for `amd64` images.
+   Every Linux need goes here. Startup time, idle memory, and file-sharing
+   throughput are **goals to be measured**, not achieved claims. Today the
+   shipped Docker surface is the opt-in, fail-closed `docker` CLI-subset shim
+   over Apple Container with three fixed Compose profiles; it is bounded, still
+   supported, and scheduled to be superseded by the Engine API.
+
+3. **Realistic local GCP, especially GKE.** The built-in emulators (Pub/Sub,
+   Firebase Auth, Cloud Tasks, Cloud Scheduler, Workflows, Cloud Storage,
+   http-mock/OpenAPI) and the gcloud-wrapped family (Firestore, Datastore,
+   Bigtable, Spanner), plus transparent REST and gRPC routing of real
+   `*.googleapis.com` hosts to those emulators, are shipped and stay. The
+   direction for GKE, in priority order: persistent K3s inside the pillar-2
+   shared VM sharing its containerd so a `docker build` image is usable by a
+   pod with no load step, with PVCs and survival across sessions; a GCE
+   metadata server plus Workload Identity emulation so GCP clients inside pods
+   resolve to vat emulators automatically; a local Artifact Registry; and later
+   Ingress/GCLB behavior, Secret Manager, and multi-node. The existing
+   kind/k3d/minikube wrapping and the one-boot Apple Container K3s session are
+   legacy paths scheduled to be superseded.
+
+The operating surface faces the agent, not a human developer. Docker's
+ergonomics (a daemon, a desktop app, `ps`/`inspect`/`logs`/`diff` as separate
+human-readable text dumps) are tradeoffs *for developers*. vat's tradeoffs are
+*for agents*: one structured `vat state` JSON that answers "what is this
+environment right now", `--json` on every inventory verb, forwarded exit codes,
+copy-on-write disposability, and fork/snapshot.
 
 ## Capabilities
 
-A promise with no gate under it is not claimed.
+A promise with no gate under it is not claimed. The three pillars in the Brief
+are a direction; the capabilities below are what the current tree ships and
+gates. Anything a pillar promises beyond these rows is a
+[ROADMAP.md](ROADMAP.md) outcome, not a capability, and its current state is
+recorded in [STATUS.md](STATUS.md).
 
 Nothing reads the tables below. The capability gate that validated their
 shape was deleted with the `aw` binary, so the shape is convention now and
@@ -38,41 +80,91 @@ the commands named in each row are the only part that runs.
 
 | Capability | Root WI | Notes |
 |---|---:|---|
-| Agent-Native GPU-Native Dev Containers | #4152 | vat runs sandboxed host-process environments over copy-on-write workspaces so coding and ML agents get structured state, local test runner evidence, fork/snapshot, Docker-backed local Kubernetes clusters (kind/k3d/minikube), and a separately bounded one-boot Apple Container K3s session, plus GCP/Firebase emulators and host GPU access without a VM. |
+| Agent-Native State and Copy-on-Write Lifecycle | #4152 | The core every pillar shares: `vat.toml` run protocol, one structured `vat state`/`vat diff` document, copy-on-write fork/snapshot over APFS `clonefile`, interrupt-safe cleanup, and production-like scenarios. |
+| Native macOS Runtime (pillar 1, shipped part) | - | Sandboxed host-process execution with host GPU visibility, opt-in seatbelt isolation, and the fail-closed egress policy. No VM, no Linux. The darwin OCI image format, dedicated UID, and process-group lifecycle beyond interrupt cleanup are roadmap. |
+| Local GCP Emulation and Transparent Routing (pillar 3, shipped part) | - | Built-in Rust emulators (REST + gRPC), gcloud-wrapped emulator presets, the http-mock/OpenAPI proxy, and transparent HTTP/gRPC routing of real GCP hosts to local emulators. GKE realism (persistent K3s, metadata server, Workload Identity, Artifact Registry) is roadmap. |
+| Container and Kubernetes Paths Scheduled for Supersession | - | Shipped, bounded, still gated: the `docker` CLI-subset shim over Apple Container, `vat build`/`vat compose`, the MicroVM service backend, Docker-backed `vat cluster` (kind/k3d/minikube), and the one-boot Apple Container K3s session. ROADMAP outcomes for pillar 2 and GKE replace them; nothing here is removed before its replacement passes its gate. |
 | Developer & Agent Experience | #1819 | Offline command contracts, task-scoped onboarding, and host preflight evidence for local agents. |
 
-### Agent-Native GPU-Native Dev Containers
+### Agent-Native State and Copy-on-Write Lifecycle
 
-vat runs sandboxed host-process environments over copy-on-write workspaces so
-coding and ML agents get structured state, local test runner evidence,
-fork/snapshot, Docker-backed local Kubernetes clusters (kind/k3d/minikube), and
-a separately bounded one-boot Apple Container K3s session, plus GCP/Firebase
-emulators and host GPU access without a VM.
+vat runs a workload over a copy-on-write workspace and projects everything an
+agent needs to know into one structured document. This is the differentiator
+that every pillar builds on: `vat run` clones a base, runs the runner, records
+the run, recomputes the filesystem diff, and cleans up by policy; `vat fork`
+and `vat snapshot` branch a running environment like git.
 
 - Root WI: #4152
-- Surfaces: CLI: `vat run` + `vat emulator` + `vat state/diff/fork/snapshot` -
-  Agent-facing dev-container CLI: copy-on-write run + structured state/diff,
-  fork/snapshot, built-in GCP/Firebase emulators (REST+gRPC), and the network
-  sandbox (routes/egress/hermetic).
-- Gate — behavior: `cargo test -p vat` - vat.toml run protocol, built-in
-  emulators (REST + gRPC), transparent routing, and seatbelt egress/hermetic
-  conformance.
+- Surfaces: CLI: `vat run` + `vat state/diff/ls/logs` + `vat fork/snapshot/gc/rm` -
+  Agent-facing copy-on-write run with structured state/diff, fork/snapshot, and
+  interrupt-safe cleanup.
+- Gate — behavior: `cargo test -p vat` - vat.toml run protocol, scenario
+  topology, interrupt cleanup, and the state/diff projection.
 - Gate: `cargo test -p vat`
 - Gate:
   `rg -n -e 'vat state' -e 'vat diff' -e '--json' -e structured README.md`
-- Gate:
-  `rg -n -e 'Apple GPU' -e Metal -e MPS -e MLX -e tensorflow-metal README.md src/gpu.rs`
 - Gate:
   `rg -n -e copy-on-write -e fork -e snapshot -e clonefile -e APFS README.md`
 
 | Work Root | Kind | WI | Gate / Evidence |
 |---|---|---:|---|
-| Host-process execution and GPU visibility | epic | - | `rg -n -e 'Apple GPU' -e Metal -e MPS -e MLX -e tensorflow-metal README.md src/gpu.rs` |
 | Agent-legible state and diff surface | epic | - | `rg -n -e 'vat state' -e 'vat diff' -e '--json' -e structured README.md` |
+| Copy-on-write fork and snapshot lifecycle | epic | - | `rg -n -e copy-on-write -e fork -e snapshot -e clonefile -e APFS README.md` |
 | Local agent test runner protocol | epic | #4152 | `cargo test -p vat --test behavior_vat_toml_runner_local_service_smoke --test vat_toml_runner -- --nocapture` |
 | Interrupt-safe owned process cleanup | change | #2394 | `cargo test -p vat --test vat_signal_cleanup -- --test-threads=1` proves real SIGINT/SIGTERM cleanup for configured and direct runs. |
 | Production-like integration scenarios | change | #701 | `cargo test -p vat --test vat_toml_runner --test behavior_scenario_failure_keeps_topology_and_logs --test behavior_scenario_hermetic_requires_http_mock_service --test behavior_scenario_run_starts_app_dependency_and_runner -- --nocapture` |
-| Local Kubernetes cluster service and `vat cluster` | change | #141 | `cargo test -p vat --test vat_cluster -- --nocapture` |
+
+### Native macOS Runtime (pillar 1, shipped part)
+
+The workload is a macOS process over the copy-on-write rootfs, so the Apple GPU
+(Metal, MPS, MLX, `tensorflow-metal`) is simply present. Isolation is a
+pluggable [`Sandbox`](src/sandbox/mod.rs) backend: `none` is a plain host
+process; `seatbelt` wraps it in a `sandbox-exec` profile that confines writes to
+the rootfs and enforces the `[network].egress` policy, failing closed when the
+selected backend cannot enforce it. This is resource isolation for cooperative
+workloads, not a security boundary for hostile code: macOS has no namespaces or
+cgroups.
+
+- Root WI: -
+- Surfaces: CLI: `vat run -- <cmd>` with `--isolation none|seatbelt` and
+  `--gpu auto|required|none`, `vat gpu`, `[network].egress`, and
+  `vat run --scenario` hermetic mode.
+- Gate — behavior: `cargo test -p vat` - host-process execution, GPU
+  visibility, seatbelt egress and hermetic conformance.
+- Gate: `cargo test -p vat`
+- Gate:
+  `rg -n -e 'Apple GPU' -e Metal -e MPS -e MLX -e tensorflow-metal README.md src/gpu.rs`
+- Gate:
+  `rg -n -e sandbox -e isolation -e seatbelt README.md src/sandbox`
+
+| Work Root | Kind | WI | Gate / Evidence |
+|---|---|---:|---|
+| Host-process execution and GPU visibility | epic | - | `rg -n -e 'Apple GPU' -e Metal -e MPS -e MLX -e tensorflow-metal README.md src/gpu.rs` |
+| Resource isolation boundary | epic | - | `rg -n -e sandbox -e isolation -e seatbelt README.md src/sandbox` |
+| Network sandbox v3 — seatbelt egress policy | change | #518 | `cargo test -p vat --test vat_sandbox_egress -- --nocapture` |
+| Sandbox applied to runner-mode commands | change | #527 | `cargo test -p vat --test vat_runner_sandbox -- --nocapture` |
+| Sandbox egress policy fails closed when isolation cannot enforce it | change | #1300 | `cargo test -p vat --test vat_sandbox_egress_fail_closed -- --nocapture` |
+
+### Local GCP Emulation and Transparent Routing (pillar 3, shipped part)
+
+Pure-Rust in-process emulators start instantly with no Java, gcloud, or Docker
+and are reached through the standard `*_EMULATOR_HOST` variables; the
+gcloud-wrapped family covers the services Google ships an emulator for. With an
+`http-mock` service and a `[network]` route, a runner's calls to the real
+`*.googleapis.com` host — REST and gRPC — are routed to the local emulator with
+no app code change.
+
+- Root WI: -
+- Surfaces: CLI: `vat emulator` (hidden, run by presets) + `vat.toml`
+  `[[services]] preset = gcloud-pubsub|firebase-auth|gcloud-cloud-tasks|cloud-scheduler|cloud-workflows|cloud-storage|http-mock|openapi|gcloud-firestore|gcloud-datastore|gcloud-bigtable|gcloud-spanner|firebase`
+  + `[[network.routes]]`.
+- Gate — behavior: `cargo test -p vat` - built-in emulators (REST + gRPC),
+  transparent routing, and hermetic no-forward conformance.
+- Gate: `cargo test -p vat`
+- Gate: `cargo test -p vat --test vat_emulators -- --nocapture`
+
+| Work Root | Kind | WI | Gate / Evidence |
+|---|---|---:|---|
 | GCP / Firebase emulator service presets | change | #143 | `cargo test -p vat --test vat_emulators -- --nocapture` |
 | Built-in Rust emulators (Pub/Sub gRPC + Firebase Auth REST) | change | #145 | `cargo test -p vat --test vat_emulator_auth --test vat_emulator_pubsub -- --nocapture` |
 | Built-in Rust emulators (Cloud Tasks + Cloud Scheduler) | change | #146 | `cargo test -p vat --test vat_emulator_tasks --test vat_emulator_scheduler -- --nocapture` |
@@ -80,16 +172,37 @@ emulators and host GPU access without a VM.
 | Built-in Rust emulator (Cloud Storage / GCS) | change | #148 | `cargo test -p vat --test vat_emulator_storage -- --nocapture` |
 | Built-in HTTP mock + record/replay proxy (HTTPS MITM) | change | #149 | `cargo test -p vat --test vat_emulator_httpmock -- --nocapture` |
 | OpenAPI-driven mock HTTP service (spec → responses) | change | #150 | `cargo test -p vat --test vat_emulator_openapi -- --nocapture` |
-| `vat llm` / `vat upgrade` / `vat issue` (mandatory CLI convention) | change | #491 | `cargo test -p vat --test vat_cli_convention -- --nocapture` |
 | Dual-protocol emulators (Cloud Tasks + Scheduler gRPC alongside REST) | change | #499 | `cargo test -p vat --test vat_emulator_tasks_grpc --test vat_emulator_scheduler_grpc -- --nocapture` |
 | Network sandbox v1 — transparent HTTP host-routing | change | #503 | `cargo test -p vat --test vat_emulator_httpmock_routing -- --nocapture` |
 | Network sandbox v2 — transparent gRPC routing (h2 MITM) | change | #509 | `cargo test -p vat --test vat_emulator_grpc_mitm_routing -- --nocapture` |
-| Adopt the shared cli-std crate | change | #514 | `cargo test -p vat --test vat_cli_convention -- --nocapture` |
 | gRPC reverse-proxy h2c connection pool | change | #516 | `cargo test -p vat --test vat_emulator_grpc_mitm_routing -- --nocapture` |
-| Network sandbox v3 — seatbelt egress policy | change | #518 | `cargo test -p vat --test vat_sandbox_egress -- --nocapture` |
-| Sandbox applied to runner-mode commands | change | #527 | `cargo test -p vat --test vat_runner_sandbox -- --nocapture` |
 | Full-hermetic http-mock no-forward mode | change | #530 | `cargo test -p vat --test vat_emulator_httpmock_hermetic -- --nocapture` |
-| Sandbox egress policy fails closed when isolation cannot enforce it | change | #1300 | `cargo test -p vat --test vat_sandbox_egress_fail_closed -- --nocapture` |
+
+### Container and Kubernetes Paths Scheduled for Supersession
+
+These rows are shipped and still gated; they are the Linux-workload and
+Kubernetes paths the current tree can keep. The product direction replaces them
+with the shared Linux VM, the Docker Engine API, and persistent K3s (see
+[ROADMAP.md](ROADMAP.md)). Until a replacement passes its own gate, each row
+below stays supported exactly as bounded in the [CLI](#cli) table and in
+[STATUS.md](STATUS.md). The `docker` shim exposes no Docker Engine/API socket
+and no general Compose; the Apple Container K3s session is not persistent
+Kubernetes.
+
+- Root WI: -
+- Surfaces: CLI: `vat build`, `vat compose`, `vat docker install-shim` and the
+  shim's `docker` command subset, `vat.toml` `runtime = "micro_vm"` and
+  `cluster = ...` services, `vat cluster`, and `vat k8s ephemeral|session`.
+- Gate — behavior: `cargo test -p vat` - deterministic fake coverage for the
+  shim, Compose profiles, MicroVM backend, cluster drivers, and K3s session;
+  real-host E2Es are opt-in `--ignored` runs named per row.
+- Gate: `cargo test -p vat`
+- Gate:
+  `cargo test -p vat --test vat_build --test vat_compose --test vat_compose_import --test vat_compose_build --test vat_cluster --test vat_sandbox_microvm --test vat_docker_shim --test vat_k8s_ephemeral -- --nocapture`
+
+| Work Root | Kind | WI | Gate / Evidence |
+|---|---|---:|---|
+| Local Kubernetes cluster service and `vat cluster` | change | #141 | `cargo test -p vat --test vat_cluster -- --nocapture` |
 | MicroVm sandbox backend for vat run | change | #1474 | `cargo test -p vat --test vat_sandbox_microvm --test vat_sandbox_microvm_fail_closed -- --nocapture` |
 | vat build: Dockerfile build via container CLI | change | #1479 | `cargo test -p vat --test vat_build -- --nocapture` |
 | vat compose: bounded compose subset, up/down/ps/logs | change | #1484 | `cargo test -p vat --test vat_compose --test vat_compose_import -- --nocapture` |
@@ -97,8 +210,6 @@ emulators and host GPU access without a VM.
 | Headless Docker-command shim over Apple Container | change | #1685 | real host/build/dual-service E2E: `RUST_TEST_THREADS=1 VAT_DOCKER_COMPOSE_INDEPENDENT_SHIM_E2E_REQUIRED=1 cargo test -p vat --test vat_docker_shim -- --ignored --nocapture` |
 | Headless Apple Container K3s one-shot, lease, local-image delivery, and loopback Service port-forward | change | #1693 | deterministic fake regression passed, including bounded session-exec lifecycle/marker coverage; independent-kubectl one-shot E2E passed 1/1 (36 filtered, 28.38s), leased E2E passed 1/1 (36 filtered, 29.97s), local-image E2E passed 1/1 (36 filtered, 49.73s), and Service-forward E2E passed 1/1 (36 filtered, 49.57s). Requires an independently installed PATH `kubectl`; VAT rejects OrbStack-provided kubectl. Evidence is bounded to text commands, strict one-document JSON exec with explicit `--timeout 30`, one already-local Apple `alpine:3.20` pod with `imagePullPolicy=Never` and a marker log, and one Service-only loopback JSON tunnel; it does not claim registry-pull generality, persistent Kubernetes, GUI, Docker Engine/API, or OS-sandbox behavior. Gate: `RUST_TEST_THREADS=1 VAT_K8S_LOCAL_IMAGE_E2E_REQUIRED=1 cargo test -p vat --test vat_k8s_ephemeral -- --ignored --nocapture` |
 | Apple Container k3s local Kubernetes | epic | #1537 | one-shot, leased, local-image, and Service-forward independent-kubectl real-host E2Es passed; each remains bounded. Phase 0 is a bounded Docker-free path: `vat k8s ephemeral` runs one foreground host command and cleans up, while `vat k8s session create/exec/port-forward/image/status/delete` keeps one running guest and private credentials across explicit agent calls until its bounded lease is deleted or reclaimed. Every K3s command requires an independently installed `kubectl` first on PATH and rejects an OrbStack-provided binary. Persistent/reboot-safe kubeconfig, storage/PVC, ingress/LB, multi-node networking, and `microvm-k3s` remain blocked. |
-| Copy-on-write fork and snapshot lifecycle | epic | - | `rg -n -e copy-on-write -e fork -e snapshot -e clonefile -e APFS README.md` |
-| Resource isolation boundary | epic | - | `rg -n -e sandbox -e isolation -e seatbelt README.md src/sandbox` |
 
 ### Developer & Agent Experience
 
@@ -142,10 +253,59 @@ project has a `vat.toml`.
 
 ## What vat is *not*
 
-- **Not a VM, not a Linux-container emulator.** v1 runs host processes. That's
-  the GPU win; it's also the limit — you get the *host* OS, not a clean Linux
-  userland. A Linux-namespaces backend (and, if ever needed, a VM backend that
-  trades the GPU away) slot in behind the same [`Sandbox`] trait.
+- **Not a GUI or Desktop application — permanently.** vat is operated through
+  its CLI and machine-readable output for agents. Do not add graphical controls,
+  dashboards, tray/menu-bar UI, or a Desktop lifecycle surface.
+- **Not a hostile-code security boundary on the native runtime.** Pillar 1
+  runs macOS processes. macOS has no namespaces or cgroups, so seatbelt
+  confinement, a copy-on-write rootfs, and (on the roadmap) a dedicated UID per
+  container give resource isolation for cooperative workloads — weaker than a
+  VM. A workload that must be contained as untrusted belongs in the shared Linux
+  VM of pillar 2, where the kernel is the boundary. The same-UID host-child
+  hygiene in `vat k8s session port-forward` and the `micro_vm` service path are
+  likewise not adversarial-child boundaries.
+- **Not a Linux runtime on the native pillar.** Pillar 1 is pure Apple
+  ecosystem: `darwin/arm64` layers, Homebrew bottles, macOS processes. Linux
+  images and Linux-only workloads go through the shared Linux VM of pillar 2.
+  Today the only Linux routes are the bounded Apple Container paths
+  (`runtime = "micro_vm"` services, the `docker` shim, and the K3s session);
+  they are scheduled to be superseded, not extended.
+- **Not "no VM at all".** The native runtime has no VM, which is why the host
+  GPU is reachable. The Docker and GKE pillars use exactly **one shared Linux
+  VM**; vat never starts one VM per container. Metal does not pass into that VM,
+  so a Linux container has no Apple GPU. Vulkan (Venus) GPU inside the VM is
+  explicitly deferred and is not a commitment.
+- **Not a Docker Engine today.** vat exposes no Docker Engine/API socket yet;
+  the Engine API over `DOCKER_HOST` is a [ROADMAP.md](ROADMAP.md) outcome. What
+  ships is an opt-in, fail-closed `docker` command shim over Apple Container,
+  installed only with `vat docker install-shim --dir <directory-on-PATH>`. It
+  translates the documented CLI subset (build/pull/push/run/lifecycle/logs/exec/
+  copy/inspect and explicit-name image/network/volume commands), rejects unknown
+  flags before any runtime starts, requires an explicit host port for
+  `docker run -p`, and supports exactly three named Compose profiles
+  (`strict-single-image-v1`, `strict-single-build-v1`,
+  `host-facing-independent-v1`) with loopback-only publishing, no bridge
+  network, and no service-name DNS. It is not general Compose, Docker SDK,
+  Testcontainers, devcontainer, or Docker output-schema compatibility. Each
+  shim verb's exact bounded contract is in the [CLI](#cli) table; its support
+  state is in [STATUS.md](STATUS.md).
+- **Not persistent Kubernetes today.** `vat cluster` and the `cluster`
+  service wrap kind/k3d/minikube, which need a Docker daemon on Apple Silicon.
+  `vat k8s ephemeral` is a one-boot Apple Container K3s guest for one foreground
+  command; `vat k8s session` adds a bounded lease so an agent can make several
+  explicit calls with the same private kubeconfig. Neither is a daemon nor
+  restart-safe, and neither promises reboot-safe kubeconfig, storage/PVC,
+  ingress or load balancer, multi-node networking, or registry-pull generality.
+  Every `vat k8s` command requires an independently installed `kubectl` first
+  on `PATH` and rejects an OrbStack-provided binary. Persistent K3s inside the
+  shared VM, with shared images and PVCs, is a [ROADMAP.md](ROADMAP.md)
+  outcome.
+- **Not a GCP account.** The emulators reproduce the API behavior local tests
+  depend on (the common client operations, REST and gRPC where both exist).
+  They do not reproduce IAM, quotas, billing, regional behavior, or every
+  method; fidelity gaps are listed per emulator in [STATUS.md](STATUS.md). The
+  official emulators remain reachable as `runtime = native|docker` fallbacks
+  where Google ships one.
 - **Not a resource scheduler.** vat owns resource isolation: copy-on-write
   workspaces, sandbox backends, and agent-readable state. It does not decide
   admission, throttling, pausing, or kill policy. That is cap's job. Compose
@@ -154,189 +314,26 @@ project has a `vat.toml`.
 - **Not a long-lived process manager.** Services in `vat.toml` are dependencies
   of one runner invocation. vat starts them, waits for readiness, runs the
   runner, captures evidence, and terminates them. Standalone `vat cluster`
-  clusters outlive a run as a convenience, but vat does not *supervise* them (no
-  daemon, no restart, no health monitoring) — it creates/lists/deletes/reports
-  only on explicit command, exactly like kind/k3d/minikube do.
-- **Not a durable Apple Container Kubernetes backend.** `vat k8s ephemeral`
-  is a one-boot, single-node K3s session for one foreground host command.
-  `vat k8s session` adds a bounded active lease so an agent can make several
-  explicit calls with the same private kubeconfig, but it is neither a daemon
-  nor restart-safe: lease expiry needs explicit cleanup, Apple machine restart
-  is not trusted, and there is no reboot-safe kubeconfig, multi-node,
-  storage/PVC, ingress, or load-balancer promise. A bounded active lease can
-  run only with an independently installed `kubectl` first on `PATH`; VAT
-  rejects an OrbStack-provided `kubectl` before K3s use. This is a concrete
-  host-tool provenance requirement, not a GUI or Docker Engine dependency. On
-  this host Homebrew `kubernetes-cli` now supplies `/opt/homebrew/bin/kubectl`.
-  The independent-kubectl one-shot, leased, local-image, and Service-forward
-  E2Es passed 1/1 (36 filtered) in 28.38s, 29.97s, 49.73s, and 49.57s
-  respectively. The local-image E2E loaded an already-local Apple `alpine:3.20`
-  into one lease, ran a pod with `imagePullPolicy=Never`, observed its marker
-  log, then completed exact session cleanup. This is not registry-pull
-  generality. All four remain bounded one-guest evidence, not a durable cluster
-  promise. It can import one locally inspected `linux/arm64` Apple image and expose one literal
-  `service/<name>` only to `127.0.0.1` while one foreground host child runs.
-  That temporary tunnel is not arbitrary-resource port-forwarding, a public
-  listener, or a background proxy. VAT strips K3s credential variables from the
-  child environment, but the child remains a same-UID host process: this is not
-  an OS sandbox or an adversarial-child security boundary. The child joins
-  kubectl's tracked process group, so ordinary cooperative descendants that do
-  not daemonize or escape it are gone before cleanup is confirmed; intentional
-  daemonization or group escape is outside this contract. This bounded path is
-  useful while a retained `microvm-k3s` backend remains blocked. On a bootstrap
-  failure, VAT keeps the root error first, then adds bounded non-sensitive
-  installer/guest/machine evidence before the same exact cleanup. That is
-  diagnosis only: the existing 300-second bootstrap behavior is unchanged, no
-  private kubeconfig/cache or host credential is rendered, and it neither
-  retries bootstrap nor reruns `k3s --version` or introduces a wrapper/recovery
-  path.
-- **Not a GUI or Desktop application — permanently.** vat is operated through
-  its CLI and machine-readable output for agents. Do not add graphical controls,
-  dashboards, tray/menu-bar UI, or a Desktop lifecycle surface.
-- **Not a Docker Engine compatibility endpoint.** vat has an opt-in,
-  fail-closed `docker` command shim over Apple Container, installed only with
-  `vat docker install-shim --dir <directory-on-PATH>`. It supports the
-  documented CLI subset (build/pull/push/run/lifecycle/logs/exec/copy/inspect
-  and basic explicit-name image/network/volume commands), rejects unknown flags before
-  runtime launch, and requires an explicit host port for `docker run -p`.
-  Its Compose support has exactly three named profiles, not general Compose:
-  `strict-single-image-v1` is one literal-image service with `up -d`;
-  `strict-single-build-v1` is one literal short `build: <context>` service with
-  no `image:` and `up -d --build`; and `host-facing-independent-v1` is selected
-  only by the exact top-level marker
-  `x-vat-compose-profile: host-facing-independent-v1`. The host-facing profile
-  accepts two through four literal-image services, each with one nonzero,
-  unique `host:container` port; VAT publishes them only on loopback and does not
-  provide a bridge network or service-name DNS. All profiles allow only literal
-  environment values and reject DNS/topology, `depends_on`, networks, volumes,
-  build on the host-facing profile, interpolation, and `--env-file` before
-  runtime launch. A host-facing successful `up` makes that negative contract
-  machine-readable with `"profile":"host-facing-independent-v1"`,
-  `"service_name_dns":false`, and `"host_loopback_only":true`.
-  `docker compose -f FILE -p PROJECT up -d --wait [--wait-timeout SECONDS]`
-  is a bounded VAT-only readiness wait, not generic Docker Compose semantics:
-  explicit `-d`/`--detach` remains required, `--wait` is accepted once, and
-  `--wait-timeout` is accepted only with it as positive whole seconds (default
-  300, maximum 1200). Its clock begins after validated import and any source
-  build, immediately before detached runner launch, and covers handoff plus
-  observations. It waits only for durable VAT runner readiness/topology proof,
-  never a Docker healthcheck, application HTTP probe, or service DNS. VAT pins
-  the waiter to the profile, generation, and launch ticket and releases the
-  registry lock between polls, so an old waiter cannot attach after `down`,
-  re-import, or relaunch. A ready wait emits one final `up` JSON result with
-  `wait` and ready topology; a timeout retains runtime and registry. A `ps`
-  handoff is supplied only after a current pinned-target observation; terminal,
-  replaced, or bare-deadline failures have no unsafe next. A degraded result
-  publishes no endpoint. For a source build, `cleanup_next` is emitted only on
-  that verified-ready wait result.
-  `docker compose -p PROJECT ps` has two exact output shapes. The no-format
-  form preserves its text surface and ends with an additive `vat_docker_compose`
-  JSON record for the known profile. `docker compose -p PROJECT ps --format json`
-  and `--format=json` instead emit exactly one VAT-owned JSON document with
-  `schema="vat.docker-compose.ps.v1"` and `format="vat_json"`, carrying the
-  same claim-held profile/topology proof and no human table. Its `topology` is
-  `{ phase, ready, services }`: `phase` is
-  `inactive`, `starting`, `ready`, `degraded`, or `stopping`; services follow
-  the registered Compose service-ID order, not runtime-evidence order; each has
-  `name` and `state`; and an endpoint is the canonical string
-  `127.0.0.1:<port>`. `ready=true` and all
-  endpoints appear only when every expected service has exactly one Ready,
-  VAT-owned `container_run` record for its exact MicroVM name, with a nonzero
-  loopback port and no cleanup error. Otherwise a nominally ready lifecycle is
-  reported as `degraded` with `ready=false` and no endpoints; starting,
-  stopping, and inactive also publish no endpoints. This is lifecycle and
-  ownership evidence, not an application health check. The JSON form is not
-  Docker Compose JSON/template/table compatibility; all other `ps` formats
-  fail closed. Generic, missing, and unknown shim provenance fail closed before
-  any topology is emitted. Text `logs SERVICE` preserves its original log bytes,
-  then starts its additive VAT handoff JSON on a new line after those observed
-  bytes. `logs --format json [--tail LINES] SERVICE` (also `--format=json` /
-  `--tail=N`, with service final) emits exactly one capture-only
-  `vat.docker-compose.logs.v1` JSON document: separate stdout/stderr snapshots,
-  default `tail_lines=200` bounded to 1..=1000, per-stream `truncated` and
-  `utf8_lossy`, `capture_only=true`, `runtime_invoked=false`, and
-  `compose_record_mutated=false`. It holds the existing claim/provenance then
-  reads VAT-captured logs only: no Apple Container call, project.json mutation,
-  topology, or endpoints. VAT first caps each read, then after lossy UTF-8 and
-  JSON escaping retains a valid UTF-8 suffix whose serialized JSON string value
-  remains within the same 64 KiB per-stream cap and marks it `truncated`; it is
-  also line-tailed. Its `next` is the VAT-native JSON ps command. It is not Docker Compose merged,
-  follow, timestamp, or template-schema compatibility; `--follow`, timestamps,
-  and all other flags fail closed. The full serial `vat_docker_shim` aggregate is
-  intentionally not recorded because an independent serial run exposed a
-  nondeterministic pre-existing Compose JSON logs timing race; the focused
-  serialized-cap unit passed 1/1 for `0xff`-heavy and NUL/control-heavy streams
-  after actual JSON serialization. The opt-in real dual-service logs-JSON
-  coverage is recorded below. Then use text
-  `exec -T SERVICE -- COMMAND`, agent JSON
-  `exec -T --format json SERVICE -- COMMAND` (or `--format=json`), or `down`.
-  Text exec preserves its observed child bytes, then starts its additive VAT
-  handoff JSON on a new line after them. Both forms acquire one same-read project snapshot
-  under the existing claim, with known shim provenance and one exact unique
-  ready VAT-owned MicroVM service; ambiguous or incomplete evidence fails
-  closed. The Docker-facing `--` is parsed and validated but not forwarded;
-  VAT invokes Apple Container as `container exec CONTAINER COMMAND [ARG...]`.
-  JSON exec
-  releases that claim immediately after spawning the authorized child, before waiting
-  for the arbitrary child duration. It emits exactly one VAT-native
-  `vat.docker-compose.exec.v1` document carrying `profile`, `child_exit_code`,
-  separate stdout/stderr, per-stream `truncated`/`utf8_lossy`,
-  `runtime_invoked=true`, and `compose_record_mutated=false`. It replays no raw
-  child output and exposes neither topology nor endpoints. Child stdout and
-  stderr are drained concurrently, and each serialized JSON string value is
-  capped at 64 KiB. Misordered JSON flags, a missing JSON delimiter, default
-  TTY, and all other exec flags fail closed. This is not Docker Compose exec
-  output compatibility. The full serial shim aggregate is intentionally not
-  recorded because an independent serial run exposed a nondeterministic
-  pre-existing Compose JSON logs timing race; the precise serialized-cap unit
-  passed 1/1; the real-host Compose JSON-exec scope is stated with the recorded
-  E2E below. A
-  successful source-build `up` additionally returns its exact VAT-owned
-  `images` array plus `cleanup_next` (`down && docker image rm` for that exact
-  tag); literal-image projects deliberately do not claim image ownership.
-  Shim provenance is also fail-closed: generic `vat compose up`, `ps`, `logs`,
-  and `down` cannot operate a known shim-created record. An explicit inactive
-  generic `vat compose import` transfers a known record back to generic
-  lifecycle by clearing its shim provenance. An inactive unknown-profile record
-  may be removed only with registry-only `vat compose down`, which preserves
-  `vat.toml`; an unknown active record requires a matching or newer VAT that
-  recognizes its profile. On this host, the opt-in gated real Apple Container
-  dual-service command
-  `RUST_TEST_THREADS=1 VAT_DOCKER_COMPOSE_INDEPENDENT_SHIM_E2E_REQUIRED=1 cargo
-  test -p vat --test vat_docker_shim
-  apple_container_docker_compose_host_facing_independent_profile_contract --
-  --ignored --nocapture` passed 1/1 (50 filtered) in 4.54 seconds. It proves
-  the `host-facing-independent-v1` two-Service `up -d --wait` path, both
-  loopback endpoints, one-document JSON `ps`, `logs`, and `exec`, text logs,
-  text exec including a no-final-newline child handoff, and `down` cleanup of
-  exact containers, ports, and registry. The text-handoff ordering covers only
-  bytes VAT observes from its managed child/log stream; it makes no ordering
-  claim for descendants that escape that managed process. The gate remains
-  opt-in and proves neither service-name DNS, general Compose, a Docker Engine
-  API, nor Kubernetes. VAT never exposes
-  a Docker Engine socket/API and does not imply general Compose, SDK,
-  Testcontainers, devcontainer, Docker output-schema, or Docker-network parity.
+  clusters and `vat k8s session` leases outlive a run as a convenience, but vat
+  does not *supervise* them (no daemon, no restart, no health monitoring) — it
+  creates/lists/deletes/reports only on explicit command. The shared Linux VM of
+  pillar 2 will be the one exception: it is a long-lived substrate vat starts on
+  demand and reports on, and its lifecycle contract is a roadmap outcome.
 - **Not a shared Apple Container builder manager.** `vat capabilities --json`
-  can report `apple_container.builder` as a bounded, read-only advisory. Its
-  `container builder status` observation has
-  `ownership="shared_unknown"` and `automatic_cleanup=false`; a supported,
-  parseable status can add configured builder resources separately from live
-  `observed_stats`, while optional `container system df` evidence is explicitly
-  host-global (`global_apple_container`), never VAT-attributed. Status, stats,
-  and disk observations can be unsupported, malformed, or time out; their
-  `probe_errors`/unknown state are nonfatal advisory evidence, not a reason to
-  infer a running builder. VAT never starts, stops, deletes, or prunes the
-  shared builder or its cache. This does not widen the Docker shim or bounded
-  Apple K8s contracts.
+  reports `apple_container.builder` as a bounded, read-only advisory
+  (`ownership="shared_unknown"`, `automatic_cleanup=false`; optional
+  `container system df` evidence is host-global, never VAT-attributed). VAT
+  never starts, stops, deletes, or prunes the shared builder or its cache.
 - **Not an image registry or remote image-build service.** The optional shim
-  delegates `docker pull`, `push`, `login`, and `logout` to the user's
-  Apple Container registry configuration; VAT does not host or manage a
-  registry service. `vat build` and a compose `build:` service can build a
-  Dockerfile into the selected local image store (Docker or Apple Container).
-  A vat's environment is a declarative
-  [`EnvSpec`](src/spec.rs) an agent reads and rewrites. A `vat.toml` *service*
-  may run as an ephemeral container, but the runner is always a host process —
-  vat never containerizes your workload.
+  delegates `docker pull`, `push`, `login`, and `logout` to the user's Apple
+  Container registry configuration; `vat build` and a compose `build:` service
+  build a Dockerfile into the selected local image store (Docker or Apple
+  Container). A local Artifact Registry for the GKE pillar is a roadmap
+  outcome; a hosted or remote registry is not a goal. A vat's environment is a
+  declarative [`EnvSpec`](src/spec.rs) an agent reads and rewrites. A
+  `vat.toml` *service* may run as an ephemeral container, but the runner is
+  always a host process — vat never containerizes your workload on the native
+  pillar.
 
 ## Quick start
 
@@ -936,3 +933,12 @@ target = "http://127.0.0.1:8123"   # or a local emulator's host:port
 > *blocked* (fail-closed), not transparently rerouted.
 
 [`Sandbox`]: src/sandbox/mod.rs
+
+## Supporting documents
+
+| Document | What it answers |
+|---|---|
+| [STATUS.md](STATUS.md) | Which surfaces are Supported, Limited, or Not supported today, with the gate or E2E that proves each row. |
+| [ROADMAP.md](ROADMAP.md) | The owner-confirmed milestone order for the three pillars (M1–M5), the uncommitted later outcomes, and the non-goals. |
+| [docs/product/architecture.md](docs/product/architecture.md) | How the native runtime, the shared Linux VM, the Docker Engine API, and local GKE fit together, including the open spikes. |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | How to change vat and which gate a change must pass. |
