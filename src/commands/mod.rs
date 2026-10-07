@@ -11,7 +11,6 @@ pub mod capabilities;
 pub mod cluster;
 pub mod compose;
 pub mod diff;
-pub mod docker_shim;
 pub mod doctor;
 pub mod emulator;
 pub mod gc;

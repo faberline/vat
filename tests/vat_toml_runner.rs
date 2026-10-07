@@ -2002,20 +2002,14 @@ fn llm_guide_mentions_core_agent_contract() {
         "vat diff <id>",
         "vat logs <id>",
         "vat.toml",
-        // Boundaries: vat has a narrow opt-in Docker command shim, but is not
-        // a Docker Engine/general-Compose replacement, is permanently
-        // headless, and never containerizes the runner even though dependency
-        // services may be containers.
-        "not a Docker Engine/API or general-Compose replacement",
+        // Boundaries: Docker goes through the vat machine Docker Engine, vat is
+        // not a general-Compose replacement, is permanently headless, and
+        // never containerizes the runner even though dependency services may
+        // be containers.
+        "not a general-Compose replacement",
         "It is permanently headless",
-        "does not expose a Docker Engine socket/API",
-        "vat docker install-shim",
-        "explicit host port",
-        "up -d --build",
-        "exec -T SERVICE -- COMMAND",
-        "child_exit_code",
-        "cleanup_next",
-        "VAT-owned `images`",
+        "vat machine start",
+        "DOCKER_HOST=unix://~/.vat/run/docker.sock",
         "vat k8s ephemeral image build",
         "VAT_K8S_CACHE_DIR",
         "vat_k8s_ephemeral_result",
@@ -2045,6 +2039,7 @@ fn llm_guide_mentions_core_agent_contract() {
     for obsolete in [
         "The shim has one strict Compose profile only",
         "It rejects build, multiple services",
+        "vat docker install-shim",
     ] {
         assert!(
             !stdout.contains(obsolete),

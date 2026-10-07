@@ -139,10 +139,10 @@ does not.
 
 **Today.** The Linux routes in the tree are bounded Apple Container paths: the
 `micro_vm` service runtime and `MicroVmBackend` (`src/sandbox/microvm.rs`),
-`vat build` and `vat compose` over the `container` CLI, and the opt-in
-`docker` CLI-subset shim (`src/docker_shim.rs`) with three fixed Compose
-profiles. Apple Container runs one VM per container, exposes no Engine API,
-and the shim fails closed outside its documented subset. These paths stay
+and `vat build` and `vat compose` over the `container` CLI. Apple Container
+runs one VM per container and exposes no Engine API. The opt-in `docker`
+CLI-subset shim is retired: Docker work goes through `vat machine start` and
+its Docker Engine socket. The remaining paths stay
 `Limited` in [STATUS.md](../../STATUS.md) until their replacement passes its
 gate, and are then retired.
 
@@ -225,7 +225,7 @@ native runner to loopback so every external call lands on an emulator.
 |---|---|---|---|
 | chroot vs seatbelt | Does the native runtime confine the rootfs with chroot or with seatbelt path rules? | Decided: seatbelt + fixed-length relocation, no chroot (see Pillar 1). | M1 |
 | Engine API subset | Which Docker API version and endpoints are the M3 contract? | The set the upstream CLI, Compose v2, and Testcontainers need for build/run/exec/logs/network/volume. | M3 |
-| Shim retirement shape | Are `vat build` and `vat compose` re-pointed at the Engine API or retired with the shim? | Not decided; owner call. | M3 |
+| Shim retirement shape | Are `vat build` and `vat compose` re-pointed at the Engine API or retired? | The shim itself is retired; `vat build` and `vat compose` are unchanged. Re-pointing or retiring them is still an owner call. | M3 |
 | kubectl provenance | Does vat keep requiring an independent `kubectl` or vend one? | Keep requiring, unless the owner decides otherwise. | M4 |
 | Vulkan (Venus) | Is GPU inside the VM worth pursuing after M2? | Deferred; not a commitment. | Later |
 

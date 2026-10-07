@@ -35,7 +35,6 @@ pub mod cluster;
 pub mod commands;
 pub mod compose;
 pub mod config;
-pub mod docker_shim;
 #[cfg(feature = "emulator")]
 pub mod emulator;
 pub mod event;
