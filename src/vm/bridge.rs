@@ -240,6 +240,11 @@ pub async fn publish_ports(dialer: Dialer, publish_addr: String, ports_file: Pat
     let mut active: HashMap<u16, JoinHandle<()>> = HashMap::new();
     let mut failed: BTreeMap<u16, String> = BTreeMap::new();
     loop {
+        // Subscribe before scanning: a container started between the scan and
+        // a later subscribe would go unseen until the periodic resync, and a
+        // client that connects as soon as the container logs "ready"
+        // (Testcontainers) would find the port closed.
+        let events = container_events(&dialer).await;
         match docker_get(&dialer, "/containers/json").await {
             Ok(body) => {
                 let want = published_ports(&body);
@@ -278,15 +283,16 @@ pub async fn publish_ports(dialer: Dialer, publish_addr: String, ports_file: Pat
                     })).collect::<Vec<_>>(),
                 });
                 let _ = super::write_atomic(&ports_file, snapshot.to_string().as_bytes());
-                wait_for_container_event(&dialer).await;
+                wait_for_container_event(events).await;
             }
             Err(_) => tokio::time::sleep(Duration::from_secs(1)).await,
         }
     }
 }
 
-/// Block until the next container event (or a periodic resync timeout).
-async fn wait_for_container_event(dialer: &Dialer) {
+/// Subscribe to container events. dockerd sends the response head once the
+/// subscription is live, so every event after this returns is buffered.
+async fn container_events(dialer: &Dialer) -> Option<BufReader<UnixStream>> {
     let fut = async {
         let mut s = dial(dialer, "unix /var/run/docker.sock").await.ok()?;
         let filter = "%7B%22type%22%3A%5B%22container%22%5D%7D";
@@ -307,13 +313,28 @@ async fn wait_for_container_event(dialer: &Dialer) {
                 break;
             }
         }
-        line.clear();
-        reader.read_line(&mut line).await.ok()?;
-        Some(())
+        Some(reader)
     };
-    let _ = tokio::time::timeout(Duration::from_secs(30), fut).await;
-    // Let a burst of events (create/start/attach) settle.
-    tokio::time::sleep(Duration::from_millis(150)).await;
+    tokio::time::timeout(Duration::from_secs(5), fut)
+        .await
+        .ok()
+        .flatten()
+}
+
+/// Block until the next container event (or a periodic resync timeout).
+async fn wait_for_container_event(events: Option<BufReader<UnixStream>>) {
+    match events {
+        Some(mut reader) => {
+            let mut line = String::new();
+            let _ =
+                tokio::time::timeout(Duration::from_secs(30), reader.read_line(&mut line)).await;
+        }
+        // No subscription: resync soon rather than waiting out the full period.
+        None => tokio::time::sleep(Duration::from_secs(1)).await,
+    }
+    // No settle delay: Docker binds a published port before `start` returns,
+    // so every millisecond here is a window where a client sees it closed. A
+    // burst of events just costs a few rescans, each subscribed first.
 }
 
 /// Relay every connection on `listener` to `127.0.0.1:<port>` in the guest.
