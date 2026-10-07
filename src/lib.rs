@@ -42,8 +42,11 @@ pub mod event;
 pub mod gpu;
 pub mod id;
 pub mod lumen_release;
+pub mod native;
 pub mod overlay;
 pub mod paths;
+#[cfg(feature = "registry")]
+pub mod registry;
 pub mod sandbox;
 pub mod spec;
 pub mod state;
