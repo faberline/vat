@@ -1,4 +1,4 @@
-// HANDWRITE-BEGIN gap="missing-generator:e2e-test:compose-full-cycle" tracker="#1484" reason="AC5: gated full up -d / ps / logs / down cycle test against a real container/docker backend, using a `container_available()` skip helper mirroring `vat_cluster.rs`'s Docker-gated pattern and `vat_sandbox_microvm.rs`'s container-gated tests -- new test file, hand-authored per this project's e2e-test convention."
+// HANDWRITE-BEGIN gap="missing-generator:e2e-test:compose-full-cycle" tracker="#1484" reason="AC5: gated full up -d / ps / logs / down cycle test against a real container/docker backend, using a `docker_available()` skip helper -- new test file, hand-authored per this project's e2e-test convention."
 
 //! Container-gated e2e tests for vat compose full lifecycle.
 //!
