@@ -14,8 +14,25 @@ use sha2::{Digest, Sha256};
 
 use super::{write_atomic, MachineConfig, MachinePaths};
 
-const MINIROOTFS_URL: &str = "https://dl-cdn.alpinelinux.org/alpine/v3.22/releases/aarch64/alpine-minirootfs-3.22.6-aarch64.tar.gz";
+const MINIROOTFS_PATH: &str = "v3.22/releases/aarch64/alpine-minirootfs-3.22.6-aarch64.tar.gz";
 const MINIROOTFS_SHA256: &str = "821565fa8f3953eefd12497b166b4b50add2f7c57fb312e75862f5867e06fefe";
+
+/// Alpine mirrors probed when a machine first needs packages; the fastest
+/// one from this host wins. The CDN alone can crawl at tens of KB/s from some
+/// networks, which turns a one-minute provision into a timeout.
+const ALPINE_CDN: &str = "https://dl-cdn.alpinelinux.org/alpine";
+const ALPINE_MIRRORS: &[&str] = &[
+    ALPINE_CDN,
+    "https://mirrors.edge.kernel.org/alpine",
+    "https://mirror.leaseweb.com/alpine",
+    "https://uk.alpinelinux.org/alpine",
+    "https://mirror.xtom.com.hk/alpine",
+    "https://ftp.udx.icscoe.jp/Linux/alpine",
+    "https://mirrors.tuna.tsinghua.edu.cn/alpine",
+    "https://mirror.twds.com.tw/alpine",
+];
+/// How long a probed mirror choice is reused before probing again.
+const MIRROR_TTL: std::time::Duration = std::time::Duration::from_secs(7 * 24 * 3600);
 
 /// Kata Containers publishes the arm64 guest kernel Apple's `container` uses;
 /// it has everything dockerd and K3s need built in (no modules).
@@ -109,7 +126,8 @@ fn ensure_minirootfs(assets: &Path) -> Result<PathBuf> {
     if dest.is_file() && sha256_file(&dest)? == MINIROOTFS_SHA256 {
         return Ok(dest);
     }
-    download(MINIROOTFS_URL, &dest, MINIROOTFS_SHA256)?;
+    let url = format!("{}/{MINIROOTFS_PATH}", alpine_mirror(assets));
+    download(&url, &dest, MINIROOTFS_SHA256)?;
     Ok(dest)
 }
 
@@ -185,6 +203,11 @@ pub fn write_guest_files(paths: &MachinePaths, cfg: &MachineConfig) -> Result<()
         }
     }
     write_exec(&paths.guest.join("vat-guest"), GUEST_AGENT)?;
+    // Not part of the provision version: switching mirrors must not re-provision.
+    write_atomic(
+        &paths.guest.join("alpine.mirror"),
+        format!("{}\n", alpine_mirror(&paths.assets)).as_bytes(),
+    )?;
     write_atomic(
         &paths.guest.join("version"),
         hex(&version.finalize())[..16].as_bytes(),
@@ -214,6 +237,75 @@ pub fn write_guest_files(paths: &MachinePaths, cfg: &MachineConfig) -> Result<()
         let _ = std::fs::remove_file(stale);
     }
     Ok(())
+}
+
+/// The Alpine mirror for boot assets and guest packages: `VAT_ALPINE_MIRROR`,
+/// else the fastest probed mirror (cached under `assets`), else the CDN.
+pub fn alpine_mirror(assets: &Path) -> String {
+    if let Ok(m) = std::env::var("VAT_ALPINE_MIRROR") {
+        if !m.trim().is_empty() {
+            return m.trim().trim_end_matches('/').to_string();
+        }
+    }
+    let cache = assets.join("alpine-mirror");
+    let fresh = std::fs::metadata(&cache)
+        .and_then(|m| m.modified())
+        .is_ok_and(|t| t.elapsed().is_ok_and(|age| age < MIRROR_TTL));
+    if fresh {
+        if let Ok(m) = std::fs::read_to_string(&cache) {
+            if ALPINE_MIRRORS.contains(&m.trim()) {
+                return m.trim().to_string();
+            }
+        }
+    }
+    let best = probe_mirrors().unwrap_or_else(|| ALPINE_CDN.to_string());
+    let _ = std::fs::create_dir_all(assets);
+    let _ = write_atomic(&cache, best.as_bytes());
+    best
+}
+
+/// Time a short download of each mirror's package index in parallel and
+/// return the fastest that answers.
+fn probe_mirrors() -> Option<String> {
+    let probes: Vec<_> = ALPINE_MIRRORS
+        .iter()
+        .filter_map(|m| {
+            Command::new("curl")
+                .args([
+                    "-s",
+                    "-o",
+                    "/dev/null",
+                    "-m",
+                    "4",
+                    "-w",
+                    "%{http_code} %{speed_download}",
+                ])
+                .arg(format!("{m}/v3.22/main/aarch64/APKINDEX.tar.gz"))
+                .stdin(std::process::Stdio::null())
+                .stdout(std::process::Stdio::piped())
+                .stderr(std::process::Stdio::null())
+                .spawn()
+                .ok()
+                .map(|child| (*m, child))
+        })
+        .collect();
+    let mut best: Option<(f64, &str)> = None;
+    for (mirror, child) in probes {
+        // A timed-out transfer (exit 28) still reports a useful speed.
+        let Ok(out) = child.wait_with_output() else {
+            continue;
+        };
+        let text = String::from_utf8_lossy(&out.stdout);
+        let mut parts = text.split_whitespace();
+        if parts.next() != Some("200") {
+            continue;
+        }
+        let speed: f64 = parts.next().and_then(|v| v.parse().ok()).unwrap_or(0.0);
+        if best.is_none_or(|(s, _)| speed > s) {
+            best = Some((speed, mirror));
+        }
+    }
+    best.map(|(_, m)| m.to_string())
 }
 
 fn write_exec(path: &Path, body: &[u8]) -> Result<()> {

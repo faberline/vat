@@ -5,7 +5,8 @@ set -eu
 R=$1
 G=/mnt/vat/guest
 . "$G/versions.env"
-REPO=https://dl-cdn.alpinelinux.org/alpine/$ALPINE_BRANCH
+MIRROR=$(cat "$G/alpine.mirror" 2>/dev/null || echo https://dl-cdn.alpinelinux.org/alpine)
+REPO=$MIRROR/$ALPINE_BRANCH
 mkdir -p "$R/etc/apk" "$R/dev" "$R/proc" "$R/sys"
 cp -r /etc/apk/keys "$R/etc/apk/"
 printf '%s/main\n%s/community\n' "$REPO" "$REPO" > "$R/etc/apk/repositories"

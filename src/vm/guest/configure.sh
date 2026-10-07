@@ -13,6 +13,12 @@ cp "$G/daemon.json" "$R/etc/docker/daemon.json"
 cp "$G/udhcpc.script" "$R/usr/share/udhcpc/vat.script"
 chmod 755 "$R/usr/share/udhcpc/vat.script"
 printf 'pool pool.ntp.org iburst\nmakestep 1 -1\nrtcsync\n' > "$R/etc/chrony/chrony.conf"
+# Later `apk add` inside the guest uses the mirror the host picked.
+if [ -s "$G/alpine.mirror" ]; then
+  . "$G/versions.env"
+  m=$(cat "$G/alpine.mirror")
+  printf '%s/%s/main\n%s/%s/community\n' "$m" "$ALPINE_BRANCH" "$m" "$ALPINE_BRANCH" > "$R/etc/apk/repositories"
+fi
 sed -i 's/^#*rc_cgroup_mode=.*/rc_cgroup_mode="unified"/' "$R/etc/rc.conf"
 # binfmt_misc holds the Rosetta binary open ('F' flag), so unmounting it at
 # shutdown only burns retries.

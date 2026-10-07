@@ -32,6 +32,10 @@ udhcpc -i eth0 -q -n -t 20 -T 1 -s /etc/udhcpc.script >/dev/null 2>&1 || log "dh
 if ! dd if=/dev/vda bs=1 skip=1080 count=2 2>/dev/null | od -An -tx1 | grep -q '53 ef'; then
   phase formatting
   log "formatting the data disk"
+  if [ -s "$G/alpine.mirror" ]; then
+    m=$(cat "$G/alpine.mirror")
+    printf '%s/v3.22/main\n%s/v3.22/community\n' "$m" "$m" > /etc/apk/repositories
+  fi
   apk add --no-cache --quiet e2fsprogs || fail "cannot install e2fsprogs"
   mkfs.ext4 -q -F -L vatdata -E lazy_itable_init=1,lazy_journal_init=1 /dev/vda || fail "mkfs.ext4 failed"
 fi
