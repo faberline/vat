@@ -8,4 +8,4 @@ and must agree with them.
 
 | Area | Index | What it covers |
 |---|---|---|
-| `product/` | [product/README.md](product/README.md) | Architecture of the three pillars, how the native runtime, the shared Linux VM, the Docker Engine API, and local GKE fit together, and the open spikes. |
+| `product/` | [product/README.md](product/README.md) | Architecture of the three pillars: how the native runtime, the shared Linux machine, the Docker Engine socket, persistent K3s, and the machine's local GCP services fit together, and the decided and open spikes. |

@@ -35,34 +35,39 @@ matrix in [STATUS.md](STATUS.md); what it commits to **next** is
    when vat runs as root over a root-created user pool; otherwise every
    container reports `uid_isolation: "unavailable"`.
 
-2. **Complete Docker, with efficiency as the goal.** The direction is a Docker
-   Engine API served over a unix socket (`DOCKER_HOST`) so the real `docker`
-   CLI, `docker compose` v2, Testcontainers, and the Docker SDKs work
-   unmodified, backed by **one shared lightweight Linux VM** (libkrun on Apple
-   Hypervisor.framework) running containerd, with virtiofs file sharing, an
-   in-VM bridge network with service-name DNS, and Rosetta for `amd64` images.
-   Every Linux need goes here. Startup time, idle memory, and file-sharing
-   throughput are **goals to be measured**, not achieved claims. Today
-   `vat machine start` boots that VM and serves its Docker Engine at
-   `~/.vat/run/docker.sock`; vat points its own child processes there via
-   `DOCKER_HOST`, and you export `DOCKER_HOST=unix://$HOME/.vat/run/docker.sock`
-   yourself to use the stock `docker` CLI.
+2. **Complete Docker, with efficiency as the goal.** Every Linux need goes to
+   **one shared lightweight Linux machine** (`vat machine start`): an Alpine
+   guest on Apple's Virtualization.framework, booted by a codesigned helper
+   (`vat-vmm`), with a persistent ext4 disk, virtiofs host shares at the same
+   absolute paths, Rosetta for `linux/amd64` images, a vsock guest agent, and
+   published ports. Inside it runs a real **dockerd**; its socket is forwarded
+   to `~/.vat/run/docker.sock`, so the stock `docker` CLI, `docker compose`
+   v2, Testcontainers, and the Docker SDKs work unmodified once
+   `DOCKER_HOST=unix://$HOME/.vat/run/docker.sock` is exported. vat's own
+   Docker users (`vat build`, `vat run` and compose image services, probes)
+   default to that socket; an explicit `DOCKER_HOST`/`DOCKER_CONTEXT` or
+   `VAT_ENGINE=external` opts out. Startup time, idle memory, and file-sharing
+   throughput are measured by the machine E2E and recorded as observations,
+   not promised as budgets.
 
 3. **Realistic local GCP, especially GKE.** The built-in emulators (Pub/Sub,
    Firebase Auth, Cloud Tasks, Cloud Scheduler, Workflows, Cloud Storage,
    http-mock/OpenAPI) and the gcloud-wrapped family (Firestore, Datastore,
    Bigtable, Spanner), plus transparent REST and gRPC routing of real
-   `*.googleapis.com` hosts to those emulators, are shipped and stay. The
-   direction for GKE, in priority order: persistent K3s inside the pillar-2
-   shared VM sharing its containerd so a `docker build` image is usable by a
-   pod with no load step, with PVCs and survival across sessions; a GCE
-   metadata server plus Workload Identity emulation so GCP clients inside pods
-   resolve to vat emulators automatically; a local Artifact Registry; and later
-   Ingress/GCLB behavior, Secret Manager, and multi-node. The first step has
-   landed: `vat k8s up` runs persistent single-node K3s in the shared machine,
-   and a `cluster = "machine"` service gives each run its own namespace on it.
-   It replaced the kind/k3d/minikube wrapping and the one-boot Apple Container
-   K3s session, which are removed.
+   `*.googleapis.com` hosts to those emulators, are shipped and stay. On top
+   of the machine, `vat k8s up` runs a persistent single-node K3s started
+   with `--docker`, so it shares the machine's dockerd and an image from
+   `docker build` is usable by a pod with no load or push; PVCs and the
+   kubeconfig (`~/.vat/kube/config`, context `vat`) survive machine restarts,
+   and a `cluster = "machine"` service gives each run its own namespace. The
+   machine also serves local GKE realism to pods: a GCE/GKE metadata server
+   at `metadata.google.internal` with Workload Identity (a KSA annotated
+   `iam.gke.io/gcp-service-account` acts as that GSA), a local Artifact
+   Registry at `us-central1-docker.pkg.dev` for `docker push` and pod pulls,
+   and shared Pub/Sub and Cloud Storage emulators whose `*_EMULATOR_HOST`
+   variables an admission webhook injects into every pod (`vat gcp
+   status|env|config`). Tokens are local fakes and nothing enforces IAM.
+   Ingress/GCLB, Secret Manager, and multi-node are later outcomes.
 
 The operating surface faces the agent, not a human developer. Docker's
 ergonomics (a daemon, a desktop app, `ps`/`inspect`/`logs`/`diff` as separate
@@ -89,8 +94,9 @@ the commands named in each row are the only part that runs.
 |---|---:|---|
 | Agent-Native State and Copy-on-Write Lifecycle | #4152 | The core every pillar shares: `vat.toml` run protocol, one structured `vat state`/`vat diff` document, copy-on-write fork/snapshot over APFS `clonefile`, interrupt-safe cleanup, and production-like scenarios. |
 | Native macOS Runtime (pillar 1, shipped part) | - | Sandboxed host-process execution with host GPU visibility, opt-in seatbelt isolation, and the fail-closed egress policy. Also native containers: OCI `darwin/arm64` images (`vat image`), seatbelt-confined copy-on-write roots with fixed-length path relocation and a process-group lifecycle (`vat container`), and `image` services with `runtime = "native"`. No VM, no Linux, no chroot. The dedicated UID requires root and is not verified by the gate. |
-| Local GCP Emulation and Transparent Routing (pillar 3, shipped part) | - | Built-in Rust emulators (REST + gRPC), gcloud-wrapped emulator presets, the http-mock/OpenAPI proxy, and transparent HTTP/gRPC routing of real GCP hosts to local emulators. GKE realism (persistent K3s, metadata server, Workload Identity, Artifact Registry) is roadmap. |
-| Container and Kubernetes Paths Scheduled for Supersession | - | Shipped, bounded, still gated: `vat build`/`vat compose` and the MicroVM service backend. The Docker-backed kind/k3d/minikube cluster wrapping and the one-boot Apple Container K3s session were removed in favor of the machine's persistent K3s (`vat k8s`). ROADMAP outcomes for pillar 2 and GKE replace them; nothing here is removed before its replacement passes its gate. |
+| Local GCP Emulation and Transparent Routing (pillar 3, shipped part) | - | Built-in Rust emulators (REST + gRPC), gcloud-wrapped emulator presets, the http-mock/OpenAPI proxy, and transparent HTTP/gRPC routing of real GCP hosts to local emulators for host-process runners. |
+| Shared Linux Machine, Docker Engine, Persistent K3s, and Local GKE (pillars 2 and 3, shipped part) | - | One Virtualization.framework machine (`vat machine`) running dockerd behind `~/.vat/run/docker.sock` for the stock `docker` CLI and vat's own Docker users; persistent single-node K3s on that dockerd (`vat k8s`, `cluster = "machine"` services); and the machine's local GCP services for pods: metadata server with Workload Identity, local Artifact Registry, shared Pub/Sub and Storage emulators injected by webhook (`vat gcp`). Real-machine behavior is proved by opt-in E2Es; plan, doctor, and unit coverage runs in `cargo test -p vat`. |
+| Container Paths Scheduled for Supersession | - | Shipped, bounded, still gated: the explicit `runtime = "micro_vm"` Apple Container service backend and `vat compose` (a bounded Compose subset materialized to `vat.toml`). `vat build` and compose image services now build through the machine's Docker Engine; the MicroVM path is the one remaining Apple Container route and is superseded by the machine, not extended. |
 | Developer & Agent Experience | #1819 | Offline command contracts, task-scoped onboarding, and host preflight evidence for local agents. |
 
 ### Agent-Native State and Copy-on-Write Lifecycle
@@ -225,29 +231,97 @@ no app code change.
 | gRPC reverse-proxy h2c connection pool | change | #516 | `cargo test -p vat --test vat_emulator_grpc_mitm_routing -- --nocapture` |
 | Full-hermetic http-mock no-forward mode | change | #530 | `cargo test -p vat --test vat_emulator_httpmock_hermetic -- --nocapture` |
 
-### Container and Kubernetes Paths Scheduled for Supersession
+### Shared Linux Machine, Docker Engine, Persistent K3s, and Local GKE (pillars 2 and 3, shipped part)
 
-These rows are shipped and still gated; they are the Linux-workload and
-Kubernetes paths the current tree can keep. The product direction replaces them
-with the shared Linux VM, the Docker Engine API, and persistent K3s (see
-[ROADMAP.md](ROADMAP.md)). Until a replacement passes its own gate, each row
-below stays supported exactly as bounded in the [CLI](#cli) table and in
-[STATUS.md](STATUS.md). `vat compose` is not general Compose.
+One machine per host carries every Linux workload and the local GKE on top of
+it. The pieces, bottom up:
+
+- *Machine.* `vat machine start` boots an Alpine guest on Apple's
+  Virtualization.framework through a codesigned copy of vat (`vat-vmm`,
+  holding the virtualization entitlement) and waits for dockerd. State lives
+  under `~/.vat/machine/default`: a sparse persistent ext4 data disk, a
+  virtiofs share, and logs. Host directories are shared over virtiofs at the
+  same absolute paths, so `docker run -v $PWD:/w` works as on Linux; Rosetta
+  runs `linux/amd64` images; published ports (`-p`) are reachable on the host
+  loopback. `stop` powers the guest off cleanly, `status --json` reports guest
+  memory, VMM RSS, and disk allocation, and `exec`/`logs`/`env`/`rm` round out
+  the lifecycle. Cold start provisions packages once; later starts reuse the
+  disk.
+- *Docker Engine.* The guest runs a real dockerd; the VMM forwards its socket
+  to `~/.vat/run/docker.sock` over vsock. Docker compatibility is Docker's
+  own: BuildKit builds, Compose v2, user networks with service-name DNS,
+  volumes, stdin half-close, and exit codes all come from upstream. vat's own
+  Docker users (`vat build`, `runtime = "docker"` and `auto` image services,
+  compose runners, capability probes) default to this socket; an explicit
+  `DOCKER_HOST`/`DOCKER_CONTEXT` always wins and `VAT_ENGINE=external` opts
+  out. The argv0 `docker` shim is gone.
+- *Persistent K3s.* `vat k8s up` enables K3s (one pinned release,
+  `v1.36.5+k3s1`) in the machine, started with `--docker` so pods run on the
+  same dockerd: an image from `docker build` is usable with no load or push.
+  Cluster state, PVCs, and the kubeconfig (`~/.vat/kube/config`, context
+  `vat`) survive clean restarts and a VMM crash; vat vends a pinned kubectl at
+  `~/.vat/bin/kubectl`. A `vat.toml` `cluster = "machine"` service gets a
+  per-run namespace and an isolated kubeconfig.
+- *Local GKE.* The VMM serves GCP-shaped services on guest link-local
+  addresses, relayed by the guest agent: the metadata server
+  (`169.254.169.254`, `metadata.google.internal` through a CoreDNS stub) with
+  Workload Identity resolved by caller pod IP, a local Artifact Registry at
+  `us-central1-docker.pkg.dev` over TLS from a per-machine CA that dockerd
+  trusts, shared Pub/Sub (`169.254.169.252:8085`) and Cloud Storage
+  (`http://169.254.169.252:9023`) emulators, and a mutating admission
+  webhook that injects `PUBSUB_EMULATOR_HOST`/`STORAGE_EMULATOR_HOST` into
+  new pods. The same emulator state is on host loopback (`127.0.0.1:18085`
+  and `127.0.0.1:19023` by default), so host processes and pods share topics
+  and buckets. `vat gcp status|env|config` reports and configures it.
 
 - Root WI: -
-- Surfaces: CLI: `vat build`, `vat compose`, and `vat.toml`
-  `runtime = "micro_vm"` services.
+- Surfaces: CLI: `vat machine start|stop|status|exec|env|logs|rm`,
+  `~/.vat/run/docker.sock` for the stock `docker` CLI,
+  `vat k8s up|status|kubeconfig|kubectl|down`, `vat gcp status|env|config`,
+  `vat build`, and `vat.toml` `cluster = "machine"` and `runtime = "docker"`
+  services.
+- Gate — behavior: `cargo test -p vat` - engine endpoint selection, machine
+  plan/doctor projection, `cluster = "machine"` validation, and the metadata,
+  CA, webhook, and K3s unit tests; the opt-in real-machine E2Es below boot
+  the VM and are the completion evidence for ROADMAP M2 through M5.
+- Gate: `cargo test -p vat --test vat_toml_runner --test vat_build -- --nocapture`
+- Gate: `cargo test -p vat --lib vm`
+- Gate: `cargo test -p vat --lib gcp`
+- Gate: `VAT_MACHINE_E2E_REQUIRED=1 cargo test -p vat --test vat_machine_e2e -- --ignored --nocapture --test-threads=1`
+- Gate: `VAT_K8S_E2E_REQUIRED=1 cargo test -p vat --test vat_k8s_e2e -- --ignored --nocapture --test-threads=1`
+- Gate: `VAT_GCP_E2E_REQUIRED=1 cargo test -p vat --test vat_gcp_e2e -- --ignored --nocapture --test-threads=1`
+
+| Work Root | Kind | WI | Gate / Evidence |
+|---|---|---:|---|
+| Shared Linux machine on Virtualization.framework (M2) and its Docker Engine socket (M3) | change | - | `VAT_MACHINE_E2E_REQUIRED=1 cargo test -p vat --test vat_machine_e2e -- --ignored --nocapture --test-threads=1` (cold boot; arm64 and amd64 `docker run`; exit codes and stdin half-close; BuildKit build; Compose with service DNS and `depends_on`; user-network DNS; virtiofs read/write both ways; published port; clean stop and warm restart with images and volumes intact; records start timings, idle guest memory, VMM RSS, and disk allocation). |
+| vat build and compose image services through the Docker Engine | change | - | `cargo test -p vat --test vat_build --test vat_compose_build -- --nocapture` (the build smoke is Docker-gated and skips when no daemon answers). |
+| Persistent K3s on the machine's dockerd (M4) | change | - | `VAT_K8S_E2E_REQUIRED=1 cargo test -p vat --test vat_k8s_e2e -- --ignored --nocapture --test-threads=1` (image from `docker build` runs in a pod with no push, PVC write, clean restart, VMM crash recovery; observed on one host: cold about 15 s, restart about 7 s, crash recovery about 15 s). `cluster = "machine"` plan and doctor coverage: `cargo test -p vat --test vat_toml_runner -- --nocapture`. |
+| Local GKE: metadata server with Workload Identity, Artifact Registry, shared emulators injected by webhook (M5) | change | - | `VAT_GCP_E2E_REQUIRED=1 cargo test -p vat --test vat_gcp_e2e -- --ignored --nocapture --test-threads=1` (official google-auth, google-cloud-pubsub, and google-cloud-storage in a pod pulled from the local registry: WI email, `ya29.vat.` token prefix, identity JWT, publish/pull, upload/download, host reads the pod's object; observed on one host: cold k8s ready 16.0 s, build 20.2 s, push 2.5 s, pull-to-probe-done 2.9 s). Unit: `cargo test -p vat --lib gcp`. |
+
+### Container Paths Scheduled for Supersession
+
+These rows are shipped and still gated; they are the bounded Apple Container
+routes the current tree keeps. The machine replaces them (see
+[ROADMAP.md](ROADMAP.md)); until a replacement passes its own gate, each row
+below stays supported exactly as bounded in the [CLI](#cli) table and in
+[STATUS.md](STATUS.md). `vat compose` is not general Compose: it materializes
+a bounded subset to `vat.toml`, and its image services now build and run
+through the machine's Docker Engine like `vat build`; only an explicit
+`runtime = "micro_vm"` still uses Apple Container.
+
+- Root WI: -
+- Surfaces: CLI: `vat compose` and `vat.toml` `runtime = "micro_vm"`
+  services.
 - Gate — behavior: `cargo test -p vat` - deterministic fake coverage for
   Compose and the MicroVM backend;
   real-host E2Es are opt-in `--ignored` runs named per row.
 - Gate: `cargo test -p vat`
 - Gate:
-  `cargo test -p vat --test vat_build --test vat_compose --test vat_compose_import --test vat_compose_build --test vat_sandbox_microvm -- --nocapture`
+  `cargo test -p vat --test vat_compose --test vat_compose_import --test vat_compose_build --test vat_sandbox_microvm -- --nocapture`
 
 | Work Root | Kind | WI | Gate / Evidence |
 |---|---|---:|---|
 | MicroVm sandbox backend for vat run | change | #1474 | `cargo test -p vat --test vat_sandbox_microvm --test vat_sandbox_microvm_fail_closed -- --nocapture` |
-| vat build: Dockerfile build via container CLI | change | #1479 | `cargo test -p vat --test vat_build -- --nocapture` |
 | vat compose: bounded compose subset, up/down/ps/logs | change | #1484 | `cargo test -p vat --test vat_compose --test vat_compose_import -- --nocapture` |
 | Compose runtime-local build artifacts | change | #1529 | `cargo test -p vat --test vat_compose_build -- --nocapture` |
 
@@ -276,21 +350,6 @@ project has a `vat.toml`.
 | Integration contract | change | #701 | `cargo test -p vat --test vat_toml_runner --test behavior_scenario_failure_keeps_topology_and_logs --test behavior_scenario_hermetic_requires_http_mock_service --test behavior_scenario_run_starts_app_dependency_and_runner -- --nocapture` |
 | Configuration-free host preflight | change | #1820 | `cargo test -p vat --test vat_toml_runner -- --nocapture` |
 
-## AW Verification Snapshot
-
-| Field | Value |
-|---|---|
-| Last verified | 2026-06-20 |
-| Production readiness | ready |
-| Tech design root | `tech-design` |
-| TD lock | `tech-design/td.lock` |
-| External-contract inventory | `aw.toml` (`aw.ec.generated`) |
-| Source ownership | full codegen, 100.0% (65/65) |
-| Semantic coverage | 100.0% |
-| Traceability coverage | 95.6% |
-| External-contract gate | passed, 6/6 |
-| Test gate | `cargo test -p vat` passed |
-
 ## What vat is *not*
 
 - **Not a GUI or Desktop application — permanently.** vat is operated through
@@ -298,42 +357,50 @@ project has a `vat.toml`.
   dashboards, tray/menu-bar UI, or a Desktop lifecycle surface.
 - **Not a hostile-code security boundary on the native runtime.** Pillar 1
   runs macOS processes. macOS has no namespaces or cgroups, so seatbelt
-  confinement, a copy-on-write rootfs, and (on the roadmap) a dedicated UID per
-  container give resource isolation for cooperative workloads — weaker than a
-  VM. A workload that must be contained as untrusted belongs in the shared Linux
-  VM of pillar 2, where the kernel is the boundary. The `micro_vm` service
+  confinement, a copy-on-write rootfs, and (when vat runs as root over a user
+  pool) a dedicated UID per container give resource isolation for cooperative
+  workloads — weaker than a VM. A workload that must be contained as untrusted
+  belongs in the shared Linux machine of pillar 2, where the kernel is the
+  boundary. The `micro_vm` service
   path is likewise not an adversarial-child boundary.
 - **Not a Linux runtime on the native pillar.** Pillar 1 is pure Apple
   ecosystem: `darwin/arm64` layers, Homebrew bottles, macOS processes. Linux
-  images and Linux-only workloads go through the shared Linux VM of pillar 2.
-  Besides `vat machine` (and the K3s inside it), today's only other Linux
-  route is the bounded Apple Container `runtime = "micro_vm"` service path; it
-  is scheduled to be superseded, not extended.
-- **Not "no VM at all".** The native runtime has no VM, which is why the host
-  GPU is reachable. The Docker and GKE pillars use exactly **one shared Linux
-  VM**; vat never starts one VM per container. Metal does not pass into that VM,
-  so a Linux container has no Apple GPU. Vulkan (Venus) GPU inside the VM is
+  images and Linux-only workloads go through the shared Linux machine of
+  pillar 2. Besides `vat machine` (and the K3s inside it), today's only other
+  Linux route is the bounded Apple Container `runtime = "micro_vm"` service
+  path; it is superseded, not extended.
+- **Not one VM per container.** The native runtime (pillar 1) has no VM,
+  which is why the host GPU is reachable. The Docker and GKE pillars use
+  exactly **one shared Linux machine** on Virtualization.framework; vat never
+  starts one VM per container (the explicit `micro_vm` Apple Container path
+  is the superseded exception). Metal does not pass into that machine, so a
+  Linux container has no Apple GPU. Vulkan (Venus) GPU inside the machine is
   explicitly deferred and is not a commitment.
-- **Not a `docker` command shim.** vat no longer installs a `docker`
-  symlink or translates Docker argv. Docker work goes through `vat machine
-  start`, which serves the Docker Engine/API at `~/.vat/run/docker.sock`; vat sets
-  `DOCKER_HOST` to it for its own child processes, and you export
-  `DOCKER_HOST=unix://$HOME/.vat/run/docker.sock` yourself to use the stock
-  `docker` CLI from your shell.
+- **Not a Docker re-implementation or a `docker` command shim.** vat installs
+  no `docker` symlink and translates no Docker argv or API. The machine runs
+  upstream dockerd, and `vat machine start` forwards its socket to
+  `~/.vat/run/docker.sock`; vat's own child processes default to it, and you
+  export `DOCKER_HOST=unix://$HOME/.vat/run/docker.sock` yourself to use the
+  stock `docker` CLI from your shell. An explicit `DOCKER_HOST`/`DOCKER_CONTEXT`
+  or `VAT_ENGINE=external` keeps your own daemon.
 - **Not a multi-node or multi-version Kubernetes.** vat's persistent Kubernetes
   is one single-node K3s cluster inside the shared machine (`vat k8s up`); its
   state, PVCs, and kubeconfig (`~/.vat/kube/config`, context `vat`) survive
   machine restarts. It is pinned to one K3s release, and `vat.toml`
   `cluster = "machine"` services isolate runs by namespace, not by cluster.
   The kind/k3d/minikube wrapping and the one-boot Apple Container K3s guest
-  were removed. Ingress/load balancer, multi-node, and GKE metadata/Workload
-  Identity are [ROADMAP.md](ROADMAP.md) outcomes.
+  were removed. Ingress/GCLB, Secret Manager, and multi-node are
+  [ROADMAP.md](ROADMAP.md) outcomes.
 - **Not a GCP account.** The emulators reproduce the API behavior local tests
   depend on (the common client operations, REST and gRPC where both exist).
   They do not reproduce IAM, quotas, billing, regional behavior, or every
   method; fidelity gaps are listed per emulator in [STATUS.md](STATUS.md). The
-  official emulators remain reachable as `runtime = native|docker` fallbacks
-  where Google ships one.
+  machine's metadata server and Workload Identity hand out local fake tokens
+  (`ya29.vat.…`) and identity JWTs that the local emulators accept and real
+  Google APIs reject; nothing enforces IAM, and the Workload Identity binding
+  is an annotation lookup, not policy evaluation. The official emulators
+  remain reachable as `runtime = native|docker` fallbacks where Google ships
+  one.
 - **Not a resource scheduler.** vat owns resource isolation: copy-on-write
   workspaces, sandbox backends, and agent-readable state. It does not decide
   admission, throttling, pausing, or kill policy. That is cap's job. Compose
@@ -341,23 +408,26 @@ project has a `vat.toml`.
   `cap run --label "vat train" -- vat run -- python train.py`.
 - **Not a long-lived process manager.** Services in `vat.toml` are dependencies
   of one runner invocation. vat starts them, waits for readiness, runs the
-  runner, captures evidence, and terminates them. The shared Linux VM of
-  pillar 2, with the K3s cluster inside it, is the one exception: it is a long-lived substrate vat starts on
-  demand and reports on, and its lifecycle contract is a roadmap outcome.
+  runner, captures evidence, and terminates them. The shared Linux machine of
+  pillar 2, with the K3s cluster and local GCP services inside it, is the one
+  exception: it is a long-lived substrate vat boots on demand (`vat machine
+  start`, `vat k8s up`, or a `cluster = "machine"` service) and manages only
+  on explicit command (`vat machine stop|rm`, `vat k8s down`).
 - **Not a shared Apple Container builder manager.** `vat capabilities --json`
   reports `apple_container.builder` as a bounded, read-only advisory
   (`ownership="shared_unknown"`, `automatic_cleanup=false`; optional
   `container system df` evidence is host-global, never VAT-attributed). VAT
   never starts, stops, deletes, or prunes the shared builder or its cache.
-- **Not an image registry or remote image-build service.** `vat build` and a
-  compose `build:` service
-  build a Dockerfile into the selected local image store (Docker or Apple
-  Container). A local Artifact Registry for the GKE pillar is a roadmap
-  outcome; a hosted or remote registry is not a goal. A vat's environment is a
-  declarative [`EnvSpec`](src/spec.rs) an agent reads and rewrites. A
-  `vat.toml` *service* may run as an ephemeral container, but the runner is
-  always a host process — vat never containerizes your workload on the native
-  pillar.
+- **Not a hosted registry or remote image-build service.** `vat build` and a
+  compose `build:` service build a Dockerfile into the machine's Docker Engine
+  (or into Apple Container for an explicit `micro_vm` service). The machine's
+  local Artifact Registry (`us-central1-docker.pkg.dev`, project `vat-local`)
+  exists so pods can pull what `docker push` sent it; it is reachable only
+  from the machine and dockerd, and a hosted or remote registry is not a goal.
+  A vat's environment is a declarative [`EnvSpec`](src/spec.rs) an agent reads
+  and rewrites. A `vat.toml` *service* may run as an ephemeral container, but
+  the runner is always a host process — vat never containerizes your workload
+  on the native pillar.
 
 ## Quick start
 
@@ -380,16 +450,22 @@ vat run --plan impact.json impacted
 # give an LLM/tool agent the compact vat usage contract
 vat llm
 
-# Docker: boot vat's shared Linux VM, then use the stock docker CLI against it
+# Docker: boot vat's shared Linux machine, then use the stock docker CLI against it
 vat machine start
 export DOCKER_HOST="unix://$HOME/.vat/run/docker.sock"
 docker run --rm alpine:3.20 uname -a
+vat build --tag api:dev        # vat's own Dockerfile build goes to the same dockerd
 
 # Kubernetes: persistent single-node K3s inside the same machine
 vat k8s up                     # boots the machine if needed; writes ~/.vat/kube/config
 vat k8s kubectl -- get nodes   # the pinned kubectl, context `vat`
 docker build -t api:dev .      # with DOCKER_HOST set, pods see this image (no push)
 vat k8s status --json
+
+# Local GKE: metadata server, Workload Identity, Artifact Registry, shared emulators
+vat gcp status --json          # project, endpoints, whether the services are up
+docker push us-central1-docker.pkg.dev/vat-local/repo/api:dev   # pods pull it
+eval "$(vat gcp env)"          # host-side PUBSUB_EMULATOR_HOST / STORAGE_EMULATOR_HOST
 
 # what GPU can my vats see? (the headline claim, in one command)
 vat gpu
@@ -466,9 +542,14 @@ The command an agent calls to understand a vat. One document, no log-scraping:
 | `vat llm [--topic <t>] [--format md\|json]` | Print offline agent-facing docs. Default `outline`; use `--topic guide` for the detailed vat.toml/service/evidence/boundary guide. |
 | `vat upgrade` | Self-update to the latest `vat@*` GitHub release (`--check` to report only, `--version <tag>` to pin). One of the three mandatory CLI-convention verbs (`llm`/`upgrade`/`issue`), via the shared `cli-std` crate. |
 | `vat issue search\|view\|create` | Search, read, and file diagnostics-rich GitHub issues under `app:vat`; `issue create --dry-run --title <t>` previews version + target + OS/arch diagnostics without submitting. |
-| `vat machine start` | Boot the shared Linux machine (creating it on first use) and wait for its Docker Engine at `~/.vat/run/docker.sock`. vat sets `DOCKER_HOST` to that socket for its own child processes; export `DOCKER_HOST=unix://$HOME/.vat/run/docker.sock` yourself to use the stock `docker` CLI. `vat machine --help` lists the other verbs. |
-| `vat k8s up [--api-port P] [--timeout S] [--json]` | Enable the persistent single-node K3s cluster in the shared machine (booting the machine when stopped), wait for the API and node, write `~/.vat/kube/config` (context `vat`), and install the pinned kubectl at `~/.vat/bin/kubectl`. `--api-port` picks the host API port (default 6443; remembered). K3s runs on the machine's Docker Engine, so images built against `~/.vat/run/docker.sock` are visible to pods without a push. |
+| `vat machine start [--cpus N] [--memory MiB] [--disk GiB] [--k8s BOOL] [--no-wait] [--timeout S] [--json]` | Boot the shared Linux machine on Virtualization.framework (creating its data disk on first use, provisioning the Alpine guest once) and wait for dockerd on `~/.vat/run/docker.sock`. vat's own child processes default `DOCKER_HOST` to that socket; export `DOCKER_HOST=unix://$HOME/.vat/run/docker.sock` yourself to use the stock `docker` CLI. An explicit `DOCKER_HOST`/`DOCKER_CONTEXT` or `VAT_ENGINE=external` opts out. |
+| `vat machine stop\|status\|exec\|env\|logs\|rm` | `stop` powers the guest off cleanly (reports `forced` when it had to kill); `status --json` reports state, guest health, published ports, guest memory, VMM RSS, and disk allocation; `exec -- <cmd>` runs `sh -c` in the guest and forwards the exit code; `env` prints `DOCKER_HOST`; `logs [--vmm] [--lines N]` shows the console or VMM log; `rm [--yes]` deletes the machine and its data disk. |
+| `vat build [--file F] [--context DIR] [--tag REF] [--build-arg K=V] [--json]` | Build a Dockerfile through vat's Docker Engine (the machine, booted on demand), tagging `<context-basename>:latest` by default. Honors the same `DOCKER_HOST`/`DOCKER_CONTEXT`/`VAT_ENGINE=external` opt-out. |
+| `vat k8s up [--api-port P] [--timeout S] [--json]` | Enable the persistent single-node K3s cluster in the shared machine (booting the machine when stopped), wait for the API and node, write `~/.vat/kube/config` (context `vat`), and install the pinned kubectl at `~/.vat/bin/kubectl`. `--api-port` picks the host API port (default 6443; remembered). K3s runs with `--docker` on the machine's dockerd, so images built against `~/.vat/run/docker.sock` are visible to pods without a push. |
 | `vat k8s status\|kubeconfig\|down [--json]` / `vat k8s kubectl -- <args>` | Report cluster state, API forwarding, kubeconfig, and kubectl; refresh and print the kubeconfig path; disable K3s and stop its pods (cluster state stays on the machine disk); or run the pinned kubectl against the cluster. |
+| `vat gcp status [--json]` | Report the machine's local GCP: enabled/stopped/running, project and number, zone and region, node service account, workload pool, in-machine endpoints (metadata, registry, emulators, webhook), host loopback ports, registry root, and CA. |
+| `vat gcp env [--json]` | Print `export PUBSUB_EMULATOR_HOST=…` / `export STORAGE_EMULATOR_HOST=…` for host processes that should share the machine's emulator state with pods (`--json` also lists the pod-side values and the registry host). |
+| `vat gcp config [--project ID] [--zone Z] [--host-pubsub-port P] [--host-storage-port P] [--enable\|--disable] [--json]` | Change the local project (default `vat-local`), zone (default `us-central1-a`, which sets the registry region), host loopback ports (default 18085 and 19023; `0` keeps an emulator guest-only), or disable local GCP entirely. Applies on the next machine start. |
 | `vat ls` | List vats (one line each, or `--json` array of full states). |
 | `vat state <id>` | Full agent-legible state as JSON (`--compact` for one line). |
 | `vat diff <id>` | Every filesystem change vs. the vat's base (`--json`). |
@@ -519,6 +600,56 @@ Direct and configured runs then persist `status.state = "interrupted"` with the
 signal and reason, clear child PIDs, retain the VAT as failure evidence, and
 exit 130 for SIGINT or 143 for SIGTERM. Explicit `external` services and other
 unrelated listeners are observed only and are never signalled by this cleanup.
+
+## Local GCP in the machine
+
+Once `vat k8s up` has run, every pod in the machine's K3s sees a GKE-shaped
+environment with no manifest changes:
+
+```bash
+vat k8s up
+vat gcp status                 # gcp running, project vat-local, registry us-central1-docker.pkg.dev
+
+# a KSA annotated like on GKE acts as that Google service account
+vat k8s kubectl -- create serviceaccount app
+vat k8s kubectl -- annotate serviceaccount app \
+  iam.gke.io/gcp-service-account=app@vat-local.iam.gserviceaccount.com
+
+# push to the local Artifact Registry; pods pull from it, no load step
+docker build -t us-central1-docker.pkg.dev/vat-local/repo/app:dev .
+docker push     us-central1-docker.pkg.dev/vat-local/repo/app:dev
+
+# host processes share the same Pub/Sub topics and Storage buckets as pods
+eval "$(vat gcp env)"
+```
+
+What a pod gets:
+
+- `metadata.google.internal` (`169.254.169.254`) answers project, zone,
+  instance attributes such as `cluster-name`, service accounts, access tokens
+  (`ya29.vat.…`), and identity JWTs. It requires `Metadata-Flavor: Google` and
+  rejects `X-Forwarded-For`, as the real server does. The caller is resolved by
+  pod IP: a KSA annotated `iam.gke.io/gcp-service-account: <gsa>` acts as
+  that GSA, an unannotated pod gets the workload pool principal
+  `<project>.svc.id.goog`, and a non-pod caller (a plain Docker container or
+  the node) gets `<number>-compute@developer.gserviceaccount.com`. Tokens are
+  accepted by the local emulators only and grant nothing elsewhere; there is no
+  IAM.
+- `PUBSUB_EMULATOR_HOST=169.254.169.252:8085` and
+  `STORAGE_EMULATOR_HOST=http://169.254.169.252:9023`, injected by a mutating
+  admission webhook into new pods outside `kube-system`. A variable the
+  container already sets is left alone. Opt out per namespace with the label
+  `vat.dev/gcp-emulators=disabled` or per pod with the annotation
+  `vat.dev/gcp-emulators: "false"`.
+- `<region>-docker.pkg.dev` (default `us-central1-docker.pkg.dev`) over TLS
+  from a per-machine CA that dockerd trusts through `certs.d`; `docker push`
+  to it and pods pull from it. The CA persists under the machine directory so
+  the guest trust store and the webhook `caBundle` stay valid across restarts.
+
+Configuration (`vat gcp config`) is read on the next machine start. The
+emulators here are the same built-in Pub/Sub and Cloud Storage emulators the
+`vat.toml` presets run, but with one shared state per machine instead of one per
+run; the other emulators and the gcloud-wrapped family stay host-side presets.
 
 ## vat.toml
 
@@ -689,9 +820,11 @@ preferred**:
   ephemeral for the VAT run: no source build, import, seed, or persistence is implied.
 - `image` — an OCI image dependency that has no native equivalent (e.g.
   AlloyDB). Requires `container_port`; `image_env` is passed into the container;
-  `runtime = "docker"` uses Docker, while explicit `runtime = "micro_vm"` uses
-  Apple Container with the same bounded inspect/pull/verify preflight and no
-  Docker fallback. Explicit `runtime = "native"` runs a `darwin/arm64` image
+  `runtime = "docker"` (and `auto`) uses vat's Docker Engine in the shared
+  machine, booted on demand unless `DOCKER_HOST`/`DOCKER_CONTEXT` or
+  `VAT_ENGINE=external` names another daemon, while explicit
+  `runtime = "micro_vm"` uses Apple Container with the same bounded
+  inspect/pull/verify preflight and no Docker fallback. Explicit `runtime = "native"` runs a `darwin/arm64` image
   from the native store (pulled first if missing) as
   `vat container run --rm` on the host network. There is no port mapping, so
   the workload must listen on `container_port` (also passed as `PORT`), and a
@@ -753,7 +886,8 @@ endpoint-bearing `cmd` services reserve their exact `127.0.0.1` endpoints until
 spawn, then require the owned child to stay live while the endpoint becomes
 ready; a probe response from a pre-existing listener cannot certify ownership.
 The Docker path runs an
-ephemeral `docker run --rm` container bound to loopback; the explicit MicroVM
+ephemeral `docker run --rm` container against vat's Docker Engine (the shared
+machine), published on loopback; the explicit MicroVM
 path runs an ephemeral Apple `container run --rm` service after the bounded
 image preflight, with stricter host-port readiness evidence. Both are removed at
 teardown. For the `external` path vat treats the surrounding environment as the
@@ -824,6 +958,6 @@ target = "http://127.0.0.1:8123"   # or a local emulator's host:port
 | Document | What it answers |
 |---|---|
 | [STATUS.md](STATUS.md) | Which surfaces are Supported, Limited, or Not supported today, with the gate or E2E that proves each row. |
-| [ROADMAP.md](ROADMAP.md) | The owner-confirmed milestone order for the three pillars (M1–M5), the uncommitted later outcomes, and the non-goals. |
-| [docs/product/architecture.md](docs/product/architecture.md) | How the native runtime, the shared Linux VM, the Docker Engine API, and local GKE fit together, including the open spikes. |
+| [ROADMAP.md](ROADMAP.md) | The owner-confirmed milestones for the three pillars (M1–M5, all landed, with the evidence that closed each), the uncommitted later outcomes, and the non-goals. |
+| [docs/product/architecture.md](docs/product/architecture.md) | How the native runtime, the shared Linux machine, the Docker Engine socket, persistent K3s, and the machine's local GCP services fit together, including the decided and open spikes. |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to change vat and which gate a change must pass. |

@@ -474,7 +474,7 @@ pub enum ComposeCmd {
         /// Project name (defaults to compose file's parent directory basename).
         #[arg(long)]
         project: Option<String>,
-        /// Runtime backend (auto, docker, or microvm).
+        /// Runtime backend (auto, native, docker, or micro-vm).
         #[arg(long, value_enum, default_value_t = crate::config::ServiceRuntime::Auto)]
         runtime: crate::config::ServiceRuntime,
     },

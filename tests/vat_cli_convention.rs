@@ -65,7 +65,7 @@ fn dx_docs_state_supported_boundaries() {
     let readme = include_str!("../README.md");
     for boundary in [
         "Apple Container",
-        "Docker Engine/API",
+        "Not a Docker re-implementation",
         "general Compose",
         "persistent Kubernetes",
     ] {

@@ -17,22 +17,27 @@ agent ──► vat CLI (structured JSON, vat.toml, vat state / diff / fork / sn
               │     APFS clonefile rootfs, seatbelt, dedicated UID,     │
               │     OCI darwin/arm64 layers                      Metal / MPS / MLX
               │
-              ├── pillar 2: ONE shared Linux VM (libkrun) ─── containerd
-              │     Docker Engine API over DOCKER_HOST socket        │
-              │     virtiofs, bridge + service-name DNS, Rosetta      ├── containers
-              │                                                       └── K3s (pillar 3)
+              ├── pillar 2: ONE shared Linux machine ──────── dockerd
+              │     Virtualization.framework (vat-vmm), Alpine guest     │
+              │     ~/.vat/run/docker.sock over vsock, virtiofs,         ├── containers
+              │     Rosetta, published ports                             └── K3s --docker (pillar 3)
+              │                                                              │
+              │     VMM built-ins on guest link-local uplinks:               │ pods
+              │       metadata.google.internal + Workload Identity ◄─────────┤
+              │       <region>-docker.pkg.dev (Artifact Registry, TLS) ◄─────┤
+              │       shared Pub/Sub + Storage emulators, webhook ◄───────────┘
               │
               └── pillar 3: local GCP ─────────────────────── emulators + routing
                     Pub/Sub, Auth, Tasks, Scheduler, Workflows, GCS,
                     http-mock/OpenAPI, gcloud-wrapped Firestore/Datastore/
-                    Bigtable/Spanner; metadata server + Workload Identity;
-                    local Artifact Registry
+                    Bigtable/Spanner (host-side, per run)
 ```
 
 The agent-facing core (left) is shared by every pillar and already ships. The
 native runtime is the GPU path and has no VM. The Docker and GKE pillars share
-exactly one Linux VM. The GCP pillar is reachable from host processes today and
-from pods once M4 and M5 land.
+exactly one Linux machine. The GCP pillar is reachable from host processes
+through the per-run presets and transparent routing, and from pods through the
+machine's built-in metadata server, registry, and shared emulators.
 
 ## Shared core: the agent-facing model
 
@@ -135,42 +140,53 @@ redirected into its root. `sandbox-exec` is Apple-deprecated; if it is
 removed, the confinement layer has to be replaced, but the relocation layer
 does not.
 
-## Pillar 2: complete Docker over one shared Linux VM
+## Pillar 2: complete Docker over one shared Linux machine
 
-**Today.** The Linux routes in the tree are bounded Apple Container paths: the
-`micro_vm` service runtime and `MicroVmBackend` (`src/sandbox/microvm.rs`),
-and `vat build` and `vat compose` over the `container` CLI. Apple Container
-runs one VM per container and exposes no Engine API. The opt-in `docker`
-CLI-subset shim is retired: Docker work goes through `vat machine start` and
-its Docker Engine socket. The remaining paths stay
-`Limited` in [STATUS.md](../../STATUS.md) until their replacement passes its
-gate, and are then retired.
+**Today (M2, M3 landed).** Two layers, both in `src/vm/`:
 
-**Direction (M2, M3).** Two layers:
+- *Substrate (M2).* One shared lightweight Linux machine per host, named
+  `default`, started on demand by `vat machine start`. It runs on Apple's
+  Virtualization.framework: the VMM is a codesigned copy of the vat binary
+  (`~/.vat/machine/bin/vat-vmm`) holding the `com.apple.security.virtualization`
+  entitlement, spawned detached as `vat machine __vmm` (`src/vm/vmm.rs`).
+  The guest is Alpine on a sparse persistent ext4 data disk (`data.img`),
+  booted from a downloaded kernel and a vat-generated initramfs
+  (`src/vm/assets.rs`); guest scripts live in a
+  virtiofs share (`src/vm/guest/`) copied in on every start, so guest
+  behavior changes without rebuilding images. Host directories are shared
+  over virtiofs at the same absolute paths, Rosetta runs `linux/amd64`
+  images, and a vsock guest agent dials guest sockets for the host
+  (`src/vm/bridge.rs`): the Docker socket, a control socket, guest-to-host
+  uplinks, and published container ports. The plan named libkrun on
+  Hypervisor.framework; Virtualization.framework shipped instead because it
+  gives virtiofs, vsock, Rosetta, and a signed-helper model without a
+  third-party hypervisor library. The machine is a long-lived substrate vat
+  reports through `vat machine status --json`; it is the one exception to
+  "vat is not a process manager", and it is managed only on explicit command.
+- *Engine (M3).* The guest runs upstream dockerd; the VMM forwards its socket
+  to `~/.vat/run/docker.sock` over vsock. There is no translation layer and
+  no declared endpoint subset: Docker compatibility is Docker's own, so the
+  unmodified `docker` CLI, `docker compose` v2, Testcontainers, and the SDKs
+  see a real Engine. `src/vm/engine.rs` makes that socket the default
+  `DOCKER_HOST` for everything vat itself runs (`vat build`, image services,
+  compose runners, probes), booting the machine on demand; an explicit
+  `DOCKER_HOST`/`DOCKER_CONTEXT` always wins and `VAT_ENGINE=external` opts
+  out. The argv0 `docker` shim over Apple Container is retired.
 
-- *Substrate (M2).* One shared lightweight Linux VM, started on demand, built
-  on libkrun over Apple Hypervisor.framework. Inside: containerd as the single
-  image and container store, virtiofs for host directory sharing, an in-VM
-  bridge network with a DNS resolver that answers service names, and Rosetta
-  so `linux/amd64` images run on Apple Silicon. The VM is a long-lived
-  substrate vat reports in `vat state` and `vat capabilities`; it is the one
-  exception to "vat is not a process manager", and it is managed only on
-  explicit command.
-- *API (M3).* A Docker Engine API server on a unix socket. `DOCKER_HOST`
-  points the unmodified upstream `docker` CLI, `docker compose` v2,
-  Testcontainers, and the Docker SDKs at vat; vat translates to containerd
-  inside the VM. The supported API version and endpoint subset are declared in
-  STATUS as the contract; unsupported endpoints return a Docker-shaped error.
+**Remaining Apple Container route.** The explicit `runtime = "micro_vm"`
+service runtime and `MicroVmBackend` (`src/sandbox/microvm.rs`) still use the
+`container` CLI, one VM per container. It stays `Limited` in
+[STATUS.md](../../STATUS.md) as the superseded path and is not extended.
 
-**Efficiency as the goal.** Startup time from cold, idle memory of the VM,
-and file-sharing throughput through virtiofs are the three numbers this pillar
-is judged on. They are measured by M2's completion evidence and recorded in
-`vat state`; a number becomes a budget in STATUS only when the owner confirms
-it. No efficiency figure is claimed before that.
+**Efficiency as the goal.** Startup time from cold, idle guest memory and
+VMM RSS, disk allocation, and build time are recorded by the machine E2E
+(`tests/vat_machine_e2e.rs`) into `vat-machine-e2e.json`; a number becomes a
+budget in STATUS only when the owner confirms it. No efficiency figure is
+promised before that.
 
 **GPU.** Metal does not pass into a Linux guest, so a Linux container has no
-Apple GPU. A Vulkan (Venus) path inside the VM is explicitly deferred and is
-not a commitment; the native pillar remains the GPU path.
+Apple GPU. A Vulkan (Venus) path inside the machine is explicitly deferred and
+is not a commitment; the native pillar remains the GPU path.
 
 ## Pillar 3: realistic local GCP, especially GKE
 
@@ -185,67 +201,123 @@ and Spanner, and `firebase` wraps the Emulator Suite. Transparent routing
 calls to the real `*.googleapis.com` host, REST or gRPC, to the local emulator
 with no code change.
 
-**Direction, in priority order.**
+**Persistent K3s in the shared machine (M4, landed).** `vat k8s up` enables
+K3s (one pinned release, `v1.36.5+k3s1`, `src/vm/k8s.rs`) inside the M2
+machine. K3s is started with `--docker`, so pods run on the machine's dockerd
+rather than on K3s's embedded containerd: an image built through the M3
+socket is visible to pods immediately with no load or push step. The cluster
+state and PVC data live on the machine's data disk and the kubeconfig at
+`~/.vat/kube/config` (context `vat`) survives machine restart and a VMM crash;
+vat vends a pinned kubectl at `~/.vat/bin/kubectl`. It replaced both the
+kind/k3d/minikube `cluster` service (which needed a host Docker daemon) and
+the one-boot Apple Container K3s session; a `cluster = "machine"` service
+gets a per-run namespace on it with an isolated kubeconfig.
 
-1. *Persistent K3s in the shared VM (M4).* K3s runs inside the M2 VM and uses
-   the same containerd, so an image built through the M3 Engine API is visible
-   to pods immediately with no load step. The cluster, its PVCs, and its
-   kubeconfig persist across VM restart and host reboot. It replaced both
-   the kind/k3d/minikube `cluster` service (which needs a Docker daemon) and
-   the one-boot Apple Container K3s session; a `cluster = "machine"` service
-   gets a per-run namespace on it.
-2. *GCE metadata server and Workload Identity (M5).* Pods resolve
-   `metadata.google.internal` to a vat-served metadata endpoint that answers
-   project, zone, and service-account token requests; a Kubernetes service
-   account annotated for Workload Identity maps to an emulated GCP service
-   account. Stock GCP client libraries inside a pod therefore authenticate and,
-   through the same transparent-routing mechanism, reach the vat emulators
-   with no endpoint configuration.
-3. *Local Artifact Registry (M5).* A registry at a GCP-shaped host name that
-   accepts `docker push` from the Engine API and serves pod image pulls.
-4. *Later.* Ingress/GCLB behavior, a Secret Manager emulator, and multi-node
-   clusters.
+### Local GCP services in the machine (M5, landed)
+
+Everything GKE-shaped that a pod sees is served by the VMM process on the host
+(`src/gcp/`), not by containers in the guest. The guest agent binds link-local
+addresses on its loopback and relays each connection over vsock to a
+`builtin:<service>` uplink target, so pods and containers reach the services at
+the addresses real GKE code expects:
+
+```
+169.254.169.254:80    metadata.google.internal (metadata server, Workload Identity)
+169.254.169.251:443   <region>-docker.pkg.dev  (local Artifact Registry, TLS)
+169.254.169.252:8085  Pub/Sub emulator         (PUBSUB_EMULATOR_HOST)
+169.254.169.252:9023  Cloud Storage emulator   (STORAGE_EMULATOR_HOST)
+169.254.169.253:443   mutating admission webhook
+```
+
+- *Metadata server and Workload Identity* (`src/gcp/metadata.rs`). Answers
+  project, project number, zone, instance attributes (`cluster-name`),
+  service accounts, access tokens (`ya29.vat.…`), and identity JWTs; it
+  enforces `Metadata-Flavor: Google` and rejects `X-Forwarded-For`, as the
+  real server does. The caller is identified by source IP, which the guest
+  relay preserves: a pod IP is looked up in the cluster to find its
+  Kubernetes service account; a KSA annotated
+  `iam.gke.io/gcp-service-account: <gsa>` acts as that GSA, an unannotated
+  pod acts as the workload pool principal `<project>.svc.id.goog`, and any
+  other caller (a plain Docker container, the node) acts as the node's
+  `<number>-compute@developer.gserviceaccount.com`. A CoreDNS stub deployed
+  with K3s resolves `metadata.google.internal`. Tokens are local fakes the
+  emulators accept; no IAM is evaluated.
+- *Local Artifact Registry* (`src/registry/` behind `src/gcp/services.rs`).
+  The minimal OCI registry serves `<region>-docker.pkg.dev` (region follows
+  the configured zone; default `us-central1-docker.pkg.dev`) over TLS, with
+  no auth, from the machine directory. Its certificate is minted by a
+  persistent per-machine CA (`src/gcp/ca.rs`); the guest installs the CA for
+  dockerd under `/etc/docker/certs.d/<host>/ca.crt`, so `docker push` and pod
+  pulls both trust it, and the same CA signs the webhook's `caBundle` so both
+  stay valid across restarts.
+- *Shared emulators and the webhook* (`src/gcp/webhook.rs`). The built-in
+  Pub/Sub and Cloud Storage emulators from `src/emulator/` run inside the VMM
+  with one state per machine, reachable from the guest at the link-local
+  ports above and mirrored on host loopback (`127.0.0.1:18085` and
+  `127.0.0.1:19023` by default), so host processes and pods share topics and
+  buckets. A mutating admission webhook, registered by a K3s auto-deploy
+  manifest with a namespace selector that excludes `kube-system`,
+  `kube-public`, and `kube-node-lease`, injects `PUBSUB_EMULATOR_HOST` and
+  `STORAGE_EMULATOR_HOST` into new pods without overriding a variable the
+  container already sets; the namespace label `vat.dev/gcp-emulators=disabled`
+  or the pod annotation `vat.dev/gcp-emulators: "false"` opts out. The plan
+  reused transparent `*.googleapis.com` routing inside pods; the shipped shape
+  injects the environment variables the stock clients already honor, which
+  needs no proxy or CA in the pod.
+- *Configuration* (`src/commands/gcp.rs`). `vat gcp config` writes project,
+  zone, host ports, and enabled state into the machine's `config.json`; the
+  VMM reads it at start and records the live endpoints in `gcp.json`, which
+  `vat gcp status` and `vat gcp env` read.
+
+**Later.** Ingress/GCLB behavior, a Secret Manager emulator, and multi-node
+clusters.
 
 **Fidelity.** Emulators reproduce the API behavior local tests depend on. IAM
-beyond the Workload Identity binding, quotas, billing, and regional behavior
-are not reproduced, and each emulator's gaps are listed in STATUS.
+beyond the Workload Identity annotation lookup, quotas, billing, and regional
+behavior are not reproduced, and each emulator's gaps are listed in STATUS.
 
 ## How the pillars compose in one run
 
 A `vat.toml` run can mix all three: the runner is a native macOS process
 (pillar 1) with the GPU; its `[[services]]` may be native Homebrew presets,
-built-in emulators (pillar 3), or Linux containers in the shared VM reached
-through loopback-published ports (pillar 2); a `cluster = "machine"` service is
-a per-run namespace on the persistent K3s (pillar 3 on pillar 2). `vat state` reports the topology
-of the whole run in one document, and hermetic scenarios still confine the
-native runner to loopback so every external call lands on an emulator.
+built-in emulators (pillar 3), or Linux containers in the shared machine
+reached through loopback-published ports (pillar 2); a `cluster = "machine"`
+service is a per-run namespace on the persistent K3s (pillar 3 on pillar 2),
+where pods get the machine's metadata server, registry, and shared emulators.
+`vat state` reports the topology of the whole run in one document, and hermetic
+scenarios still confine the native runner to loopback so every external call
+lands on an emulator.
 
 ## Open spikes
 
 | Spike | Question | Current lean | Decides |
 |---|---|---|---|
 | chroot vs seatbelt | Does the native runtime confine the rootfs with chroot or with seatbelt path rules? | Decided: seatbelt + fixed-length relocation, no chroot (see Pillar 1). | M1 |
-| Engine API subset | Which Docker API version and endpoints are the M3 contract? | The set the upstream CLI, Compose v2, and Testcontainers need for build/run/exec/logs/network/volume. | M3 |
-| Shim retirement shape | Are `vat build` and `vat compose` re-pointed at the Engine API or retired? | The shim itself is retired; `vat build` and `vat compose` are unchanged. Re-pointing or retiring them is still an owner call. | M3 |
-| kubectl provenance | Does vat keep requiring an independent `kubectl` or vend one? | Keep requiring, unless the owner decides otherwise. | M4 |
-| Vulkan (Venus) | Is GPU inside the VM worth pursuing after M2? | Deferred; not a commitment. | Later |
+| Hypervisor and container store | libkrun on Hypervisor.framework with containerd, or something else? | Decided by what shipped: Virtualization.framework through a codesigned `vat-vmm`, upstream dockerd in the guest (see Pillar 2). | M2 |
+| Engine API subset | Which Docker API version and endpoints are the M3 contract? | Moot: the guest runs upstream dockerd, so the contract is Docker's own API; no subset is declared. | M3 |
+| Shim retirement shape | Are `vat build` and `vat compose` re-pointed at the Engine or retired? | Decided: the shim is retired; `vat build` and compose image services build through the Engine; `vat compose` stays a bounded subset; only explicit `micro_vm` keeps Apple Container. | M3 |
+| kubectl provenance | Does vat keep requiring an independent `kubectl` or vend one? | Decided: vat vends a pinned kubectl at `~/.vat/bin/kubectl`; `vat k8s kubectl` runs it. | M4 |
+| Routing in pods | Do pods reach emulators through transparent `*.googleapis.com` routing or injected `*_EMULATOR_HOST`? | Decided: an admission webhook injects the host variables; no proxy or CA in the pod. | M5 |
+| Vulkan (Venus) | Is GPU inside the machine worth pursuing now that M2 has shipped? | Deferred; not a commitment. | Later |
 
 Each spike's `## Decision` is appended to this file when made; no decision is
-implied before then.
+implied before then. The M2 through M5 rows above record the shape that
+shipped and is gated, not a separate spike write-up.
 
 ## Non-goals
 
 - GUI or Desktop application, dashboard, tray or menu-bar surface: permanently
   out of scope.
 - Linux inside the native pillar: rejected by the product owner; Linux goes to
-  the shared VM.
+  the shared machine.
 - A hostile-code security boundary on the native runtime: macOS has no
-  namespaces or cgroups; the Linux VM is the boundary when one is needed.
-- One VM per container: the Apple Container model is the path being
-  superseded, not extended.
+  namespaces or cgroups; the Linux machine is the boundary when one is needed.
+- One VM per container: the Apple Container model (the explicit `micro_vm`
+  route) is the path being superseded, not extended.
 - Resource scheduling and long-lived supervision: `cap` schedules; vat
-  manages only the shared VM, and only on explicit command.
+  manages only the shared machine, and only on explicit command.
 - Hosted or remote registry, proxying a real GCP project, or IAM, quota, and
-  billing fidelity.
-- Vulkan (Venus) GPU inside the Linux VM as a commitment: deferred to a
-  decision after M2.
+  billing fidelity; the local Artifact Registry and the Workload Identity
+  tokens are local-only.
+- Vulkan (Venus) GPU inside the Linux machine as a commitment: deferred to a
+  decision now that M2 has shipped.
