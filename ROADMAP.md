@@ -103,8 +103,12 @@ in it runs as a gate; the matching [STATUS.md](STATUS.md) rows are now
   proves `vat build` lands its tag in the Engine's image store (Docker-gated).
   The shim entry point and its schemas are gone from the tree.
   [STATUS.md](STATUS.md) `VAT-S-DOCKER-ENGINE` is `Supported` and
-  `VAT-S-DOCKER-SHIM` is removed. A Testcontainers-based test is not in the
-  tree; Testcontainers is claimed only through Docker's own API compatibility.
+  `VAT-S-DOCKER-SHIM` is removed. The same E2E's
+  `machine_docker_engine_serves_testcontainers` starts `redis:7-alpine`
+  through the Rust `testcontainers` crate (bollard, Engine API) with an
+  ephemeral published port, waits on its log line, and gets `+PONG` from the
+  host on the first connect, so a published port is open by the time the
+  container reports ready.
 - Tracking: Not assigned.
 
 ### M4 — Persistent K3s in the shared machine with shared images and PVCs (done)
@@ -127,9 +131,11 @@ in it runs as a gate; the matching [STATUS.md](STATUS.md) rows are now
   image through the Engine, runs a pod from it with no push, writes a PVC,
   restarts the machine cleanly and proves the pod and PVC data are back, then
   kills the VMM and proves recovery; observed on one host, cold about 15 s,
-  restart about 7 s, crash recovery about 15 s. The `cluster = "machine"`
-  run path has plan, doctor, and validation coverage in
-  `cargo test -p vat --test vat_toml_runner` and was verified live once.
+  restart about 7 s, crash recovery about 15 s. The same E2E then runs a
+  `vat.toml` with a `cluster = "machine"` service: the runner's kubectl lands
+  a ConfigMap in `VAT_K8S_NAMESPACE`, the run exits 0, and the namespace is
+  gone afterwards. Plan, doctor, and validation coverage stays in
+  `cargo test -p vat --test vat_toml_runner`.
   [STATUS.md](STATUS.md) `VAT-S-K3S-PERSISTENT` is `Supported`;
   `VAT-S-CLUSTER` and `VAT-S-K8S-SESSION` are removed.
 - Tracking: Not assigned.
