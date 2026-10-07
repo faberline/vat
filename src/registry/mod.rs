@@ -333,6 +333,7 @@ fn blob_created(name: &str, digest: &str) -> Response {
 }
 
 /// Finalize an upload file into the blob store after verifying its digest.
+#[allow(clippy::result_large_err)] // internal; the error is the HTTP response itself
 fn commit_upload(reg: &Registry, upload: &Path, digest: &str) -> Result<(), Response> {
     let Some(target) = reg.blob_path(digest) else {
         let _ = std::fs::remove_file(upload);
