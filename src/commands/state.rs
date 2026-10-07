@@ -11,6 +11,12 @@ use anyhow::Result;
 use crate::store;
 
 pub fn exec(id: String, compact: bool) -> Result<ExitCode> {
+    if crate::native::container::looks_like_id(&id) {
+        // Native containers (`ctr-…`) report through `vat container inspect`.
+        let container = crate::native::container::find(&id)?;
+        crate::commands::print_json(&container.inspect()?, compact)?;
+        return Ok(ExitCode::SUCCESS);
+    }
     let vat = store::load(&id)?;
     let state = vat.project()?;
     crate::commands::print_json(&state, compact)?;

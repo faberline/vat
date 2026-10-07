@@ -11,8 +11,12 @@ use anyhow::Result;
 use crate::store;
 
 pub fn exec(id: String, json: bool) -> Result<ExitCode> {
-    let vat = store::load(&id)?;
-    let changes = vat.changes()?;
+    let changes = if crate::native::container::looks_like_id(&id) {
+        // Native containers (`ctr-…`): changes in the root since creation.
+        crate::native::container::find(&id)?.changes()?
+    } else {
+        store::load(&id)?.changes()?
+    };
 
     if json {
         crate::commands::print_json(&changes, false)?;

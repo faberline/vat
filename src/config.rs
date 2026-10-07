@@ -145,8 +145,10 @@ pub struct ServiceConfig {
     /// How a `preset` service is provided. `auto` (default) prefers the native
     /// host binary (Homebrew) and falls back to the preset's official Docker
     /// image when the binary is missing; `native` forces the binary; `docker`
-    /// forces the image. Only meaningful with `preset` — `image` services are
-    /// always Docker and `cmd` services are always native.
+    /// forces the image. With `image`, `native` runs a darwin/arm64 image on
+    /// vat's native container runtime (`vat container run`), `microvm` uses
+    /// Apple's `container` CLI, and anything else uses Docker. `cmd` services
+    /// are always native.
     #[serde(default)]
     pub runtime: ServiceRuntime,
     /// Declares this service as an ephemeral local Kubernetes cluster (kind /

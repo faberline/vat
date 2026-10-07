@@ -2121,6 +2121,9 @@ fn prepare_service(
         // `docker run` path unchanged (R4/R5).
         match service.runtime {
             ServiceRuntime::MicroVm => prepare_microvm_service(vat, service, image)?,
+            // `runtime = "native"`: a darwin/arm64 image run by vat's native
+            // container runtime (`vat container run`), no Docker, no VM.
+            ServiceRuntime::Native => prepare_native_image_service(vat, service, image)?,
             _ => prepare_image_service(vat, service, image)?,
         }
     } else if service.external.is_some() {
@@ -3292,6 +3295,81 @@ fn prepare_image_service(
         cluster: None,
         owned_by_vat: true,
         requires_live_child: false,
+        endpoint_reservations: Vec::new(),
+    })
+}
+
+/// Run a darwin/arm64 image service on the native runtime: the service
+/// process is `vat container run --rm …` (foreground, so teardown's signal
+/// reaches it and it forwards to the workload's process group). Native
+/// containers share the host network, so there is no port mapping: the
+/// workload listens on `container_port` directly (also passed as `PORT`).
+fn prepare_native_image_service(
+    vat: &store::Vat,
+    service: &ServiceConfig,
+    image: &str,
+) -> Result<ServicePlan> {
+    let port = service
+        .container_port
+        .context("image service missing container_port (validated earlier)")?;
+    if let PortSpec::Fixed(fixed) = service.port {
+        if fixed != port {
+            bail!(
+                "service `{}` runs on the native runtime, which has no port mapping: \
+                 `port` ({fixed}) must equal `container_port` ({port}) or be omitted",
+                service.id
+            );
+        }
+    }
+    let store = crate::native::store::ImageStore::open()?;
+    if let Err(err) = store.resolve(image) {
+        #[cfg(feature = "registry")]
+        {
+            let _ = err;
+            crate::native::distribution::pull(&store, image)
+                .with_context(|| format!("service `{}`: pull native image {image}", service.id))?;
+        }
+        #[cfg(not(feature = "registry"))]
+        return Err(err.context(format!("service `{}`: native image {image} is not in the local store", service.id)));
+    }
+    let name = container_name(&vat.meta.id, &service.id);
+    let exe = std::env::current_exe().context("locate the vat executable")?;
+    let mut command = vec![
+        exe.display().to_string(),
+        "container".to_string(),
+        "run".to_string(),
+        "--rm".to_string(),
+        "--name".to_string(),
+        name,
+        "-e".to_string(),
+        format!("PORT={port}"),
+    ];
+    for (key, value) in &service.image_env {
+        command.push("-e".to_string());
+        command.push(format!("{key}={value}"));
+    }
+    command.push(image.to_string());
+    let env = image_exports(service, port);
+    Ok(ServicePlan {
+        id: service.id.clone(),
+        command,
+        host: Some("127.0.0.1".to_string()),
+        ready_http: service.ready_http.clone(),
+        ready_probe: docker_ready_probe(service, port),
+        timeout_s: service.timeout_s,
+        preset: None,
+        port: Some(port),
+        prepare_mode: "native_container".to_string(),
+        cache_key: None,
+        prepare_duration_ms: 0,
+        exported_env: sorted_keys(&env),
+        env,
+        docker_name: None,
+        microvm_name: None,
+        image: Some(image.to_string()),
+        cluster: None,
+        owned_by_vat: true,
+        requires_live_child: true,
         endpoint_reservations: Vec::new(),
     })
 }
