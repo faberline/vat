@@ -192,6 +192,21 @@ enum Cmd {
         #[command(subcommand)]
         cmd: IssueCmd,
     },
+    /// Native darwin/arm64 OCI images: build, pull, push, import, export.
+    Image {
+        #[command(subcommand)]
+        cmd: commands::native::ImageCmd,
+    },
+    /// Native containers: macOS processes in a CoW root under seatbelt.
+    Container {
+        #[command(subcommand)]
+        cmd: commands::native::ContainerCmd,
+    },
+    /// Native runtime host setup (UID pool).
+    Native {
+        #[command(subcommand)]
+        cmd: commands::native::NativeCmd,
+    },
     /// Report the GPU every vat on this host can reach.
     Gpu {
         #[arg(long)]
@@ -800,6 +815,9 @@ pub fn run() -> Result<ExitCode> {
             yes,
         } => upgrade_cmd(check, version, force, yes),
         Cmd::Issue { cmd } => issue_cmd(cmd),
+        Cmd::Image { cmd } => commands::native::image(cmd),
+        Cmd::Container { cmd } => commands::native::container(cmd),
+        Cmd::Native { cmd } => commands::native::native(cmd),
         Cmd::Gpu { json } => commands::gpu::exec(json),
         Cmd::Cluster { cmd } => match cmd {
             ClusterCmd::Create {

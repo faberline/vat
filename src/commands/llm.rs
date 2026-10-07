@@ -67,6 +67,13 @@ evidence afterward.
   copy that carries its lineage, and `vat snapshot <id> [--name N]` to freeze
   one into an immutable, non-runnable point-in-time copy.
 - Use `vat gpu --json` to report the GPU every vat on this host can reach.
+- For an Apple-native container (darwin/arm64 Mach-O workloads, no Linux VM,
+  full Metal), use `vat image build|pull|push|import|export|ls|inspect|tag|rm`
+  and `vat container run|ps|logs|exec|stop|rm|inspect|diff`. Images live in an
+  OCI store under `~/.vat/native`; each container gets a clonefile copy-on-write
+  root under a fixed 128-byte path, with writes confined by seatbelt. There is
+  no chroot: the workload sees host paths and resolves its own files through
+  `$VAT_ROOT`.
 - For Docker-free, one-command local Kubernetes work on Apple Container, first
   ensure an independently installed `kubectl` is first on `PATH` (VAT rejects
   an OrbStack-provided binary), run `vat k8s ephemeral image build`, then run
@@ -657,6 +664,12 @@ network = "hermetic"       # open | hermetic
   Docker. It requires `container_port`; `image_env` is passed into the
   container; in `export`, `{host}`/`{port}` resolve to the mapped host endpoint,
   and `VAT_SERVICE_<ID>_{HOST,PORT}` are always exported.
+- `runtime = "native"` on an `image` service runs a darwin/arm64 image from the
+  native store (`vat image build|pull|import` first) as a seatbelt-confined
+  native container for the run, then removes it. It shares the host network,
+  so `port` (when set) must equal `container_port`; `{host}`/`{port}` in
+  `ready_http` and `export` resolve to `127.0.0.1` and that port. It never
+  invokes Docker or Apple Container.
 - An `external` service is an already provisioned endpoint, such as a GitLab CI
   `services:` sidecar, GitHub Actions service container, local Docker Compose
   service, or host daemon. vat does not start or stop it; it waits for readiness,
@@ -828,6 +841,14 @@ network = "hermetic"       # open | hermetic
 - This applies uniformly to both direct-command mode (`vat run -- <cmd>`) and
   runner-mode `vat.toml` commands — a declared runner cannot bypass the
   spec's isolation/egress policy.
+- Native containers (`vat container run`, `runtime = "native"` services) are
+  always seatbelt-confined: writes are limited to the container root, temp, and
+  explicit `-v` mounts (`:ro` mounts are read-only); reads are not restricted.
+  Seatbelt is a write/egress policy, not a hostile-code boundary, and there is
+  no chroot. `vat container inspect` reports `uid_isolation`: it is
+  `unavailable` unless vat runs as root with a root-created user pool
+  (`vat native users`), so by default the workload runs as the invoking user.
+  Do not claim per-container UID isolation from a non-root run.
 
 ## Command Patterns
 
@@ -995,6 +1016,21 @@ network = "hermetic"       # open | hermetic
   runnable.
 - `vat gpu --json`: report the GPU(s) every vat on this host can reach,
   independent of any specific vat or run.
+- `vat image build -t NAME:TAG DIR`: build a darwin/arm64 image from a
+  Dockerfile subset (single-stage FROM scratch or a stored image, COPY without
+  wildcards or flags, RUN, ENV, WORKDIR, CMD/ENTRYPOINT, EXPOSE, LABEL; no ADD,
+  USER, ARG, or `.dockerignore`); Mach-O files are ad-hoc re-signed after
+  relocation. `vat image pull|push REF` talks to an OCI
+  registry using `~/.docker/config.json` credentials (Basic or Bearer);
+  `vat image import|export` moves OCI layout tarballs.
+- `vat container run [-d] [--rm] [--name N] [-e K=V] [-v HOST:CONT[:ro]]
+  [--network host|none] IMAGE [CMD...]`: run in the foreground (exit code is
+  the workload's) or detached; `vat container ps|logs|exec|stop|rm|inspect|diff`
+  manage it. `stop [-t SECONDS]` sends SIGTERM to the process group, then
+  SIGKILL after the grace period (default 10 s).
+- `vat native users ls` reports the hidden `_vatN` UID pool and whether UID
+  isolation would be active; `vat native users setup` creates the pool and
+  requires root.
 
 ## Retention
 
@@ -1412,6 +1448,14 @@ const CONTAINER: &str = r#"# VAT container and compose workflow
 Use `vat build` for a local Dockerfile build and `vat compose` for VAT's
 documented bounded Compose subset. `vat docker install-shim` is opt-in and is
 not a Docker Engine/API, generic Compose, SDK, or daemon compatibility layer.
+
+For Apple-native darwin/arm64 containers with no Linux VM, use `vat image
+build|pull|push|import|export|ls|inspect|tag|rm` and `vat container
+run|ps|logs|exec|stop|rm|inspect|diff`, or an `image` service with
+`runtime = "native"` in `vat.toml`. Each container has a clonefile
+copy-on-write root and seatbelt-confined writes; there is no chroot, and
+`uid_isolation` is `unavailable` unless vat runs as root with a
+`vat native users` pool.
 "#;
 
 const K8S: &str = r#"# VAT local Kubernetes workflow

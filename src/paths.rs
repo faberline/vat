@@ -63,6 +63,24 @@ pub fn cluster_dir(name: &str) -> Result<PathBuf> {
     Ok(clusters_dir()?.join(name))
 }
 
+/// Root of the native-runtime store (OCI darwin images, unpacked snapshots,
+/// native containers, fixed-length container roots).
+///
+/// Unlike per-repo vats, native images are user-global: `$VAT_NATIVE_HOME`,
+/// else `$VAT_HOME/native` (so tests and agents that already redirect
+/// `$VAT_HOME` stay hermetic), else `~/.vat/native`.
+pub fn native_home() -> Result<PathBuf> {
+    if let Some(custom) = std::env::var_os("VAT_NATIVE_HOME") {
+        return Ok(PathBuf::from(custom));
+    }
+    if let Some(custom) = std::env::var_os("VAT_HOME") {
+        return Ok(PathBuf::from(custom).join("native"));
+    }
+    let home = dirs::home_dir()
+        .ok_or_else(|| anyhow::anyhow!("cannot resolve the home directory for ~/.vat/native"))?;
+    Ok(home.join(".vat").join("native"))
+}
+
 /// Filenames within a vat directory. Centralized so the layout has one source
 /// of truth.
 pub mod file {

@@ -19,6 +19,7 @@ pub mod gpu;
 pub mod k8s;
 pub mod llm;
 pub mod logs;
+pub mod native;
 pub mod ls;
 pub mod machine;
 pub mod plan;

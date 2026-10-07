@@ -62,15 +62,7 @@ pub fn clone_tree(src: &Path, dst: &Path) -> Result<()> {
 /// macOS: one `clonefile(2)` clones the entire tree, copy-on-write.
 #[cfg(target_os = "macos")]
 fn clonefile_macos(src: &Path, dst: &Path) -> Result<()> {
-    use std::ffi::CString;
-    use std::os::unix::ffi::OsStrExt;
-
-    let c_src = CString::new(src.as_os_str().as_bytes()).context("src path has NUL byte")?;
-    let c_dst = CString::new(dst.as_os_str().as_bytes()).context("dst path has NUL byte")?;
-    // clonefile(const char *src, const char *dst, int flags)
-    let rc = unsafe { libc::clonefile(c_src.as_ptr(), c_dst.as_ptr(), 0) };
-    if rc != 0 {
-        let err = std::io::Error::last_os_error();
+    if let Err(err) = clonefile_with_flags(src, dst, 0) {
         // Fall back to a portable copy if the volume isn't APFS or clonefile
         // is otherwise unhappy — correctness over speed.
         eprintln!(
@@ -78,6 +70,34 @@ fn clonefile_macos(src: &Path, dst: &Path) -> Result<()> {
              (COW disabled — is the workspace on a non-APFS volume?)"
         );
         return copy_recursive(src, dst);
+    }
+    Ok(())
+}
+
+/// Raw APFS `clonefile(2)` of `src` (a file or a whole directory tree) to
+/// `dst`, with no fallback and no workspace filtering. Used by the native
+/// runtime, which must clone image snapshots byte-for-byte (including any
+/// `target/` or `.git/` directories an image legitimately contains) and does
+/// its own faithful-copy fallback.
+#[cfg(target_os = "macos")]
+pub fn clonefile_raw(src: &Path, dst: &Path) -> std::io::Result<()> {
+    // CLONE_NOFOLLOW (0x0001): a symlink source is cloned as the link itself.
+    clonefile_with_flags(src, dst, 0x0001)
+}
+
+#[cfg(target_os = "macos")]
+fn clonefile_with_flags(src: &Path, dst: &Path, flags: u32) -> std::io::Result<()> {
+    use std::ffi::CString;
+    use std::os::unix::ffi::OsStrExt;
+
+    let c_src = CString::new(src.as_os_str().as_bytes())
+        .map_err(|_| std::io::Error::new(std::io::ErrorKind::InvalidInput, "src has NUL"))?;
+    let c_dst = CString::new(dst.as_os_str().as_bytes())
+        .map_err(|_| std::io::Error::new(std::io::ErrorKind::InvalidInput, "dst has NUL"))?;
+    // clonefile(const char *src, const char *dst, int flags)
+    let rc = unsafe { libc::clonefile(c_src.as_ptr(), c_dst.as_ptr(), flags) };
+    if rc != 0 {
+        return Err(std::io::Error::last_os_error());
     }
     Ok(())
 }

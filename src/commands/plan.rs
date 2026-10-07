@@ -381,7 +381,10 @@ fn service_runtime(service: &ServiceConfig) -> Option<String> {
             .to_string(),
         );
     }
-    service.image.as_ref().map(|_| "docker".to_string())
+    service.image.as_ref().map(|_| match service.runtime {
+        ServiceRuntime::Native => "native".to_string(),
+        _ => "docker".to_string(),
+    })
 }
 
 fn exported_env_keys(service: &ServiceConfig) -> Vec<String> {

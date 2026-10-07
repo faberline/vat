@@ -258,7 +258,7 @@ fn service_requires_docker_probe(service: &ServiceConfig) -> bool {
         return true;
     }
     if service.image.is_some() {
-        return service.runtime != ServiceRuntime::MicroVm;
+        return !matches!(service.runtime, ServiceRuntime::MicroVm | ServiceRuntime::Native);
     }
     let Some(preset) = service.preset else {
         return matches!(service.runtime, ServiceRuntime::Docker);
@@ -354,7 +354,9 @@ fn check_service_host(
             service,
             &capabilities.apple_container.builder,
         );
-    } else if service.image.is_some() || matches!(service.runtime, ServiceRuntime::Docker) {
+    } else if (service.image.is_some() && service.runtime != ServiceRuntime::Native)
+        || matches!(service.runtime, ServiceRuntime::Docker)
+    {
         push_check(
             checks,
             "docker",

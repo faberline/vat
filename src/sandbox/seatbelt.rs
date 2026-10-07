@@ -58,18 +58,69 @@ fn profile_for(rootfs: &Path, egress: EgressPolicy) -> String {
          (allow file-write* (subpath \"/private/var/folders\"))\n\
          (allow file-write* (subpath \"/tmp\"))\n"
     );
-    // Network egress: only OUTBOUND network is filtered; reads/file/GPU stay as
-    // above. localhost stays reachable so vat's local emulators + http-mock
-    // proxy still work (the routing in v1/v2 targets 127.0.0.1).
+    profile.push_str(egress_rules(egress));
+    profile
+}
+
+/// Network egress rules shared by every generated profile: only OUTBOUND
+/// network is filtered; reads/file/GPU are untouched. localhost stays
+/// reachable under `localhost-only` so vat's local emulators + http-mock proxy
+/// still work (the routing in v1/v2 targets 127.0.0.1).
+fn egress_rules(egress: EgressPolicy) -> &'static str {
     match egress {
-        EgressPolicy::Open => {}
-        EgressPolicy::LocalhostOnly => profile.push_str(
+        EgressPolicy::Open => "",
+        EgressPolicy::LocalhostOnly => {
             "(deny network*)\n\
              (allow network* (remote ip \"localhost:*\"))\n\
-             (allow network* (remote unix-socket))\n",
-        ),
-        EgressPolicy::Deny => profile.push_str("(deny network*)\n"),
+             (allow network* (remote unix-socket))\n"
+        }
+        EgressPolicy::Deny => "(deny network*)\n",
     }
+}
+
+/// Quote a host path as a seatbelt string literal.
+fn sb_literal(path: &Path) -> String {
+    let raw = path.display().to_string();
+    format!("\"{}\"", raw.replace('\\', "\\\\").replace('"', "\\\""))
+}
+
+/// Profile for a native-runtime container or a `vat image build` RUN step.
+///
+/// Stricter than [`profile_for`] on writes: there is **no** blanket allowance
+/// for `/tmp`, `/private/tmp`, or `/private/var/folders`. Writes are allowed
+/// only under the container root (whose `tmp/` is the workload's `TMPDIR`),
+/// each extra writable subpath (read-write `-v` mounts, the invoking user's
+/// per-user cache dir for Metal shader caches), and the character devices
+/// every process expects (`/dev/null`, ttys, `/dev/fd/*`). Reads stay broad
+/// (`allow default`) so dyld, the shared cache, and system frameworks —
+/// including Metal — resolve; a macOS process cannot run without them.
+/// `egress` reuses the vat seatbelt backend's network rules (`--network none`
+/// maps to [`EgressPolicy::Deny`]).
+pub fn native_container_profile(
+    root: &Path,
+    writable: &[std::path::PathBuf],
+    egress: EgressPolicy,
+) -> String {
+    let mut profile = String::from(
+        "(version 1)\n\
+         (allow default)\n\
+         (deny file-write*)\n",
+    );
+    profile.push_str(&format!(
+        "(allow file-write* (subpath {}))\n",
+        sb_literal(root)
+    ));
+    for path in writable {
+        profile.push_str(&format!(
+            "(allow file-write* (subpath {}))\n",
+            sb_literal(path)
+        ));
+    }
+    profile.push_str(
+        "(allow file-write* (literal \"/dev/null\") (literal \"/dev/zero\") \
+         (literal \"/dev/dtracehelper\") (regex #\"^/dev/tty\") (regex #\"^/dev/fd/\"))\n",
+    );
+    profile.push_str(egress_rules(egress));
     profile
 }
 
@@ -104,6 +155,29 @@ mod tests {
         assert!(p.contains("(allow network* (remote ip \"localhost:*\"))"));
         // Write-confinement still present.
         assert!(p.contains("(allow file-write* (subpath \"/vat/rootfs\"))"));
+    }
+
+    #[test]
+    fn native_profile_confines_writes_without_temp_allowances() {
+        let p = native_container_profile(
+            Path::new("/r/c-1"),
+            &[PathBuf::from("/data/rw")],
+            EgressPolicy::Open,
+        );
+        assert!(p.contains("(deny file-write*)"));
+        assert!(p.contains("(allow file-write* (subpath \"/r/c-1\"))"));
+        assert!(p.contains("(allow file-write* (subpath \"/data/rw\"))"));
+        assert!(!p.contains("/private/tmp"));
+        assert!(!p.contains("/private/var/folders"));
+        assert!(!p.contains("network"));
+        let none = native_container_profile(Path::new("/r/c-1"), &[], EgressPolicy::Deny);
+        assert!(none.contains("(deny network*)"));
+    }
+
+    #[test]
+    fn native_profile_escapes_quotes() {
+        let p = native_container_profile(Path::new("/r/a\"b"), &[], EgressPolicy::Open);
+        assert!(p.contains("(subpath \"/r/a\\\"b\")"));
     }
 
     #[test]
