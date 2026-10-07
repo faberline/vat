@@ -202,6 +202,11 @@ enum Cmd {
         #[command(subcommand)]
         cmd: ClusterCmd,
     },
+    /// Manage the shared Linux machine behind the Docker Engine socket and K3s.
+    Machine {
+        #[command(subcommand)]
+        cmd: MachineCmd,
+    },
     /// Build a local OCI image from a Dockerfile using the container CLI.
     Build {
         /// Path to Dockerfile (defaults to Dockerfile in context dir).
@@ -322,6 +327,95 @@ pub enum EmulatorKind {
     CloudStorage,
     HttpMock,
     Openapi,
+}
+
+/// `vat machine` verbs. One shared Linux VM (Virtualization.framework) runs
+/// dockerd and, when enabled, K3s; the host talks to it over vsock.
+#[derive(Subcommand)]
+enum MachineCmd {
+    /// Boot the machine (creating it on first use) and wait for dockerd.
+    Start {
+        #[arg(long, default_value = crate::vm::DEFAULT_MACHINE)]
+        name: String,
+        /// Virtual CPUs (default: host cores clamped to 2..=8).
+        #[arg(long)]
+        cpus: Option<u32>,
+        /// Guest memory in MiB (default 4096).
+        #[arg(long)]
+        memory: Option<u64>,
+        /// Data disk size in GiB; sparse, can only grow (default 64).
+        #[arg(long)]
+        disk: Option<u64>,
+        /// Run K3s in the machine (persisted).
+        #[arg(long)]
+        k8s: Option<bool>,
+        /// Return right after the VMM is spawned.
+        #[arg(long)]
+        no_wait: bool,
+        /// Seconds to wait for dockerd (first boot provisions packages).
+        #[arg(long, default_value_t = 900)]
+        timeout: u64,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Shut the machine down cleanly.
+    Stop {
+        #[arg(long, default_value = crate::vm::DEFAULT_MACHINE)]
+        name: String,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Report machine state, guest health, published ports, and resource use.
+    Status {
+        #[arg(long, default_value = crate::vm::DEFAULT_MACHINE)]
+        name: String,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Run a command in the machine (`sh -c`), forwarding its exit code.
+    Exec {
+        #[arg(long, default_value = crate::vm::DEFAULT_MACHINE)]
+        name: String,
+        #[arg(long)]
+        json: bool,
+        #[arg(last = true, allow_hyphen_values = true, value_name = "COMMAND")]
+        command: Vec<String>,
+    },
+    /// Print environment (DOCKER_HOST) for clients.
+    Env {
+        #[arg(long, default_value = crate::vm::DEFAULT_MACHINE)]
+        name: String,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Show the guest console log (or the VMM log with --vmm).
+    Logs {
+        #[arg(long, default_value = crate::vm::DEFAULT_MACHINE)]
+        name: String,
+        #[arg(long)]
+        vmm: bool,
+        #[arg(long, default_value_t = 200)]
+        lines: usize,
+    },
+    /// Delete the machine and its data disk.
+    Rm {
+        #[arg(long, default_value = crate::vm::DEFAULT_MACHINE)]
+        name: String,
+        #[arg(long)]
+        yes: bool,
+        #[arg(long)]
+        json: bool,
+    },
+    /// Internal: run as the VMM process.
+    #[command(name = "__vmm", hide = true)]
+    Vmm {
+        #[arg(long)]
+        name: String,
+        #[arg(long)]
+        kernel: PathBuf,
+        #[arg(long)]
+        initramfs: PathBuf,
+    },
 }
 
 /// Standalone `vat cluster` verbs. Clusters created here outlive a single run;
@@ -588,6 +682,7 @@ enum K8sSessionPortForwardCmd {
 /// forwards the child command's code).
 pub fn run() -> Result<ExitCode> {
     let cli = Cli::parse();
+    crate::vm::engine::adopt_env();
     match cli.cmd {
         Cmd::Run {
             scenario,
@@ -717,6 +812,42 @@ pub fn run() -> Result<ExitCode> {
             ClusterCmd::Ls { json } => commands::cluster::ls(json),
             ClusterCmd::Kubeconfig { name, json } => commands::cluster::kubeconfig(name, json),
             ClusterCmd::Delete { name, json } => commands::cluster::delete(name, json),
+        },
+        Cmd::Machine { cmd } => match cmd {
+            MachineCmd::Start {
+                name,
+                cpus,
+                memory,
+                disk,
+                k8s,
+                no_wait,
+                timeout,
+                json,
+            } => commands::machine::start(commands::machine::StartArgs {
+                name,
+                cpus,
+                memory_mib: memory,
+                disk_gib: disk,
+                k8s,
+                no_wait,
+                timeout_s: timeout,
+                json,
+            }),
+            MachineCmd::Stop { name, json } => commands::machine::stop(&name, json),
+            MachineCmd::Status { name, json } => commands::machine::status(&name, json),
+            MachineCmd::Exec {
+                name,
+                json,
+                command,
+            } => commands::machine::exec(&name, command, json),
+            MachineCmd::Env { name, json } => commands::machine::env(&name, json),
+            MachineCmd::Logs { name, vmm, lines } => commands::machine::logs(&name, vmm, lines),
+            MachineCmd::Rm { name, yes, json } => commands::machine::rm(&name, yes, json),
+            MachineCmd::Vmm {
+                name,
+                kernel,
+                initramfs,
+            } => commands::machine::vmm(&name, kernel, initramfs),
         },
         Cmd::Build {
             file,

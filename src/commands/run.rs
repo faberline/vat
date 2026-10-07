@@ -3599,7 +3599,7 @@ fn image_exports(service: &ServiceConfig, host_port: u16) -> BTreeMap<String, St
 
 /// Whether Docker is usable: the binary is on PATH and the daemon answers.
 fn docker_available() -> bool {
-    which("docker").is_some() && docker_daemon_up()
+    which("docker").is_some() && (crate::vm::engine::reachable_or_bootable() || docker_daemon_up())
 }
 
 fn docker_daemon_up() -> bool {
@@ -3626,6 +3626,15 @@ fn ensure_docker_available(service: &ServiceConfig) -> Result<()> {
             "service `{}` needs Docker but the `docker` binary was not found on PATH",
             service.id
         );
+    }
+    if let Err(err) = crate::vm::engine::ensure_running() {
+        emit_jsonl(serde_json::json!({
+            "type": "error",
+            "code": "docker_unavailable",
+            "service": service.id.as_str(),
+            "reason": format!("{err:#}"),
+        }))?;
+        bail!("service `{}` needs Docker: {err:#}", service.id);
     }
     if !docker_daemon_up() {
         emit_jsonl(serde_json::json!({

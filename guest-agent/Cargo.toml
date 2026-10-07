@@ -1,0 +1,21 @@
+[package]
+name = "vat-guest"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "In-VM agent for `vat machine`: vsock dialer, guest->host uplinks, and status heartbeat."
+publish = false
+
+# Built separately for aarch64-unknown-linux-musl by scripts/build-guest-agent.sh;
+# the static binary is committed under dist/ and embedded by vat.
+[workspace]
+
+[dependencies]
+libc = "0.2"
+
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

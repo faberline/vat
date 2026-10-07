@@ -309,6 +309,7 @@ fn ensure_microvm_available() -> Result<()> {
 }
 
 fn ensure_docker_builder_available() -> Result<()> {
+    crate::vm::engine::ensure_running().context("Docker builder unavailable")?;
     let mut child = match Command::new("docker")
         .arg("info")
         .stdout(Stdio::null())

@@ -20,6 +20,7 @@ pub mod k8s;
 pub mod llm;
 pub mod logs;
 pub mod ls;
+pub mod machine;
 pub mod plan;
 pub mod rm;
 pub mod run;

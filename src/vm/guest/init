@@ -1,0 +1,15 @@
+#!/bin/sh
+# vat machine initramfs /init (PID 1). Deliberately tiny: it brings up the
+# console and the state share, then hands control to the host-provided
+# bootstrap script so guest logic can change without rebuilding the initramfs.
+mount -t proc proc /proc
+mount -t sysfs sys /sys
+mount -t devtmpfs dev /dev 2>/dev/null
+exec >/dev/hvc0 2>&1 </dev/null
+mkdir -p /mnt/vat
+if ! mount -t virtiofs vat /mnt/vat; then
+  echo "vat-init: cannot mount the vat state share"
+  sleep 2
+  poweroff -f
+fi
+exec /bin/sh /mnt/vat/guest/bootstrap.sh

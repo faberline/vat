@@ -1,0 +1,6 @@
+::sysinit:/sbin/openrc sysinit
+::sysinit:/sbin/openrc boot
+::wait:/sbin/openrc default
+hvc0::respawn:/sbin/getty -n -l /bin/sh 115200 hvc0 vt100
+::ctrlaltdel:/sbin/reboot
+::shutdown:/sbin/openrc shutdown

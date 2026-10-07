@@ -1,0 +1,7 @@
+{
+  "hosts": ["unix:///var/run/docker.sock"],
+  "features": { "buildkit": true },
+  "log-driver": "json-file",
+  "log-opts": { "max-size": "10m", "max-file": "3" },
+  "exec-opts": ["native.cgroupdriver=cgroupfs"]
+}

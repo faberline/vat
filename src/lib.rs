@@ -48,6 +48,7 @@ pub mod sandbox;
 pub mod spec;
 pub mod state;
 pub mod store;
+pub mod vm;
 
 pub mod cli;
 

@@ -57,7 +57,7 @@ path = "src/main.rs"
 # Built-in Rust emulators (Pub/Sub gRPC + Firebase Auth REST). Default-on so the
 # shipped binary always has them; `--no-default-features` drops the async stack
 # for a lean build (the `vat emulator` verb then errors cleanly).
-default = ["emulator", "self-update", "issue"]
+default = ["emulator", "self-update", "issue", "machine"]
 emulator = ["dep:tokio", "dep:axum", "dep:jsonwebtoken", "dep:tonic", "dep:prost", "dep:prost-types", "dep:async-trait", "dep:tokio-stream", "dep:async-stream", "dep:reqwest", "dep:cron", "dep:base64", "dep:percent-encoding", "dep:md-5", "dep:rcgen", "dep:rustls", "dep:tokio-rustls", "dep:hyper", "dep:hyper-util", "dep:http-body-util"]
 # self-update / issue — the network paths come from the shared cli-std
 # crate's `online` feature; `dep:tokio` provides the runtime vat's sync dispatch
@@ -65,6 +65,9 @@ emulator = ["dep:tokio", "dep:axum", "dep:jsonwebtoken", "dep:tonic", "dep:prost
 # the verbs bail cleanly.
 self-update = ["cli-std/online", "dep:tokio"]
 issue = ["cli-std/online", "dep:tokio"]
+# The shared Linux VM (`vat machine`): Virtualization.framework VMM, vsock
+# bridges, and the Docker Engine socket. Needs the async runtime.
+machine = ["dep:tokio"]
 # Deprecated compatibility alias for old feature pins; the CLI verb is `issue`.
 report-issue = ["issue"]
 
@@ -111,6 +114,15 @@ tokio-rustls = { version = "0.26", optional = true }
 hyper = { version = "1", optional = true, features = ["server", "client", "http1", "http2"] }
 hyper-util = { version = "0.1", optional = true, features = ["tokio"] }
 http-body-util = { version = "0.1", optional = true }
+
+sha2 = "0.10"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-foundation = "0.3"
+objc2-virtualization = "0.3"
+block2 = "0.6"
+dispatch2 = "0.3"
 
 [build-dependencies]
 tonic-build = "0.12"

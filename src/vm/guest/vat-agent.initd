@@ -1,0 +1,8 @@
+#!/sbin/openrc-run
+description="vat guest agent (vsock dialer, uplinks, status)"
+command=/usr/local/bin/vat-guest
+command_args="agent"
+supervisor=supervise-daemon
+output_log=/var/log/vat-agent.log
+error_log=/var/log/vat-agent.log
+depend() { need net; before docker; }

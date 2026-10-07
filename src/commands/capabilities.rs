@@ -306,7 +306,11 @@ fn docker_capability() -> DockerCapability {
     let context = command_stdout_timeout("docker", &["context", "show"], DOCKER_TIMEOUT)
         .ok()
         .filter(|value| !value.is_empty());
-    let provider = context.as_deref().and_then(provider_from_context);
+    let provider = if crate::vm::engine::targets_vat() {
+        Some("vat".to_string())
+    } else {
+        context.as_deref().and_then(provider_from_context)
+    };
     match command_stdout_timeout(
         "docker",
         &["version", "--format", "{{.Server.Version}}"],
