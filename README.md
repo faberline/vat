@@ -27,9 +27,13 @@ matrix in [STATUS.md](STATUS.md); what it commits to **next** is
    no VM in the path and nothing to bridge. There is **no Linux in this pillar**.
    Honesty clause: macOS has no namespaces or cgroups, so this isolation is
    weaker than a VM and is **not** a security boundary for hostile code. Today
-   this pillar is the shipped sandboxed host-process runtime (`vat run`,
-   `--isolation none|seatbelt`); darwin OCI images, the dedicated UID, and the
-   chroot-versus-seatbelt path-confinement decision are roadmap work.
+   this pillar ships two parts. The first is the sandboxed host-process runtime
+   (`vat run`, `--isolation none|seatbelt`). The second is the native container
+   runtime: `vat image` builds, imports, exports, pushes, and pulls OCI
+   `darwin/arm64` images, and `vat container` runs them in seatbelt-confined
+   copy-on-write roots, with no chroot and no VM. The dedicated UID works only
+   when vat runs as root over a root-created user pool; otherwise every
+   container reports `uid_isolation: "unavailable"`.
 
 2. **Complete Docker, with efficiency as the goal.** The direction is a Docker
    Engine API served over a unix socket (`DOCKER_HOST`) so the real `docker`
@@ -81,7 +85,7 @@ the commands named in each row are the only part that runs.
 | Capability | Root WI | Notes |
 |---|---:|---|
 | Agent-Native State and Copy-on-Write Lifecycle | #4152 | The core every pillar shares: `vat.toml` run protocol, one structured `vat state`/`vat diff` document, copy-on-write fork/snapshot over APFS `clonefile`, interrupt-safe cleanup, and production-like scenarios. |
-| Native macOS Runtime (pillar 1, shipped part) | - | Sandboxed host-process execution with host GPU visibility, opt-in seatbelt isolation, and the fail-closed egress policy. No VM, no Linux. The darwin OCI image format, dedicated UID, and process-group lifecycle beyond interrupt cleanup are roadmap. |
+| Native macOS Runtime (pillar 1, shipped part) | - | Sandboxed host-process execution with host GPU visibility, opt-in seatbelt isolation, and the fail-closed egress policy. Also native containers: OCI `darwin/arm64` images (`vat image`), seatbelt-confined copy-on-write roots with fixed-length path relocation and a process-group lifecycle (`vat container`), and `image` services with `runtime = "native"`. No VM, no Linux, no chroot. The dedicated UID requires root and is not verified by the gate. |
 | Local GCP Emulation and Transparent Routing (pillar 3, shipped part) | - | Built-in Rust emulators (REST + gRPC), gcloud-wrapped emulator presets, the http-mock/OpenAPI proxy, and transparent HTTP/gRPC routing of real GCP hosts to local emulators. GKE realism (persistent K3s, metadata server, Workload Identity, Artifact Registry) is roadmap. |
 | Container and Kubernetes Paths Scheduled for Supersession | - | Shipped, bounded, still gated: the `docker` CLI-subset shim over Apple Container, `vat build`/`vat compose`, the MicroVM service backend, Docker-backed `vat cluster` (kind/k3d/minikube), and the one-boot Apple Container K3s session. ROADMAP outcomes for pillar 2 and GKE replace them; nothing here is removed before its replacement passes its gate. |
 | Developer & Agent Experience | #1819 | Offline command contracts, task-scoped onboarding, and host preflight evidence for local agents. |
@@ -125,12 +129,51 @@ selected backend cannot enforce it. This is resource isolation for cooperative
 workloads, not a security boundary for hostile code: macOS has no namespaces or
 cgroups.
 
+Native containers add an image and container lifecycle on the same
+foundations, without a VM:
+
+- *Images.* `vat image build -t NAME[:TAG] [-f Vatfile] CONTEXT` builds an
+  OCI image (`darwin/arm64`, gzip tar layers) from a Dockerfile-like `Vatfile`
+  (`FROM scratch|<image>`, `WORKDIR`, `ENV`, `LABEL`, `EXPOSE`, `COPY`, `RUN`,
+  `CMD`, `ENTRYPOINT`). Each `RUN` step executes on the host under seatbelt,
+  with `$VAT_ROOT` pointing at the build root. Images live in a local store
+  at `~/.vat/native` (`VAT_HOME` respected). They move between hosts as OCI
+  image layouts (`vat image export|import --oci-layout DIR`) or through any
+  OCI Distribution registry (`vat image push|pull`, with Basic or Bearer auth
+  from the Docker config `auths`; plain HTTP for loopback and
+  `VAT_INSECURE_REGISTRIES`).
+- *Containers.* `vat container run` clones the image's unpacked base with
+  APFS `clonefile` into a root whose absolute path is always 128 bytes long.
+  Build-time root paths baked into files (venvs, shebangs, Mach-O strings)
+  were replaced at build time by a same-length placeholder recorded in
+  `vat.relocations`; they are rewritten to the container root, and rewritten
+  Mach-O files are re-signed ad hoc. There is no chroot: the workload sees the
+  host `/`, gets `VAT_ROOT` set, and gets a root-relative `PATH` with the host
+  system dirs appended. Seatbelt confines writes to the root, read-write `-v`
+  mounts, and the per-user cache dir. The workload has its own process group:
+  a foreground exit code is forwarded, and detached containers (`-d`) are
+  observed with `ps`, `logs`, `exec`, `inspect`, and `diff`, then stopped
+  with TERM followed by KILL. `vat state ctr-…` and `vat diff ctr-…` read the
+  same records.
+- *Identity.* `vat native users setup --count N` (as root, or `--print` for
+  the `dscl` commands) creates a hidden `_vat` user pool. A workload runs as
+  a pool user only when vat itself runs as root. Otherwise `uid_isolation` is
+  `unavailable`, and `vat container inspect` says why.
+- *Limits.* Host network only, with no port mapping. Reads of the host
+  filesystem are unrestricted. Builds do not support `COPY` wildcards,
+  `.dockerignore`, or multi-stage builds, and are not reproducible
+  byte-for-byte. The design decision is recorded in
+  [docs/product/architecture.md](docs/product/architecture.md#decision-seatbelt--fixed-length-relocation-no-chroot).
+
 - Root WI: -
 - Surfaces: CLI: `vat run -- <cmd>` with `--isolation none|seatbelt` and
   `--gpu auto|required|none`, `vat gpu`, `[network].egress`, and
-  `vat run --scenario` hermetic mode.
+  `vat run --scenario` hermetic mode; `vat image`, `vat container`,
+  `vat native users`, and `vat.toml` `image` services with
+  `runtime = "native"`.
 - Gate — behavior: `cargo test -p vat` - host-process execution, GPU
-  visibility, seatbelt egress and hermetic conformance.
+  visibility, seatbelt egress and hermetic conformance, and the native
+  container runtime.
 - Gate: `cargo test -p vat`
 - Gate:
   `rg -n -e 'Apple GPU' -e Metal -e MPS -e MLX -e tensorflow-metal README.md src/gpu.rs`
@@ -144,6 +187,7 @@ cgroups.
 | Network sandbox v3 — seatbelt egress policy | change | #518 | `cargo test -p vat --test vat_sandbox_egress -- --nocapture` |
 | Sandbox applied to runner-mode commands | change | #527 | `cargo test -p vat --test vat_runner_sandbox -- --nocapture` |
 | Sandbox egress policy fails closed when isolation cannot enforce it | change | #1300 | `cargo test -p vat --test vat_sandbox_egress_fail_closed -- --nocapture` |
+| Native containers: OCI `darwin/arm64` images, seatbelt + fixed-length relocation, process-group lifecycle | change | - | `cargo test -p vat --test vat_native_runtime -- --nocapture` (build/export/import/run with a relocated script and venv, in-root writes visible to diff, seatbelt denial outside the root, host-equal GPU, detached lifecycle and exit codes, push/pull against an in-test registry, a native `vat.toml` image service). Dedicated UID: not verified without root. |
 
 ### Local GCP Emulation and Transparent Routing (pillar 3, shipped part)
 
@@ -605,6 +649,13 @@ The command an agent calls to understand a vat. One document, no log-scraping:
 | `vat rm <id>` | Delete a vat and its workspace. |
 | `vat gc [--execute]` | Report retained vat disk usage and prune old workspaces. Dry-run by default; protects running/snapshot/failed/interrupted/newest vats unless explicit flags opt in. |
 | `vat gpu` | Report the GPU every vat on this host can reach. |
+| `vat image build -t NAME[:TAG] [-f FILE] CONTEXT [--json]` | Build a native OCI `darwin/arm64` image from a `Vatfile` (`FROM scratch\|<image>`, `WORKDIR`, `ENV`, `LABEL`, `EXPOSE`, `COPY`, `RUN`, `CMD`, `ENTRYPOINT`; no `COPY` wildcards, `.dockerignore`, or multi-stage builds). `RUN` executes on the host under seatbelt with `$VAT_ROOT` set to the build root; baked root paths are recorded in `vat.relocations`. |
+| `vat image pull REF [--json]` / `vat image push SRC [DEST] [--json]` | Pull or push a `darwin/arm64` image over the OCI Distribution API. Pull picks `darwin/arm64` from an index and verifies every digest. Credentials are Basic or Bearer, from the Docker config `auths`, with no credential helpers. Plain HTTP is used only for loopback hosts and `VAT_INSECURE_REGISTRIES`. Requires the default-on `registry` feature; a lean build bails cleanly. |
+| `vat image import --oci-layout DIR [--tag REF] [--json]` / `vat image export --oci-layout DIR NAME...` | Move images as OCI image layouts with no registry. |
+| `vat image ls [--json]` / `vat image inspect NAME [--json]` / `vat image tag SRC DEST` / `vat image rm NAME...` | Inspect and manage the native image store at `~/.vat/native` (`VAT_HOME` respected). `rm` garbage-collects blobs no tag or container uses. |
+| `vat container run [--name N] [-d] [--rm] [-e K=V] [-v HOST:PATH[:ro]] [-w DIR] [--network host\|none] IMAGE [CMD...]` | Run a native container: an APFS `clonefile` copy-on-write root of a fixed 128-byte path, relocated for that root, under a seatbelt profile that confines writes to the root, read-write mounts, and the per-user cache dir. No chroot, so `VAT_ROOT` is set and `PATH` is root-relative. Foreground forwards the exit code (127 if the command is not found); `-d` prints the `ctr-…` id. Host network only. |
+| `vat container ps [-a] [--json]` / `logs [-f]` / `exec [-e] [-w] ID CMD...` / `stop [-t SECS]` / `rm [-f]` / `inspect [--json]` / `diff [--json]` | Detached lifecycle over the container's process group. `stop` sends TERM, then KILL after the timeout (exit 143 or 137 unless the workload exits itself). `inspect` reports image, root, sandbox paths, relocation, changes, GPU, and `uid_isolation`. `vat state ctr-…` and `vat diff ctr-…` accept the same ids. |
+| `vat native users setup [--count N] [--first-id ID] [--print]` / `vat native users ls [--json]` | Create (as root) or list the hidden `_vat` user pool for dedicated per-container UIDs. Workloads use the pool only when vat runs as root; otherwise containers report `uid_isolation: "unavailable"`. |
 | `vat cluster create\|ls\|delete\|kubeconfig` | Manage standalone local Kubernetes clusters (kind/k3d/minikube), independent of a run. |
 
 ### Disk cleanup
@@ -814,8 +865,12 @@ preferred**:
   AlloyDB). Requires `container_port`; `image_env` is passed into the container;
   `runtime = "docker"` uses Docker, while explicit `runtime = "micro_vm"` uses
   Apple Container with the same bounded inspect/pull/verify preflight and no
-  Docker fallback. In `export`, `{host}`/`{port}` resolve to the mapped host
-  endpoint and `VAT_SERVICE_<ID>_{HOST,PORT}` are always exported.
+  Docker fallback. Explicit `runtime = "native"` runs a `darwin/arm64` image
+  from the native store (pulled first if missing) as
+  `vat container run --rm` on the host network. There is no port mapping, so
+  the workload must listen on `container_port` (also passed as `PORT`), and a
+  fixed `port` must equal it. In `export`, `{host}`/`{port}` resolve to the
+  mapped host endpoint and `VAT_SERVICE_<ID>_{HOST,PORT}` are always exported.
 - `external` — an already provisioned endpoint, such as a GitLab CI `services:`
   sidecar, GitHub Actions service container, local Docker Compose service, or
   host daemon. vat does not start or stop it; it waits for readiness, substitutes

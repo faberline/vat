@@ -90,9 +90,50 @@ real root-directory boundary, but it needs root privileges and macOS binaries
 depend on the dyld shared cache and system frameworks outside any chroot, which
 makes a self-contained darwin rootfs impractical. Seatbelt-only confinement
 keeps the system paths readable and confines writes, at the cost of being a
-policy rather than a namespace. The current lean is seatbelt-only. The spike's
-`## Decision` is recorded here before M1 implementation starts; until then
-neither option is promised.
+policy rather than a namespace.
+
+### Decision: seatbelt + fixed-length relocation, no chroot
+
+Decided for M1 and implemented in `src/native/` (gate:
+`cargo test -p vat --test vat_native_runtime`).
+
+- *No chroot.* A container's `/` is the host's `/`. dyld, the shared cache,
+  system frameworks, Metal, and `/usr/bin` tools resolve exactly as on the
+  host, and no root privilege is needed to start a container. Image content
+  lives under the container root and is reached through `$VAT_ROOT`. `PATH`
+  is rewritten root-relative, with the host system dirs appended.
+- *Seatbelt confinement.* Each workload (and each `vat image build` `RUN`
+  step) runs under a generated `sandbox-exec` profile. Writes are allowed
+  only under the container root (whose `tmp/` is `TMPDIR`), read-write `-v`
+  mounts, the invoking user's per-user cache dir (Metal shader caches), and
+  the usual character devices. There is no blanket `/tmp` or
+  `/private/var/folders` write allowance. Reads stay broad, since a macOS
+  process cannot run without them. `--network none` reuses the egress
+  `deny` rules.
+- *Fixed-length relocation instead of a fixed mount point.* Without chroot,
+  a tool that bakes its install path into files (a Python venv, shebangs,
+  `.pc` files, Mach-O load commands) would break when the image runs from a
+  different directory. Every build root and container root therefore has
+  the same length, 128 bytes, padded with a fixed filler. At layer commit,
+  occurrences of the build root are replaced byte-for-byte by a placeholder
+  of the same length, and each affected path is recorded in the
+  `vat.relocations` file of the image. At container creation, the
+  placeholder is replaced by the container root of identical length.
+  Offsets never shift, so binary files stay valid. Rewritten Mach-O files
+  are re-signed ad hoc, because a changed page invalidates their signature.
+  The root base directory must be at most 109 bytes for the padded root to
+  fit; `VAT_NATIVE_ROOT_BASE` overrides it.
+- *Identity is separate.* A dedicated UID per container needs a root-created
+  hidden user pool (`vat native users setup`) and vat itself running as
+  root. Otherwise the workload runs as the invoking user, and the container
+  reports `uid_isolation: "unavailable"` with the reason.
+
+Consequences: this is a cooperative-workload boundary, not a hostile-code
+one. Reads of the host filesystem are unrestricted, and a workload that
+writes an absolute host path such as `/opt/x` is denied rather than
+redirected into its root. `sandbox-exec` is Apple-deprecated; if it is
+removed, the confinement layer has to be replaced, but the relocation layer
+does not.
 
 ## Pillar 2: complete Docker over one shared Linux VM
 
@@ -182,7 +223,7 @@ native runner to loopback so every external call lands on an emulator.
 
 | Spike | Question | Current lean | Decides |
 |---|---|---|---|
-| chroot vs seatbelt | Does the native runtime confine the rootfs with chroot or with seatbelt path rules? | Seatbelt-only (chroot needs root; dyld shared cache breaks a self-contained rootfs). | M1 |
+| chroot vs seatbelt | Does the native runtime confine the rootfs with chroot or with seatbelt path rules? | Decided: seatbelt + fixed-length relocation, no chroot (see Pillar 1). | M1 |
 | Engine API subset | Which Docker API version and endpoints are the M3 contract? | The set the upstream CLI, Compose v2, and Testcontainers need for build/run/exec/logs/network/volume. | M3 |
 | Shim retirement shape | Are `vat build` and `vat compose` re-pointed at the Engine API or retired with the shim? | Not decided; owner call. | M3 |
 | kubectl provenance | Does vat keep requiring an independent `kubectl` or vend one? | Keep requiring, unless the owner decides otherwise. | M4 |
