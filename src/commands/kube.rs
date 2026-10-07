@@ -18,7 +18,48 @@ use crate::vm::{assets, client, k8s, MachineConfig, MachinePaths, DEFAULT_MACHIN
 #[derive(Debug, Clone)]
 pub struct UpArgs {
     pub timeout_s: u64,
+    /// Host port for the API server; kept in the machine config.
+    pub api_port: Option<u16>,
     pub json: bool,
+}
+
+/// Whether the cluster's node reports `Ready=True`.
+fn node_ready(kubectl: &std::path::Path, kubeconfig: &std::path::Path) -> bool {
+    Command::new(kubectl)
+        .args([
+            "get",
+            "nodes",
+            "--request-timeout=3s",
+            "-o",
+            r#"jsonpath={.items[*].status.conditions[?(@.type=="Ready")].status}"#,
+        ])
+        .env("KUBECONFIG", kubeconfig)
+        .output()
+        .is_ok_and(|o| o.status.success() && String::from_utf8_lossy(&o.stdout).trim() == "True")
+}
+
+/// Wait until the VMM reports the API forwarder on the configured port, and
+/// fail fast when the port is taken (otherwise kubectl could reach a different
+/// cluster on that port).
+fn wait_forwarder(paths: &MachinePaths, cfg: &MachineConfig, deadline: Instant) -> Result<()> {
+    let want = format!("127.0.0.1:{}", cfg.k8s_api_port);
+    loop {
+        if let Some(api) = machine::read_json(&paths.dir.join("k8s-api.json")) {
+            if api["addr"] == want.as_str() {
+                if api["listening"] == true {
+                    return Ok(());
+                }
+                bail!(
+                    "cannot forward the K3s API on {want}: {}; pick another port with `vat k8s up --api-port <port>`",
+                    api["error"].as_str().unwrap_or("bind failed")
+                );
+            }
+        }
+        if Instant::now() > deadline {
+            bail!("the machine never started the K3s API forwarder on {want}");
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
 }
 
 fn server(cfg: &MachineConfig) -> String {
@@ -49,6 +90,10 @@ pub fn up(args: UpArgs) -> Result<ExitCode> {
         Some(pid) => {
             let mut cfg =
                 MachineConfig::load(&paths.config)?.context("the machine has no config")?;
+            let reload = !cfg.k8s || args.api_port.is_some_and(|p| p != cfg.k8s_api_port);
+            if let Some(port) = args.api_port {
+                cfg.k8s_api_port = port;
+            }
             if !cfg.k8s {
                 cfg.k8s = true;
                 cfg.save(&paths.config)?;
@@ -60,13 +105,22 @@ pub fn up(args: UpArgs) -> Result<ExitCode> {
                 if out.exit_code != 0 {
                     bail!("enable K3s in the running machine: {}", out.output.trim());
                 }
-                // The VMM re-reads its config and starts the API forwarder.
-                unsafe { libc::kill(pid as i32, libc::SIGHUP) };
                 enabled_live = true;
+            }
+            if reload {
+                cfg.save(&paths.config)?;
+                // The VMM re-reads its config and (re)binds the API forwarder.
+                unsafe { libc::kill(pid as i32, libc::SIGHUP) };
             }
             cfg
         }
         None => {
+            if let Some(port) = args.api_port {
+                let mut cfg = MachineConfig::load(&paths.config)?.unwrap_or_default();
+                cfg.k8s_api_port = port;
+                std::fs::create_dir_all(&paths.dir)?;
+                cfg.save(&paths.config)?;
+            }
             machine::boot(&StartArgs {
                 name: DEFAULT_MACHINE.to_string(),
                 k8s: Some(true),
@@ -92,16 +146,23 @@ pub fn up(args: UpArgs) -> Result<ExitCode> {
         }
         std::thread::sleep(Duration::from_millis(250));
     }
+    wait_forwarder(&paths, &cfg, deadline)?;
     let kubeconfig = k8s::sync_kubeconfig(&paths, &cfg)?;
     while !api_ready(&kubectl, &kubeconfig) {
         if Instant::now() > deadline {
-            let api = machine::read_json(&paths.dir.join("k8s-api.json"));
             bail!(
-                "K3s is ready in the machine but {} does not answer (forwarder: {})",
-                server(&cfg),
-                api.map(|v| v.to_string())
-                    .unwrap_or_else(|| "not started".into())
+                "K3s is ready in the machine but {} does not answer",
+                server(&cfg)
             );
+        }
+        std::thread::sleep(Duration::from_millis(250));
+    }
+    // /readyz answers before the kubelet re-reports after a restart; pods
+    // only schedule once the node is Ready.
+    // On a fresh cluster the node registers a moment after /readyz.
+    while !node_ready(&kubectl, &kubeconfig) {
+        if Instant::now() > deadline {
+            bail!("the K3s node did not become Ready");
         }
         std::thread::sleep(Duration::from_millis(250));
     }

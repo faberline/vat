@@ -144,6 +144,9 @@ fn seed_cache(home: &Path) {
     }
 }
 
+/// Off the default 6443 so the test can run beside a developer cluster.
+const API_PORT: &str = "16443";
+
 const MANIFEST: &str = r#"apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -203,7 +206,7 @@ fn k8s_persistent_cluster_end_to_end() {
     let m = Machine::new();
 
     // Cold: boot the machine with K3s, API forwarded, kubeconfig + kubectl.
-    let up = m.vat_json(&["k8s", "up", "--json"]);
+    let up = m.vat_json(&["k8s", "up", "--json", "--api-port", API_PORT]);
     assert_eq!(up["k8s"], "ready");
     assert_eq!(up["context"], "vat");
     let kubeconfig = PathBuf::from(up["kubeconfig"].as_str().unwrap());
@@ -259,7 +262,7 @@ fn k8s_persistent_cluster_end_to_end() {
     let stop = m.vat_json(&["machine", "stop", "--json"]);
     assert_eq!(stop["forced"], false, "guest did not power off cleanly");
     let warm_t0 = Instant::now();
-    let warm = m.vat_json(&["k8s", "up", "--json"]);
+    let warm = m.vat_json(&["k8s", "up", "--json", "--api-port", API_PORT]);
     assert_eq!(warm["enabled_live"], false);
     wait_rollout(&m);
     let warm_ms = warm_t0.elapsed().as_millis() as u64;
@@ -279,7 +282,7 @@ fn k8s_persistent_cluster_end_to_end() {
         std::thread::sleep(Duration::from_millis(200));
     }
     let crash_t0 = Instant::now();
-    m.vat_json(&["k8s", "up", "--json"]);
+    m.vat_json(&["k8s", "up", "--json", "--api-port", API_PORT]);
     wait_rollout(&m);
     let crash_ms = crash_t0.elapsed().as_millis() as u64;
     assert_eq!(read_data(&m), "persisted\nbaked");

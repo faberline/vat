@@ -547,6 +547,9 @@ enum K8sCmd {
         /// Seconds to wait for the machine and the API server.
         #[arg(long, default_value_t = 900)]
         timeout: u64,
+        /// Host port for the API server (default 6443; remembered).
+        #[arg(long)]
+        api_port: Option<u16>,
         #[arg(long)]
         json: bool,
     },
@@ -936,8 +939,13 @@ pub fn run() -> Result<ExitCode> {
             DockerShimCmd::Status { dir } => commands::docker_shim::shim_status(dir),
         },
         Cmd::K8s { cmd } => match cmd {
-            K8sCmd::Up { timeout, json } => commands::kube::up(commands::kube::UpArgs {
+            K8sCmd::Up {
+                timeout,
+                api_port,
+                json,
+            } => commands::kube::up(commands::kube::UpArgs {
                 timeout_s: timeout,
+                api_port,
                 json,
             }),
             K8sCmd::Status { json } => commands::kube::status(json),
