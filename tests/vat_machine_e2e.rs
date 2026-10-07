@@ -379,3 +379,66 @@ fn machine_docker_engine_end_to_end() {
         serde_json::to_string_pretty(&evidence).unwrap()
     );
 }
+
+/// Testcontainers (the Rust crate, through bollard) drives the machine's
+/// Engine API like any Docker host: create with an ephemeral published port,
+/// wait on a log line, then talk to the service from the host.
+#[test]
+#[ignore = "boots a real VM; run with VAT_MACHINE_E2E_REQUIRED=1 -- --ignored"]
+fn machine_docker_engine_serves_testcontainers() {
+    use testcontainers::core::{IntoContainerPort, WaitFor};
+    use testcontainers::runners::SyncRunner;
+    use testcontainers::GenericImage;
+
+    if !required() {
+        eprintln!("skipping: set VAT_MACHINE_E2E_REQUIRED=1");
+        return;
+    }
+    let m = Machine::new();
+    m.vat_json(&["machine", "start", "--json", "--memory", "2048"]);
+    // Testcontainers reads DOCKER_HOST once, when it first connects.
+    std::env::set_var("DOCKER_HOST", m.docker_host());
+    std::env::remove_var("DOCKER_CONTEXT");
+
+    let t0 = Instant::now();
+    let redis = GenericImage::new("redis", "7-alpine")
+        .with_exposed_port(6379.tcp())
+        .with_wait_for(WaitFor::message_on_stdout("Ready to accept connections"))
+        .start()
+        .expect("start redis through testcontainers");
+    let ready_ms = t0.elapsed().as_millis() as u64;
+    let port = redis.get_host_port_ipv4(6379).expect("mapped port");
+
+    // No retry: as with Docker, the published port must already be open on
+    // the host by the time the container's log says it is ready.
+    let mut s = TcpStream::connect(("127.0.0.1", port)).unwrap_or_else(|e| {
+        let ports = std::fs::read_to_string(m.home.join("machine/default/ports.json"))
+            .unwrap_or_else(|e| format!("<no ports.json: {e}>"));
+        let ps = m.docker(&["ps", "--format", "{{.Names}} {{.Ports}}"]);
+        panic!(
+            "connect to redis on 127.0.0.1:{port}: {e}\nports.json: {ports}\ndocker ps:\n{}",
+            String::from_utf8_lossy(&ps.stdout)
+        )
+    });
+    s.set_read_timeout(Some(Duration::from_secs(5))).unwrap();
+    s.write_all(b"PING\r\n").unwrap();
+    let mut reply = [0u8; 7];
+    s.read_exact(&mut reply).expect("redis reply");
+    assert_eq!(&reply, b"+PONG\r\n");
+    let id = redis.id().to_string();
+    drop(redis);
+    let gone = m.docker(&["inspect", &id]);
+    assert!(!gone.status.success(), "testcontainers did not remove {id}");
+
+    let evidence = serde_json::json!({
+        "testcontainers_redis_ready_ms": ready_ms,
+        "mapped_port": port,
+    });
+    let out = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("vat-testcontainers-e2e.json");
+    record(&out, &evidence);
+    eprintln!(
+        "testcontainers evidence ({}):\n{}",
+        out.display(),
+        serde_json::to_string_pretty(&evidence).unwrap()
+    );
+}

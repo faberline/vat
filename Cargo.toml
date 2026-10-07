@@ -153,6 +153,7 @@ tokio-rustls = "0.26"
 rustls-pemfile = "2"
 prost = "0.13"
 tower = { version = "0.5", features = ["util"] }
+testcontainers = { version = "0.28", features = ["blocking"] }
 
 # Emulator integration tests need the emulator feature (skipped in a lean build).
 [[test]]
