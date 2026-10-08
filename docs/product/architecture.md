@@ -197,11 +197,27 @@ service runtime and `MicroVmBackend` (`crates/core/src/sandbox/microvm.rs`) stil
 `container` CLI, one VM per container. It stays `Limited` in
 [STATUS.md](../../STATUS.md) as the superseded path and is not extended.
 
-**Efficiency as the goal.** Startup time from cold, idle guest memory and
-VMM RSS, disk allocation, and build time are recorded by the machine E2E
+**Efficiency as the goal.** Startup time from cold, idle guest memory, the
+memory macOS pays for the VM (the physical footprint of
+Virtualization.framework's VM process, not the VMM's RSS), idle VM CPU, disk
+allocation, and build time are recorded by the machine E2E
 (`crates/cli/tests/vat_machine_e2e.rs`) into `vat-machine-e2e.json`; a number becomes a
 budget in STATUS only when the owner confirms it. No efficiency figure is
 promised before that.
+
+**Host resources** (`crates/docker/src/elastic.rs`):
+
+- *Disk.* The guest agent discards free blocks every ten minutes (FITRIM),
+  and Virtualization.framework punches the matching holes in the sparse
+  `data.img`, so deleted images and volumes return their space to macOS.
+- *Clock.* The guest clock stands still while the host sleeps. The VMM
+  notices the wall/monotonic gap after a wake and steps the guest clock to the
+  host's. It also does this 30 s after boot, every 15 minutes, and on SIGHUP.
+- *Memory.* The VM's footprint is the high-water mark of what the guest has
+  ever touched. Virtualization.framework does not return guest pages while
+  the VM runs. Its virtio balloon takes pages from the guest (measured: 2816
+  MiB inflated) but leaves the VM process footprint unchanged. So the VMM
+  does not drive the balloon, and only stopping the VM gives the memory back.
 
 **GPU.** Metal does not pass into a Linux guest, so a Linux container has no
 Apple GPU. A Vulkan (Venus) path inside the machine is explicitly deferred and

@@ -192,6 +192,33 @@ pub async fn poweroff(dialer: &Dialer) -> Result<()> {
     Ok(())
 }
 
+/// Send a one-line request (`time ...`, `trim`) and return the guest
+/// agent's one-line reply.
+pub async fn request(dialer: &Dialer, header: &str) -> Result<String> {
+    let mut reader = BufReader::new(dial(dialer, header).await?);
+    let mut line = String::new();
+    tokio::time::timeout(Duration::from_secs(5), reader.read_line(&mut line))
+        .await
+        .context("the guest agent did not answer")??;
+    Ok(line.trim_end().to_string())
+}
+
+/// Step the guest's clock to the host's. Returns the guest's offset from
+/// the host before the step (ms).
+pub async fn sync_clock(dialer: &Dialer) -> Result<i64> {
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH)?;
+    let reply = request(
+        dialer,
+        &format!("time {} {}", now.as_secs(), now.subsec_nanos()),
+    )
+    .await?;
+    let mut words = reply.split_whitespace();
+    match (words.next(), words.next().map(str::parse::<i64>)) {
+        (Some("ok"), Some(Ok(skew))) => Ok(skew),
+        _ => bail!("guest clock: {reply}"),
+    }
+}
+
 /// HTTP/1.0 GET against the guest Docker socket; returns the body.
 async fn docker_get(dialer: &Dialer, path: &str) -> Result<String> {
     let mut s = dial(dialer, "unix /var/run/docker.sock").await?;

@@ -95,6 +95,29 @@ impl Machine {
         String::from_utf8_lossy(&out.stdout).trim().to_string()
     }
 
+    /// `sh -c script` in the guest; panics on failure.
+    fn guest(&self, script: &str) -> String {
+        let out = self.vat(&["machine", "exec", "--", "sh", "-c", script]);
+        assert!(
+            out.status.success(),
+            "guest {script:?} failed\n{}{}",
+            String::from_utf8_lossy(&out.stdout),
+            String::from_utf8_lossy(&out.stderr)
+        );
+        String::from_utf8_lossy(&out.stdout).trim().to_string()
+    }
+
+    /// One request line to the guest agent through the control socket.
+    fn agent(&self, header: &str) -> String {
+        let mut s = std::os::unix::net::UnixStream::connect(self.home.join("run/vat.sock"))
+            .expect("connect the control socket");
+        s.set_read_timeout(Some(Duration::from_secs(60))).unwrap();
+        s.write_all(format!("{header}\n").as_bytes()).unwrap();
+        let mut reply = String::new();
+        s.read_to_string(&mut reply).unwrap();
+        reply.trim().to_string()
+    }
+
     fn docker_stdin(&self, args: &[&str], input: &[u8]) -> String {
         use std::process::Stdio;
         let mut child =
@@ -324,9 +347,14 @@ fn machine_docker_engine_end_to_end() {
     let body = http_get(18089, Duration::from_secs(20));
     assert!(body.contains("vat-port"), "unexpected body: {body}");
 
-    // Idle footprint before restart.
+    // Idle footprint before restart: memory macOS pays for the VM process,
+    // and its CPU over ten idle seconds.
     std::thread::sleep(Duration::from_secs(3));
     let status = m.vat_json(&["machine", "status", "--json"]);
+    std::thread::sleep(Duration::from_secs(10));
+    let later = m.vat_json(&["machine", "status", "--json"]);
+    let cpu = |s: &Value| s["vm_cpu_ms"].as_u64().expect("vm_cpu_ms in status");
+    let idle_cpu_pct = (cpu(&later) - cpu(&status)) as f64 / 100.0;
 
     // Restart persistence: volume data and pulled images survive.
     m.docker_ok(&["volume", "create", "vat-e2e-vol"]);
@@ -367,6 +395,8 @@ fn machine_docker_engine_end_to_end() {
         "warm_start": warm["timings"],
         "idle_guest_mem_used_mib": used_kib / 1024,
         "vmm_rss_mib": status["vmm_rss_kib"].as_u64().unwrap_or(0) / 1024,
+        "vm_footprint_mib": status["vm_footprint_kib"].as_u64().unwrap_or(0) / 1024,
+        "idle_vm_cpu_pct_of_core": idle_cpu_pct,
         "data_disk_allocated_mib": status["data_disk_allocated_kib"].as_u64().unwrap_or(0) / 1024,
         "stop_ms": stop["stop_ms"],
         "docker_build_ms": build_ms,
@@ -375,6 +405,89 @@ fn machine_docker_engine_end_to_end() {
     record(&out, &evidence);
     eprintln!(
         "machine evidence ({}):\n{}",
+        out.display(),
+        serde_json::to_string_pretty(&evidence).unwrap()
+    );
+}
+
+/// Disk space freed in the guest goes back to the host's sparse image, and
+/// the guest clock is stepped back to the host's after drifting (as after a
+/// host sleep; SIGHUP to the VMM forces the same sync).
+#[test]
+#[ignore = "boots a real VM; run with VAT_MACHINE_E2E_REQUIRED=1 -- --ignored"]
+fn machine_returns_disk_space_and_follows_the_host_clock() {
+    if !required() {
+        eprintln!("skipping: set VAT_MACHINE_E2E_REQUIRED=1");
+        return;
+    }
+    let m = Machine::new();
+    m.vat_json(&["machine", "start", "--json", "--memory", "2048"]);
+    let allocated = || {
+        m.vat_json(&["machine", "status", "--json"])["data_disk_allocated_kib"]
+            .as_u64()
+            .expect("data_disk_allocated_kib")
+            / 1024
+    };
+
+    // Disk: write and delete 512 MiB, then the agent's trim gives it back.
+    let before = allocated();
+    m.guest("dd if=/dev/urandom of=/var/vat-e2e-trim bs=1M count=512 2>/dev/null && sync");
+    let written = allocated();
+    assert!(
+        written >= before + 400,
+        "write did not grow data.img: {before} -> {written} MiB"
+    );
+    m.guest("rm /var/vat-e2e-trim && sync");
+    let reply = m.agent("trim");
+    let trimmed: u64 = reply
+        .strip_prefix("ok ")
+        .and_then(|n| n.parse().ok())
+        .unwrap_or_else(|| panic!("trim: {reply}"));
+    let after = allocated();
+    assert!(
+        after + 400 <= written,
+        "trim ({trimmed} bytes) did not shrink data.img: {written} -> {after} MiB"
+    );
+
+    // Clock: set the guest an hour behind, then have the VMM re-sync it.
+    let host_now = || {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64
+    };
+    m.guest(&format!("date -s @{} >/dev/null", host_now() - 3600));
+    let pid = m.vat_json(&["machine", "status", "--json"])["pid"]
+        .as_i64()
+        .expect("vmm pid");
+    assert_eq!(unsafe { libc::kill(pid as i32, libc::SIGHUP) }, 0);
+    let t0 = Instant::now();
+    let skew = loop {
+        let guest: i64 = m.guest("date +%s").parse().expect("guest date");
+        let skew = guest - host_now();
+        if skew.abs() <= 2 || t0.elapsed() > Duration::from_secs(20) {
+            break skew;
+        }
+        std::thread::sleep(Duration::from_millis(500));
+    };
+    assert!(skew.abs() <= 2, "guest clock still {skew}s off the host's");
+    let elastic = &m.vat_json(&["machine", "status", "--json"])["elastic"];
+    let recorded = elastic["clock_skew_ms"].as_i64().expect("clock_skew_ms");
+    assert!(
+        (-3_700_000..=-3_500_000).contains(&recorded),
+        "recorded skew {recorded} ms"
+    );
+
+    let evidence = serde_json::json!({
+        "trim_bytes": trimmed,
+        "data_disk_mib": { "before": before, "written": written, "after_trim": after },
+        "clock_skew_ms_before_sync": recorded,
+        "clock_skew_s_after_sync": skew,
+    });
+    let out = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("vat-machine-elastic-e2e.json");
+    record(&out, &evidence);
+    eprintln!(
+        "elastic evidence ({}):\n{}",
         out.display(),
         serde_json::to_string_pretty(&evidence).unwrap()
     );

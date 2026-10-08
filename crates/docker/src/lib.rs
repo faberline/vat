@@ -32,6 +32,7 @@ pub mod assets;
 #[cfg(feature = "machine")]
 pub mod bridge;
 pub mod client;
+pub mod elastic;
 pub mod engine;
 #[cfg(all(target_os = "macos", feature = "machine"))]
 pub mod vmm;
@@ -112,6 +113,11 @@ impl MachinePaths {
     /// Guest-written heartbeat (`vat-guest agent`).
     pub fn guest_status(&self) -> PathBuf {
         self.share.join("status.json")
+    }
+
+    /// The VMM's view of host resources ([`elastic::ElasticState`]).
+    pub fn elastic_state(&self) -> PathBuf {
+        self.dir.join("elastic.json")
     }
 
     /// Guest-written boot phase (`bootstrap.sh`).

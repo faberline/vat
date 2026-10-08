@@ -12,7 +12,7 @@
 
 use std::os::fd::{FromRawFd, OwnedFd};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime};
 
 use anyhow::{anyhow, bail, Context, Result};
 use block2::RcBlock;
@@ -27,6 +27,7 @@ use tokio::sync::{mpsc, oneshot};
 use super::addon;
 use super::assets::BootAssets;
 use super::bridge::{self, DialFuture, Dialer};
+use super::elastic::{self, ElasticState, WakeWatch};
 use super::{MachineConfig, MachinePaths, VmmState, GUEST_DIAL_PORT, HOST_UPLINK_PORT};
 
 /// Moves a non-`Send` Objective-C handle onto the VM queue. Sound because
@@ -369,6 +370,22 @@ async fn start_builtins(
     builtins
 }
 
+/// Re-sync the guest clock this often even without a host sleep.
+const CLOCK_SYNC_EVERY: Duration = Duration::from_secs(15 * 60);
+
+async fn clock_sync(dialer: &Dialer, es: &mut ElasticState) {
+    match bridge::sync_clock(dialer).await {
+        Ok(skew) => {
+            if skew.abs() >= 1000 {
+                eprintln!("vmm: guest clock was {skew} ms off; stepped");
+            }
+            es.clock_synced_at = Some(chrono::Utc::now().timestamp());
+            es.clock_skew_ms = Some(skew);
+        }
+        Err(err) => eprintln!("vmm: guest clock sync: {err:#}"),
+    }
+}
+
 /// Entry point of the hidden `vat machine __vmm` verb.
 pub fn run(name: &str, assets: BootAssets) -> Result<()> {
     let t0 = Instant::now();
@@ -382,6 +399,9 @@ pub fn run(name: &str, assets: BootAssets) -> Result<()> {
     }
     let (vz, rosetta) = build_config(&paths, &cfg, &assets)?;
 
+    // Guest memory lives in a Virtualization.framework process; find ours
+    // as the one that appears when the VM starts.
+    let vm_pids_before = elastic::vm_process_pids();
     let queue = DispatchQueue::new("dev.vat.machine", None);
     let vm = unsafe {
         VZVirtualMachine::initWithConfiguration_queue(VZVirtualMachine::alloc(), &vz, &queue)
@@ -404,6 +424,14 @@ pub fn run(name: &str, assets: BootAssets) -> Result<()> {
         bail!("VM failed to start: {err}");
     }
     let vm_start_ms = t0.elapsed().as_millis() as u64;
+    let vm_pid = match elastic::vm_process_pids()
+        .into_iter()
+        .filter(|p| !vm_pids_before.contains(p))
+        .collect::<Vec<_>>()[..]
+    {
+        [pid] => Some(pid),
+        _ => None,
+    };
     let record = |state: &str| {
         let s = VmmState {
             pid: std::process::id(),
@@ -488,6 +516,20 @@ pub fn run(name: &str, assets: BootAssets) -> Result<()> {
         let mut int = signal(SignalKind::interrupt())?;
         let mut hup = signal(SignalKind::hangup())?;
         let mut tick = tokio::time::interval(Duration::from_millis(500));
+        let mut wake = WakeWatch::new(SystemTime::now(), Instant::now());
+        // First sync once the agent is up; the boot clock is whole seconds.
+        let mut next_clock_sync = Instant::now() + Duration::from_secs(30);
+        let mut es = ElasticState {
+            vm_pid,
+            ..Default::default()
+        };
+        let save = |es: &ElasticState| {
+            let _ = super::write_atomic(
+                &paths.elastic_state(),
+                serde_json::to_vec_pretty(es).unwrap_or_default().as_slice(),
+            );
+        };
+        save(&es);
         let stopped = |s: VZVirtualMachineState| {
             s == VZVirtualMachineState::Stopped || s == VZVirtualMachineState::Error
         };
@@ -501,6 +543,10 @@ pub fn run(name: &str, assets: BootAssets) -> Result<()> {
                         Ok(None) => {}
                         Err(err) => eprintln!("vmm: reload config: {err:#}"),
                     }
+                    // SIGHUP also re-syncs the guest clock.
+                    clock_sync(&dialer, &mut es).await;
+                    next_clock_sync = Instant::now() + CLOCK_SYNC_EVERY;
+                    save(&es);
                 }
                 _ = tick.tick() => {
                     let m = machine.clone();
@@ -508,6 +554,16 @@ pub fn run(name: &str, assets: BootAssets) -> Result<()> {
                     if stopped(s) {
                         eprintln!("vmm: guest stopped ({s:?})");
                         return Ok::<_, anyhow::Error>(());
+                    }
+                    let slept = wake.check(SystemTime::now(), Instant::now());
+                    if let Some(gap) = slept {
+                        eprintln!("vmm: host slept {}s; syncing the guest clock", gap.as_secs());
+                        es.host_sleeps += 1;
+                    }
+                    if slept.is_some() || Instant::now() >= next_clock_sync {
+                        clock_sync(&dialer, &mut es).await;
+                        next_clock_sync = Instant::now() + CLOCK_SYNC_EVERY;
+                        save(&es);
                     }
                 }
             }

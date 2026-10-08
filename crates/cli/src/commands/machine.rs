@@ -364,6 +364,12 @@ struct Status {
     config: Option<MachineConfig>,
     vmm: Option<VmmState>,
     vmm_rss_kib: Option<u64>,
+    /// The Virtualization.framework process that holds guest memory: its
+    /// physical footprint (what macOS counts) and CPU time.
+    vm_footprint_kib: Option<u64>,
+    vm_cpu_ms: Option<u64>,
+    /// The VM process and guest clock sync, as the VMM last recorded them.
+    elastic: Option<Value>,
     guest: Option<Value>,
     ports: Option<Value>,
     data_disk_allocated_kib: Option<u64>,
@@ -377,6 +383,11 @@ pub fn status(name: &str, json_out: bool) -> Result<ExitCode> {
         use std::os::unix::fs::MetadataExt;
         m.blocks() / 2
     });
+    let elastic = pid.and_then(|_| read_json(&paths.elastic_state()));
+    let vm_usage = elastic
+        .as_ref()
+        .and_then(|e| e["vm_pid"].as_u64())
+        .and_then(|p| crate::vm::elastic::proc_usage(p as u32));
     let st = Status {
         machine: name.to_string(),
         state: if pid.is_some() {
@@ -392,6 +403,9 @@ pub fn status(name: &str, json_out: bool) -> Result<ExitCode> {
         config: MachineConfig::load(&paths.config)?,
         vmm: vmm_state(&paths),
         vmm_rss_kib: pid.and_then(process_rss_kib),
+        vm_footprint_kib: vm_usage.map(|u| u.footprint_kib),
+        vm_cpu_ms: vm_usage.map(|u| u.cpu_ms),
+        elastic,
         guest: pid.and_then(|_| read_json(&paths.guest_status())),
         ports: pid.and_then(|_| read_json(&paths.dir.join("ports.json"))),
         data_disk_allocated_kib: disk_kib,
@@ -417,6 +431,9 @@ pub fn status(name: &str, json_out: bool) -> Result<ExitCode> {
                 (total - avail.min(total)) / 1024,
                 total / 1024
             );
+        }
+        if let Some(fp) = st.vm_footprint_kib {
+            println!("host     {} MiB memory (VM process footprint)", fp / 1024);
         }
     }
     Ok(ExitCode::SUCCESS)

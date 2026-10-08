@@ -3,11 +3,14 @@
 //! - Dialer on vsock port 1024. The host writes one header line naming the
 //!   target, then the connection is a raw byte stream:
 //!   `tcp <host:port>`, `unix <path>`, `exec <base64 sh command>` (output,
-//!   then `__VAT_EXIT__ <code>`), `ping`, `poweroff`.
+//!   then `__VAT_EXIT__ <code>`), `ping`, `poweroff`, `time <sec> <nsec>`
+//!   (step the clock to the host's), `trim` (FITRIM the data disk now).
 //! - Uplinks: each `<bind-addr> <port> <service>` line in the state share's
 //!   `guest/uplinks` becomes a guest TCP listener whose connections are sent
 //!   to the host (CID 2, vsock port 1025) behind `VATPEER <peer> <service>`.
 //! - Heartbeat: `status.json` in the state share every two seconds.
+//! - Trim: freed data-disk blocks are discarded every ten minutes, so the
+//!   host's sparse `data.img` shrinks back.
 //!
 //! Connection close semantics: a half-close from the host reaches the guest,
 //! but a guest-side half-close does not reach the host through
@@ -24,6 +27,7 @@ use std::os::unix::net::UnixStream;
 use std::os::unix::process::ExitStatusExt;
 use std::path::Path;
 use std::process::{Command, Stdio};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
@@ -34,6 +38,8 @@ const STATE: &str = "/mnt/vat";
 const GUEST: &str = "/mnt/vat/guest";
 const DOCKER_SOCK: &str = "/var/run/docker.sock";
 const K3S_KUBECONFIG: &str = "/etc/rancher/k3s/k3s.yaml";
+const TRIM_FIRST: Duration = Duration::from_secs(120);
+const TRIM_EVERY: Duration = Duration::from_secs(600);
 
 fn main() {
     match std::env::args().nth(1).as_deref() {
@@ -66,6 +72,13 @@ fn agent() {
         }
     });
     start_uplinks();
+    thread::spawn(|| {
+        thread::sleep(TRIM_FIRST);
+        loop {
+            let _ = trim();
+            thread::sleep(TRIM_EVERY);
+        }
+    });
     heartbeat();
 }
 
@@ -250,6 +263,17 @@ fn dial(mut host: UnixStream) {
         "ping" => {
             let _ = host.write_all(b"pong\n");
         }
+        "time" => {
+            let reply = set_clock(arg).unwrap_or_else(|e| format!("error {e}"));
+            let _ = writeln!(host, "{reply}");
+        }
+        "trim" => {
+            let reply = match trim() {
+                Ok(bytes) => format!("ok {bytes}"),
+                Err(e) => format!("error {e}"),
+            };
+            let _ = writeln!(host, "{reply}");
+        }
         "poweroff" => {
             let _ = host.write_all(b"ok\n");
             let _ = host.shutdown(Shutdown::Both);
@@ -399,7 +423,9 @@ fn heartbeat() {
             .map(|d| d.as_secs())
             .unwrap_or(0);
         let json = format!(
-            "{{\"phase\":\"running\",\"ip\":\"{ip}\",\"docker_ready\":{docker_ready},\"k8s_ready\":{k8s_ready},\"mem_total_kib\":{mem_total},\"mem_available_kib\":{mem_avail},\"disk_used_kib\":{disk_used},\"disk_total_kib\":{disk_total},\"uptime_s\":{uptime},\"at\":{now},\"agent\":\"{}\"}}\n",
+            "{{\"phase\":\"running\",\"ip\":\"{ip}\",\"docker_ready\":{docker_ready},\"k8s_ready\":{k8s_ready},\"mem_total_kib\":{mem_total},\"mem_available_kib\":{mem_avail},\"trimmed_at\":{},\"trimmed_bytes\":{},\"disk_used_kib\":{disk_used},\"disk_total_kib\":{disk_total},\"uptime_s\":{uptime},\"at\":{now},\"agent\":\"{}\"}}\n",
+            TRIMMED_AT.load(Ordering::Relaxed),
+            TRIMMED_BYTES.load(Ordering::Relaxed),
             env!("CARGO_PKG_VERSION")
         );
         let tmp = format!("{STATE}/status.json.tmp");
@@ -487,6 +513,67 @@ fn meminfo() -> (u64, u64) {
             .unwrap_or(0)
     };
     (field("MemTotal:"), field("MemAvailable:"))
+}
+
+/// Unix seconds of the last trim and the bytes it discarded.
+static TRIMMED_AT: AtomicU64 = AtomicU64::new(0);
+static TRIMMED_BYTES: AtomicU64 = AtomicU64::new(0);
+
+/// `_IOWR('X', 121, struct fstrim_range)`.
+const FITRIM: u32 = 0xC018_5879;
+
+#[repr(C)]
+struct FstrimRange {
+    start: u64,
+    len: u64,
+    minlen: u64,
+}
+
+/// Discard the free blocks of the data disk (`fstrim /`), so the host's
+/// sparse image gives the space back. Returns the bytes trimmed.
+fn trim() -> io::Result<u64> {
+    let dir = fs::File::open("/")?;
+    let mut range = FstrimRange {
+        start: 0,
+        len: u64::MAX,
+        minlen: 0,
+    };
+    if unsafe { libc::ioctl(dir.as_raw_fd(), FITRIM as _, &mut range) } < 0 {
+        return Err(io::Error::last_os_error());
+    }
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    TRIMMED_AT.store(now, Ordering::Relaxed);
+    TRIMMED_BYTES.store(range.len, Ordering::Relaxed);
+    Ok(range.len)
+}
+
+/// Step the realtime clock to the host's `<sec> <nsec>` when it is off by
+/// more than a few milliseconds (the guest's clock stands still while the
+/// host sleeps). Replies `ok <guest minus host, ms> <stepped 0|1>`.
+fn set_clock(arg: &str) -> Result<String, String> {
+    let mut it = arg.split_whitespace().map(str::parse::<i64>);
+    let (Some(Ok(sec)), Some(Ok(nsec))) = (it.next(), it.next()) else {
+        return Err(format!("bad time {arg:?}"));
+    };
+    let host_ms = sec as i128 * 1000 + nsec as i128 / 1_000_000;
+    let guest_ms = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as i128)
+        .unwrap_or(0);
+    let skew = guest_ms - host_ms;
+    if skew.abs() < 5 {
+        return Ok(format!("ok {skew} 0"));
+    }
+    let mut ts: libc::timespec = unsafe { std::mem::zeroed() };
+    ts.tv_sec = sec as _;
+    ts.tv_nsec = nsec as _;
+    if unsafe { libc::clock_settime(libc::CLOCK_REALTIME, &ts) } != 0 {
+        return Err(io::Error::last_os_error().to_string());
+    }
+    Ok(format!("ok {skew} 1"))
 }
 
 fn disk_usage(path: &str) -> (u64, u64) {
