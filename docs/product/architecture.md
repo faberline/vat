@@ -39,13 +39,32 @@ exactly one Linux machine. The GCP pillar is reachable from host processes
 through the per-run presets and transparent routing, and from pods through the
 machine's built-in metadata server, registry, and shared emulators.
 
+### Crate layout
+
+The code follows the same layers as a Cargo workspace under `crates/`. It
+still builds one `vat` binary.
+
+| crate | dir | layer |
+|---|---|---|
+| `vat-core` | `crates/core` | shared model: spec, `vat.toml`, overlay, event log, state, store, sandbox backends, GPU probe |
+| `vat-native` | `crates/native` | pillar 1: Apple-native containers and the OCI distribution client |
+| `vat-docker` | `crates/docker` | pillar 2: the shared machine (VMM, vsock bridges, guest files) and its Docker Engine |
+| `vat-k8s` | `crates/k8s` | pillar 3: K3s, the local GCP services, the Rust emulators, and the registry |
+| `vat` | `crates/cli` | the CLI and the `vat` binary |
+
+Dependencies point down only: `vat` → `vat-k8s` → `vat-docker` → `vat-core`,
+and `vat` → `vat-native` → `vat-core`. The machine does not depend on the
+layer above it. `vat-k8s` plugs K3s and local GCP into the machine through
+`vat_docker::addon::MachineAddon`, which the CLI installs at startup. The K3s
+and GCP settings are kept in the machine config under their original keys.
+
 ## Shared core: the agent-facing model
 
 A *vat* is a copy-on-write workspace plus a declarative `EnvSpec`, an
 append-only event log, and a projected `VatState` document
-(`src/overlay.rs`, `src/spec.rs`, `src/event.rs`, `src/state.rs`). `vat run`
+(`crates/core/src/overlay.rs`, `crates/core/src/spec.rs`, `crates/core/src/event.rs`, `crates/core/src/state.rs`). `vat run`
 clones a base, runs the workload in the selected `Sandbox` backend
-(`src/sandbox/`), records the run, recomputes the diff, and cleans up by
+(`crates/core/src/sandbox/`), records the run, recomputes the diff, and cleans up by
 policy. `vat fork` and `vat snapshot` are `clonefile` operations, so branching
 a running environment is cheap. `vat.toml` is the run protocol: setup steps,
 services, readiness, runner, artifacts, scenarios, retention.
@@ -99,7 +118,7 @@ policy rather than a namespace.
 
 ### Decision: seatbelt + fixed-length relocation, no chroot
 
-Decided for M1 and implemented in `src/native/` (gate:
+Decided for M1 and implemented in `crates/native/src/` (gate:
 `cargo test -p vat --test vat_native_runtime`).
 
 - *No chroot.* A container's `/` is the host's `/`. dyld, the shared cache,
@@ -142,21 +161,21 @@ does not.
 
 ## Pillar 2: complete Docker over one shared Linux machine
 
-**Today (M2, M3 landed).** Two layers, both in `src/vm/`:
+**Today (M2, M3 landed).** Two layers, both in `crates/docker/src/`:
 
 - *Substrate (M2).* One shared lightweight Linux machine per host, named
   `default`, started on demand by `vat machine start`. It runs on Apple's
   Virtualization.framework: the VMM is a codesigned copy of the vat binary
   (`~/.vat/machine/bin/vat-vmm`) holding the `com.apple.security.virtualization`
-  entitlement, spawned detached as `vat machine __vmm` (`src/vm/vmm.rs`).
+  entitlement, spawned detached as `vat machine __vmm` (`crates/docker/src/vmm.rs`).
   The guest is Alpine on a sparse persistent ext4 data disk (`data.img`),
   booted from a downloaded kernel and a vat-generated initramfs
-  (`src/vm/assets.rs`); guest scripts live in a
-  virtiofs share (`src/vm/guest/`) copied in on every start, so guest
+  (`crates/docker/src/assets.rs`); guest scripts live in a
+  virtiofs share (`crates/docker/src/guest/`) copied in on every start, so guest
   behavior changes without rebuilding images. Host directories are shared
   over virtiofs at the same absolute paths, Rosetta runs `linux/amd64`
   images, and a vsock guest agent dials guest sockets for the host
-  (`src/vm/bridge.rs`): the Docker socket, a control socket, guest-to-host
+  (`crates/docker/src/bridge.rs`): the Docker socket, a control socket, guest-to-host
   uplinks, and published container ports. The plan named libkrun on
   Hypervisor.framework; Virtualization.framework shipped instead because it
   gives virtiofs, vsock, Rosetta, and a signed-helper model without a
@@ -167,20 +186,20 @@ does not.
   to `~/.vat/run/docker.sock` over vsock. There is no translation layer and
   no declared endpoint subset: Docker compatibility is Docker's own, so the
   unmodified `docker` CLI, `docker compose` v2, Testcontainers, and the SDKs
-  see a real Engine. `src/vm/engine.rs` makes that socket the default
+  see a real Engine. `crates/docker/src/engine.rs` makes that socket the default
   `DOCKER_HOST` for everything vat itself runs (`vat build`, image services,
   compose runners, probes), booting the machine on demand; an explicit
   `DOCKER_HOST`/`DOCKER_CONTEXT` always wins and `VAT_ENGINE=external` opts
   out. The argv0 `docker` shim over Apple Container is retired.
 
 **Remaining Apple Container route.** The explicit `runtime = "micro_vm"`
-service runtime and `MicroVmBackend` (`src/sandbox/microvm.rs`) still use the
+service runtime and `MicroVmBackend` (`crates/core/src/sandbox/microvm.rs`) still use the
 `container` CLI, one VM per container. It stays `Limited` in
 [STATUS.md](../../STATUS.md) as the superseded path and is not extended.
 
 **Efficiency as the goal.** Startup time from cold, idle guest memory and
 VMM RSS, disk allocation, and build time are recorded by the machine E2E
-(`tests/vat_machine_e2e.rs`) into `vat-machine-e2e.json`; a number becomes a
+(`crates/cli/tests/vat_machine_e2e.rs`) into `vat-machine-e2e.json`; a number becomes a
 budget in STATUS only when the owner confirms it. No efficiency figure is
 promised before that.
 
@@ -190,7 +209,7 @@ is not a commitment; the native pillar remains the GPU path.
 
 ## Pillar 3: realistic local GCP, especially GKE
 
-**Today.** Built-in pure-Rust emulators (`src/emulator/`): Pub/Sub (gRPC),
+**Today.** Built-in pure-Rust emulators (`crates/k8s/src/emulator/`): Pub/Sub (gRPC),
 Firebase Auth (REST), Cloud Tasks and Cloud Scheduler (gRPC and REST on one
 port, with dispatch to targets), Cloud Workflows (REST, subset interpreter
 that can orchestrate sibling emulators), Cloud Storage (JSON API v1), the
@@ -202,7 +221,7 @@ calls to the real `*.googleapis.com` host, REST or gRPC, to the local emulator
 with no code change.
 
 **Persistent K3s in the shared machine (M4, landed).** `vat k8s up` enables
-K3s (one pinned release, `v1.36.5+k3s1`, `src/vm/k8s.rs`) inside the M2
+K3s (one pinned release, `v1.36.5+k3s1`, `crates/k8s/src/k3s.rs`) inside the M2
 machine. K3s is started with `--docker`, so pods run on the machine's dockerd
 rather than on K3s's embedded containerd: an image built through the M3
 socket is visible to pods immediately with no load or push step. The cluster
@@ -216,7 +235,7 @@ gets a per-run namespace on it with an isolated kubeconfig.
 ### Local GCP services in the machine (M5, landed)
 
 Everything GKE-shaped that a pod sees is served by the VMM process on the host
-(`src/gcp/`), not by containers in the guest. The guest agent binds link-local
+(`crates/k8s/src/gcp/`), not by containers in the guest. The guest agent binds link-local
 addresses on its loopback and relays each connection over vsock to a
 `builtin:<service>` uplink target, so pods and containers reach the services at
 the addresses real GKE code expects:
@@ -229,7 +248,7 @@ the addresses real GKE code expects:
 169.254.169.253:443   mutating admission webhook
 ```
 
-- *Metadata server and Workload Identity* (`src/gcp/metadata.rs`). Answers
+- *Metadata server and Workload Identity* (`crates/k8s/src/gcp/metadata.rs`). Answers
   project, project number, zone, instance attributes (`cluster-name`),
   service accounts, access tokens (`ya29.vat.…`), and identity JWTs; it
   enforces `Metadata-Flavor: Google` and rejects `X-Forwarded-For`, as the
@@ -242,16 +261,16 @@ the addresses real GKE code expects:
   `<number>-compute@developer.gserviceaccount.com`. A CoreDNS stub deployed
   with K3s resolves `metadata.google.internal`. Tokens are local fakes the
   emulators accept; no IAM is evaluated.
-- *Local Artifact Registry* (`src/registry/` behind `src/gcp/services.rs`).
+- *Local Artifact Registry* (`crates/k8s/src/registry/` behind `crates/k8s/src/gcp/services.rs`).
   The minimal OCI registry serves `<region>-docker.pkg.dev` (region follows
   the configured zone; default `us-central1-docker.pkg.dev`) over TLS, with
   no auth, from the machine directory. Its certificate is minted by a
-  persistent per-machine CA (`src/gcp/ca.rs`); the guest installs the CA for
+  persistent per-machine CA (`crates/k8s/src/gcp/ca.rs`); the guest installs the CA for
   dockerd under `/etc/docker/certs.d/<host>/ca.crt`, so `docker push` and pod
   pulls both trust it, and the same CA signs the webhook's `caBundle` so both
   stay valid across restarts.
-- *Shared emulators and the webhook* (`src/gcp/webhook.rs`). The built-in
-  Pub/Sub and Cloud Storage emulators from `src/emulator/` run inside the VMM
+- *Shared emulators and the webhook* (`crates/k8s/src/gcp/webhook.rs`). The built-in
+  Pub/Sub and Cloud Storage emulators from `crates/k8s/src/emulator/` run inside the VMM
   with one state per machine, reachable from the guest at the link-local
   ports above and mirrored on host loopback (`127.0.0.1:18085` and
   `127.0.0.1:19023` by default), so host processes and pods share topics and
@@ -264,7 +283,7 @@ the addresses real GKE code expects:
   reused transparent `*.googleapis.com` routing inside pods; the shipped shape
   injects the environment variables the stock clients already honor, which
   needs no proxy or CA in the pod.
-- *Configuration* (`src/commands/gcp.rs`). `vat gcp config` writes project,
+- *Configuration* (`crates/cli/src/commands/gcp.rs`). `vat gcp config` writes project,
   zone, host ports, and enabled state into the machine's `config.json`; the
   VMM reads it at start and records the live endpoints in `gcp.json`, which
   `vat gcp status` and `vat gcp env` read.

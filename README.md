@@ -131,7 +131,7 @@ and `vat snapshot` branch a running environment like git.
 
 The workload is a macOS process over the copy-on-write rootfs, so the Apple GPU
 (Metal, MPS, MLX, `tensorflow-metal`) is simply present. Isolation is a
-pluggable [`Sandbox`](src/sandbox/mod.rs) backend: `none` is a plain host
+pluggable [`Sandbox`](crates/core/src/sandbox/mod.rs) backend: `none` is a plain host
 process; `seatbelt` wraps it in a `sandbox-exec` profile that confines writes to
 the rootfs and enforces the `[network].egress` policy, failing closed when the
 selected backend cannot enforce it. This is resource isolation for cooperative
@@ -185,14 +185,14 @@ foundations, without a VM:
   container runtime.
 - Gate: `cargo test -p vat`
 - Gate:
-  `rg -n -e 'Apple GPU' -e Metal -e MPS -e MLX -e tensorflow-metal README.md src/gpu.rs`
+  `rg -n -e 'Apple GPU' -e Metal -e MPS -e MLX -e tensorflow-metal README.md crates/core/src/gpu.rs`
 - Gate:
-  `rg -n -e sandbox -e isolation -e seatbelt README.md src/sandbox`
+  `rg -n -e sandbox -e isolation -e seatbelt README.md crates/core/src/sandbox`
 
 | Work Root | Kind | WI | Gate / Evidence |
 |---|---|---:|---|
-| Host-process execution and GPU visibility | epic | - | `rg -n -e 'Apple GPU' -e Metal -e MPS -e MLX -e tensorflow-metal README.md src/gpu.rs` |
-| Resource isolation boundary | epic | - | `rg -n -e sandbox -e isolation -e seatbelt README.md src/sandbox` |
+| Host-process execution and GPU visibility | epic | - | `rg -n -e 'Apple GPU' -e Metal -e MPS -e MLX -e tensorflow-metal README.md crates/core/src/gpu.rs` |
+| Resource isolation boundary | epic | - | `rg -n -e sandbox -e isolation -e seatbelt README.md crates/core/src/sandbox` |
 | Network sandbox v3 — seatbelt egress policy | change | #518 | `cargo test -p vat --test vat_sandbox_egress -- --nocapture` |
 | Sandbox applied to runner-mode commands | change | #527 | `cargo test -p vat --test vat_runner_sandbox -- --nocapture` |
 | Sandbox egress policy fails closed when isolation cannot enforce it | change | #1300 | `cargo test -p vat --test vat_sandbox_egress_fail_closed -- --nocapture` |
@@ -424,7 +424,7 @@ project has a `vat.toml`.
   local Artifact Registry (`us-central1-docker.pkg.dev`, project `vat-local`)
   exists so pods can pull what `docker push` sent it; it is reachable only
   from the machine and dockerd, and a hosted or remote registry is not a goal.
-  A vat's environment is a declarative [`EnvSpec`](src/spec.rs) an agent reads
+  A vat's environment is a declarative [`EnvSpec`](crates/core/src/spec.rs) an agent reads
   and rewrites. A `vat.toml` *service* may run as an ephemeral container, but
   the runner is always a host process — vat never containerizes your workload
   on the native pillar.
@@ -486,17 +486,27 @@ vat snapshot <id>      # frozen restore point
 ## The model
 
 A **vat** =
-copy-on-write workspace ([`overlay`](src/overlay.rs))
-+ declarative [`EnvSpec`](src/spec.rs)
-+ append-only [`event`](src/event.rs) log
-+ projected [`VatState`](src/state.rs).
+copy-on-write workspace ([`overlay`](crates/core/src/overlay.rs))
++ declarative [`EnvSpec`](crates/core/src/spec.rs)
++ append-only [`event`](crates/core/src/event.rs) log
++ projected [`VatState`](crates/core/src/state.rs).
 
 `vat run` clones a base (a host dir, or another vat via `--from`) into a fresh
-rootfs, runs your command in the chosen [`sandbox`](src/sandbox/) backend with
+rootfs, runs your command in the chosen [`sandbox`](crates/core/src/sandbox/) backend with
 live stdio, then records the run and recomputes the filesystem diff. Because
 clones are APFS `clonefile(2)` (near-instant, block-shared until written),
 fork/snapshot are cheap — an agent can try two approaches, fail, and roll back
 without rebuilding.
+
+The code is a Cargo workspace with one crate per layer, all built into the one
+`vat` binary:
+`crates/core` holds the shared model above;
+`crates/native` holds the Apple-native containers;
+`crates/docker` holds the shared machine and its Docker Engine;
+`crates/k8s` holds K3s and local GCP;
+`crates/cli` holds the CLI.
+[docs/product/architecture.md](docs/product/architecture.md#crate-layout) has
+the dependency direction.
 
 Vat state is repo-local by default: the store root is `<repo>/.vat` (ignored by
 git). Set `VAT_HOME` only when an external runner intentionally wants a
@@ -951,7 +961,7 @@ target = "http://127.0.0.1:8123"   # or a local emulator's host:port
 > only catch proxy-honoring / loopback-confined clients — non-cooperating egress is
 > *blocked* (fail-closed), not transparently rerouted.
 
-[`Sandbox`]: src/sandbox/mod.rs
+[`Sandbox`]: crates/core/src/sandbox/mod.rs
 
 ## Supporting documents
 
