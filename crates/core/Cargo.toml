@@ -1,0 +1,24 @@
+[package]
+name = "vat-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "vat's shared model: env specs, vat.toml config, state, the vat store, copy-on-write overlays, the host sandbox, and GPU detection."
+publish = false
+
+[lib]
+doctest = false
+
+[dependencies]
+anyhow = { workspace = true }
+chrono = { workspace = true }
+clap = { workspace = true }
+dirs = { workspace = true }
+libc = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tempfile = { workspace = true }
+toml = { workspace = true }
+walkdir = { workspace = true }

@@ -1,0 +1,35 @@
+[package]
+name = "vat-docker"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "vat layer 2: one shared Linux machine on Virtualization.framework running a real dockerd, served on a host Docker Engine socket."
+publish = false
+
+[lib]
+doctest = false
+
+[features]
+default = ["machine"]
+# The VMM process, vsock bridges, and the Docker Engine socket.
+machine = ["dep:tokio"]
+
+[dependencies]
+anyhow = { workspace = true }
+chrono = { workspace = true }
+dirs = { workspace = true }
+libc = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+tempfile = { workspace = true }
+tokio = { workspace = true, optional = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-foundation = "0.3"
+objc2-virtualization = "0.3"
+block2 = "0.6"
+dispatch2 = "0.3"

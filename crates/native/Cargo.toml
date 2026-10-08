@@ -1,0 +1,38 @@
+[package]
+name = "vat-native"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "vat layer 1: Apple-native containers that run directly on the machine (darwin/arm64 OCI images, APFS copy-on-write roots, seatbelt), so Metal/MPS/MLX are present."
+publish = false
+
+[lib]
+doctest = false
+
+[features]
+default = ["registry"]
+# `vat image pull/push` over the OCI Distribution API.
+registry = ["dep:tokio", "dep:reqwest", "dep:base64"]
+
+[dependencies]
+vat-core = { workspace = true }
+anyhow = { workspace = true }
+chrono = { workspace = true }
+filetime = "0.2"
+flate2 = "1"
+getrandom = { workspace = true }
+libc = { workspace = true }
+memchr = "2"
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+signal-hook = { workspace = true }
+tar = "0.4"
+tempfile = { workspace = true }
+walkdir = { workspace = true }
+
+tokio = { workspace = true, optional = true }
+reqwest = { workspace = true, optional = true }
+base64 = { workspace = true, optional = true }
