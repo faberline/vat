@@ -61,6 +61,12 @@ pub trait MachineAddon: Send + Sync {
         Vec::new()
     }
 
+    /// Why the machine must not stop when idle (e.g. a cluster runs in it),
+    /// or `None` to let it.
+    fn keeps_awake(&self, _cfg: &MachineConfig) -> Option<&'static str> {
+        None
+    }
+
     /// Start the services this layer serves from the VMM process.
     #[cfg(feature = "machine")]
     fn builtins<'a>(

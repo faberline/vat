@@ -27,7 +27,7 @@ use tokio::sync::{mpsc, oneshot};
 use super::addon;
 use super::assets::BootAssets;
 use super::bridge::{self, DialFuture, Dialer};
-use super::elastic::{self, ElasticState, WakeWatch};
+use super::elastic::{self, ElasticState, IdleWatch, WakeWatch};
 use super::{MachineConfig, MachinePaths, VmmState, GUEST_DIAL_PORT, HOST_UPLINK_PORT};
 
 /// Moves a non-`Send` Objective-C handle onto the VM queue. Sound because
@@ -397,7 +397,25 @@ pub fn run(name: &str, assets: BootAssets) -> Result<()> {
         cfg.mac = Some(mac.to_string());
         cfg.save(&paths.config)?;
     }
+    // Launched by launchd for a Docker client: the socket is already ours.
+    let activated = super::launchd::activated_listener(super::launchd::DOCKER_SOCKET);
+    let socket_activated = activated.is_some();
     let (vz, rosetta) = build_config(&paths, &cfg, &assets)?;
+
+    let record = |state: &str, vm_start_ms: u64| {
+        let s = VmmState {
+            pid: std::process::id(),
+            started_at: chrono::Utc::now().timestamp(),
+            vm_start_ms,
+            rosetta,
+            state: state.to_string(),
+        };
+        let _ = super::write_atomic(
+            &paths.vmm_state,
+            serde_json::to_vec_pretty(&s).unwrap_or_default().as_slice(),
+        );
+    };
+    record("booting", 0);
 
     // Guest memory lives in a Virtualization.framework process; find ours
     // as the one that appears when the VM starts.
@@ -432,21 +450,10 @@ pub fn run(name: &str, assets: BootAssets) -> Result<()> {
         [pid] => Some(pid),
         _ => None,
     };
-    let record = |state: &str| {
-        let s = VmmState {
-            pid: std::process::id(),
-            started_at: chrono::Utc::now().timestamp(),
-            vm_start_ms,
-            rosetta,
-            state: state.to_string(),
-        };
-        let _ = super::write_atomic(
-            &paths.vmm_state,
-            serde_json::to_vec_pretty(&s).unwrap_or_default().as_slice(),
-        );
-    };
-    record("running");
-    eprintln!("vmm: VM started in {vm_start_ms} ms (rosetta: {rosetta})");
+    record("running", vm_start_ms);
+    eprintln!(
+        "vmm: VM started in {vm_start_ms} ms (rosetta: {rosetta}, socket-activated: {socket_activated})"
+    );
 
     // Guest -> host uplinks arrive through a delegate on the VM queue.
     let (uplink_tx, mut uplink_rx) = mpsc::unbounded_channel::<OwnedFd>();
@@ -473,19 +480,40 @@ pub fn run(name: &str, assets: BootAssets) -> Result<()> {
         let dialer: Dialer = Arc::new(move || dial_machine.connect(GUEST_DIAL_PORT));
 
         let (shutdown_tx, shutdown_rx) = tokio::sync::watch::channel(false);
+        let (ready_tx, ready_rx) = tokio::sync::watch::channel(false);
+        let in_use = bridge::InUse::default();
         let docker = tokio::spawn(bridge::serve_docker(
+            activated,
             paths.docker_sock.clone(),
             dialer.clone(),
+            ready_rx.clone(),
             shutdown_rx,
+            in_use.clone(),
         ));
         let control = tokio::spawn(bridge::serve_control(
             paths.control_sock.clone(),
             dialer.clone(),
+            in_use.clone(),
         ));
+        {
+            let dialer = dialer.clone();
+            tokio::spawn(async move {
+                while !bridge::docker_ready(&dialer).await {
+                    tokio::time::sleep(Duration::from_millis(100)).await;
+                }
+                eprintln!(
+                    "vmm: dockerd ready {} ms after start",
+                    t0.elapsed().as_millis()
+                );
+                let _ = ready_tx.send(true);
+            });
+        }
+        let (running_tx, running_rx) = tokio::sync::watch::channel(0usize);
         let publisher = tokio::spawn(bridge::publish_ports(
             dialer.clone(),
             cfg.publish_addr.clone(),
             paths.dir.join("ports.json"),
+            running_tx,
         ));
         let builtins = Arc::new(start_builtins(&paths, &cfg, &dialer).await);
         let uplinks = Arc::new(cfg.effective_uplinks());
@@ -523,6 +551,9 @@ pub fn run(name: &str, assets: BootAssets) -> Result<()> {
             vm_pid,
             ..Default::default()
         };
+        let mut idle = IdleWatch::new(Duration::from_secs(cfg.idle_stop_secs));
+        let mut keeps_awake = cfg.keeps_awake();
+        let mut busy_why: Option<String> = None;
         let save = |es: &ElasticState| {
             let _ = super::write_atomic(
                 &paths.elastic_state(),
@@ -533,13 +564,17 @@ pub fn run(name: &str, assets: BootAssets) -> Result<()> {
         let stopped = |s: VZVirtualMachineState| {
             s == VZVirtualMachineState::Stopped || s == VZVirtualMachineState::Error
         };
-        loop {
+        let stopped_by = loop {
             tokio::select! {
-                _ = term.recv() => break,
-                _ = int.recv() => break,
+                _ = term.recv() => break "signal",
+                _ = int.recv() => break "signal",
                 _ = hup.recv() => {
                     match MachineConfig::load(&paths.config) {
-                        Ok(Some(fresh)) => sync_forwards(&paths, &fresh, &dialer, &mut forwards).await,
+                        Ok(Some(fresh)) => {
+                            sync_forwards(&paths, &fresh, &dialer, &mut forwards).await;
+                            idle.set_after(Duration::from_secs(fresh.idle_stop_secs));
+                            keeps_awake = fresh.keeps_awake();
+                        }
                         Ok(None) => {}
                         Err(err) => eprintln!("vmm: reload config: {err:#}"),
                     }
@@ -553,7 +588,7 @@ pub fn run(name: &str, assets: BootAssets) -> Result<()> {
                     let s = tokio::task::spawn_blocking(move || m.state()).await?;
                     if stopped(s) {
                         eprintln!("vmm: guest stopped ({s:?})");
-                        return Ok::<_, anyhow::Error>(());
+                        break "guest";
                     }
                     let slept = wake.check(SystemTime::now(), Instant::now());
                     if let Some(gap) = slept {
@@ -565,12 +600,45 @@ pub fn run(name: &str, assets: BootAssets) -> Result<()> {
                         next_clock_sync = Instant::now() + CLOCK_SYNC_EVERY;
                         save(&es);
                     }
+                    let clients = in_use.count();
+                    let containers = *running_rx.borrow();
+                    let why = if !*ready_rx.borrow() {
+                        Some("dockerd not ready".to_string())
+                    } else if let Some(why) = keeps_awake {
+                        Some(why.to_string())
+                    } else if clients > 0 {
+                        Some(format!("{clients} client connection(s)"))
+                    } else if containers > 0 {
+                        Some(format!("{containers} container(s) running"))
+                    } else {
+                        None
+                    };
+                    if why != busy_why {
+                        match &why {
+                            Some(why) => eprintln!("vmm: busy: {why}"),
+                            None => eprintln!("vmm: idle"),
+                        }
+                        busy_why = why;
+                    }
+                    if idle.observe(busy_why.is_some(), Instant::now()) {
+                        eprintln!("vmm: idle; stopping to give memory back to macOS");
+                        break "idle";
+                    }
                 }
             }
+        };
+        // Before anything else, so status stops talking to docker.sock.
+        if stopped_by != "guest" {
+            record("stopping", vm_start_ms);
+        }
+        es.stopped_by = Some(stopped_by.to_string());
+        es.stopped_at = Some(chrono::Utc::now().timestamp());
+        save(&es);
+        if stopped_by == "guest" {
+            return Ok::<_, anyhow::Error>(());
         }
         // Graceful shutdown: ask the guest, then force after a grace period.
         eprintln!("vmm: shutting down the guest");
-        record("stopping");
         // Close host-held Docker streams first (the publisher's `/events`
         // among them) so dockerd exits without waiting on them.
         publisher.abort();
@@ -606,8 +674,11 @@ pub fn run(name: &str, assets: BootAssets) -> Result<()> {
         });
         let _ = rx.recv_timeout(Duration::from_secs(5));
     }
-    record("stopped");
-    let _ = std::fs::remove_file(&paths.docker_sock);
+    record("stopped", vm_start_ms);
+    // An activated socket belongs to launchd: it stays to wake the next run.
+    if !socket_activated {
+        let _ = std::fs::remove_file(&paths.docker_sock);
+    }
     let _ = std::fs::remove_file(&paths.control_sock);
     drop(delegate);
     result

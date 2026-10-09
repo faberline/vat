@@ -395,6 +395,11 @@ enum MachineCmd {
         /// Run K3s in the machine (persisted).
         #[arg(long)]
         k8s: Option<bool>,
+        /// Stop after this long with no containers and no clients, giving
+        /// memory back to macOS (`30s`, `5m`, `0` = never; persisted, default
+        /// 5m). The next Docker client starts it again.
+        #[arg(long, value_parser = commands::machine::parse_idle_stop)]
+        idle_stop: Option<u64>,
         /// Return right after the VMM is spawned.
         #[arg(long)]
         no_wait: bool,
@@ -404,10 +409,15 @@ enum MachineCmd {
         #[arg(long)]
         json: bool,
     },
-    /// Shut the machine down cleanly.
+    /// Shut the machine down cleanly. Docker clients still start it again
+    /// unless `--no-wake`.
     Stop {
         #[arg(long, default_value = crate::vm::DEFAULT_MACHINE)]
         name: String,
+        /// Also release docker.sock, so nothing starts the machine until
+        /// the next `vat machine start`.
+        #[arg(long)]
+        no_wake: bool,
         #[arg(long)]
         json: bool,
     },
@@ -683,6 +693,7 @@ pub fn run() -> Result<ExitCode> {
                 memory,
                 disk,
                 k8s,
+                idle_stop,
                 no_wait,
                 timeout,
                 json,
@@ -692,11 +703,16 @@ pub fn run() -> Result<ExitCode> {
                 memory_mib: memory,
                 disk_gib: disk,
                 k8s,
+                idle_stop_secs: idle_stop,
                 no_wait,
                 timeout_s: timeout,
                 json,
             }),
-            MachineCmd::Stop { name, json } => commands::machine::stop(&name, json),
+            MachineCmd::Stop {
+                name,
+                no_wake,
+                json,
+            } => commands::machine::stop(&name, no_wake, json),
             MachineCmd::Status { name, json } => commands::machine::status(&name, json),
             MachineCmd::Exec {
                 name,

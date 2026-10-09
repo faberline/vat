@@ -2,9 +2,10 @@
 //! `vat machine` — the shared Linux VM behind the Docker Engine socket and
 //! the local K3s cluster.
 //!
-//! `start` prepares assets, keeps a signed VMM copy of this binary, spawns it
-//! detached, and waits until `dockerd` answers on the host socket. Every verb
-//! has a `--json` form for agents.
+//! `start` prepares assets, keeps a signed VMM copy of this binary, hands it
+//! to launchd as a socket-activated job (or spawns it detached when launchd
+//! cannot take it), and waits until `dockerd` answers on the host socket.
+//! Every verb has a `--json` form for agents.
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -16,7 +17,7 @@ use serde::Serialize;
 use serde_json::{json, Value};
 
 use crate::k3s::K8sConfig;
-use crate::vm::{self, assets, client, MachineConfig, MachinePaths, VmmState};
+use crate::vm::{self, assets, client, launchd, MachineConfig, MachinePaths, VmmState};
 
 /// Options for `vat machine start`.
 #[derive(Debug, Clone, Default)]
@@ -26,6 +27,8 @@ pub struct StartArgs {
     pub memory_mib: Option<u64>,
     pub disk_gib: Option<u64>,
     pub k8s: Option<bool>,
+    /// Stop after this many idle seconds (0: never); applies live.
+    pub idle_stop_secs: Option<u64>,
     pub no_wait: bool,
     pub timeout_s: u64,
     pub json: bool,
@@ -158,6 +161,13 @@ pub(crate) fn boot(args: &StartArgs) -> Result<Booted> {
         k8s.enabled = v;
         k8s.store(&mut cfg);
     }
+    // Not a reason to restart: a running VMM re-reads it on SIGHUP.
+    let idle_changed = args
+        .idle_stop_secs
+        .is_some_and(|v| !first_create && v != cfg.idle_stop_secs);
+    if let Some(v) = args.idle_stop_secs {
+        cfg.idle_stop_secs = v;
+    }
 
     // Serialize starters: preparing can take minutes (downloads), and a second
     // starter must see the first one's VMM instead of racing it for the disk.
@@ -169,6 +179,10 @@ pub(crate) fn boot(args: &StartArgs) -> Result<Booted> {
                 "machine {} is running; stop it before changing its configuration",
                 args.name
             );
+        }
+        if idle_changed {
+            cfg.save(&paths.config)?;
+            unsafe { libc::kill(pid as i32, libc::SIGHUP) };
         }
         let ready = client::docker_ping(&paths.docker_sock);
         return Ok(Booted {
@@ -187,26 +201,13 @@ pub(crate) fn boot(args: &StartArgs) -> Result<Booted> {
     let prepare_ms = t0.elapsed().as_millis() as u64;
 
     let _ = std::fs::remove_file(&paths.vmm_state);
-    let log = std::fs::File::create(&paths.vmm_log)?;
-    let mut cmd = Command::new(&vmm);
-    cmd.args(["machine", "__vmm", "--name", &args.name, "--kernel"])
-        .arg(&boot.kernel)
-        .arg("--initramfs")
-        .arg(&boot.initramfs)
-        .stdin(Stdio::null())
-        .stdout(log.try_clone()?)
-        .stderr(log);
-    unsafe {
-        use std::os::unix::process::CommandExt;
-        cmd.pre_exec(|| {
-            libc::setsid();
-            Ok(())
-        });
-    }
-    let child = cmd.spawn().context("spawn the VMM")?;
-    let pid = child.id();
-    // The VMM is a daemon now; it is reaped by launchd once we exit.
-    std::mem::forget(child);
+    std::fs::File::create(&paths.vmm_log)?;
+    let pid = if launchd::install(&paths, &launchd::plist(&paths, &boot, &vmm))? {
+        launchd::kickstart(&paths)?;
+        wait_vmm_pid(&paths, Duration::from_secs(10))?
+    } else {
+        spawn_vmm(&paths, &vmm, &boot)?
+    };
 
     if args.no_wait {
         return Ok(Booted {
@@ -272,6 +273,78 @@ pub(crate) fn boot(args: &StartArgs) -> Result<Booted> {
     })
 }
 
+/// Run the VMM detached, outside launchd: the machine works, but its socket
+/// goes away when it stops.
+fn spawn_vmm(paths: &MachinePaths, vmm: &Path, boot: &assets::BootAssets) -> Result<u32> {
+    let log = std::fs::OpenOptions::new()
+        .append(true)
+        .open(&paths.vmm_log)?;
+    let mut cmd = Command::new(vmm);
+    cmd.args(["machine", "__vmm", "--name", &paths.name, "--kernel"])
+        .arg(&boot.kernel)
+        .arg("--initramfs")
+        .arg(&boot.initramfs)
+        .stdin(Stdio::null())
+        .stdout(log.try_clone()?)
+        .stderr(log);
+    unsafe {
+        use std::os::unix::process::CommandExt;
+        cmd.pre_exec(|| {
+            libc::setsid();
+            Ok(())
+        });
+    }
+    let child = cmd.spawn().context("spawn the VMM")?;
+    let pid = child.id();
+    // The VMM is a daemon now; it is reaped by launchd once we exit.
+    std::mem::forget(child);
+    Ok(pid)
+}
+
+/// The pid launchd's VMM records once it runs.
+fn wait_vmm_pid(paths: &MachinePaths, within: Duration) -> Result<u32> {
+    let deadline = Instant::now() + within;
+    loop {
+        if let Some(pid) = running_pid(paths) {
+            return Ok(pid);
+        }
+        if Instant::now() > deadline {
+            bail!(
+                "launchd did not start the VMM within {}s\n--- vmm.log ---\n{}",
+                within.as_secs(),
+                tail(&paths.vmm_log, 20)
+            );
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    }
+}
+
+/// Parse `--idle-stop`: `30s`, `5m`, `1h`, plain seconds, or `0`/`never`.
+pub fn parse_idle_stop(s: &str) -> std::result::Result<u64, String> {
+    let s = s.trim();
+    if s == "never" {
+        return Ok(0);
+    }
+    let (num, unit) = s.split_at(s.find(|c: char| !c.is_ascii_digit()).unwrap_or(s.len()));
+    let n: u64 = num
+        .parse()
+        .map_err(|_| format!("expected a duration like 30s, 5m, 1h, or 0; got {s:?}"))?;
+    match unit {
+        "" | "s" => Ok(n),
+        "m" => Ok(n * 60),
+        "h" => Ok(n * 3600),
+        _ => Err(format!("unknown unit {unit:?} in {s:?}; use s, m, or h")),
+    }
+}
+
+fn human_secs(secs: u64) -> String {
+    match secs {
+        s if s % 3600 == 0 => format!("{}h", s / 3600),
+        s if s % 60 == 0 => format!("{}m", s / 60),
+        s => format!("{s}s"),
+    }
+}
+
 fn report_start(
     args: &StartArgs,
     paths: &MachinePaths,
@@ -305,12 +378,18 @@ fn report_start(
     Ok(ExitCode::SUCCESS)
 }
 
-pub fn stop(name: &str, json_out: bool) -> Result<ExitCode> {
+/// Stop the machine. Its socket stays with launchd, so the next Docker
+/// client boots it again, unless `no_wake` unloads the job too.
+pub fn stop(name: &str, no_wake: bool, json_out: bool) -> Result<ExitCode> {
     let paths = MachinePaths::new(name)?;
+    if no_wake {
+        launchd::uninstall(&paths)?;
+    }
+    let wakes = !no_wake && launchd::loaded(&paths);
     let Some(pid) = running_pid(&paths) else {
         return emit(
             json_out,
-            json!({ "machine": name, "state": "stopped", "was_running": false }),
+            json!({ "machine": name, "state": "stopped", "was_running": false, "wake_on_socket": wakes }),
             "machine is not running",
         );
     };
@@ -332,8 +411,13 @@ pub fn stop(name: &str, json_out: bool) -> Result<ExitCode> {
             "was_running": true,
             "forced": forced,
             "stop_ms": t0.elapsed().as_millis() as u64,
+            "wake_on_socket": wakes,
         }),
-        "machine stopped",
+        if wakes {
+            "machine stopped; the next Docker client starts it again"
+        } else {
+            "machine stopped"
+        },
     )
 }
 
@@ -368,8 +452,15 @@ struct Status {
     /// physical footprint (what macOS counts) and CPU time.
     vm_footprint_kib: Option<u64>,
     vm_cpu_ms: Option<u64>,
-    /// The VM process and guest clock sync, as the VMM last recorded them.
+    /// The VM process, guest clock sync, and last stop, as the VMM last
+    /// recorded them.
     elastic: Option<Value>,
+    /// launchd holds the Docker socket: a client boots a stopped machine.
+    wake_on_socket: bool,
+    /// Seconds idle before the VMM stops (0: never), and what keeps it up
+    /// regardless.
+    idle_stop_secs: Option<u64>,
+    keeps_awake: Option<&'static str>,
     guest: Option<Value>,
     ports: Option<Value>,
     data_disk_allocated_kib: Option<u64>,
@@ -378,16 +469,23 @@ struct Status {
 pub fn status(name: &str, json_out: bool) -> Result<ExitCode> {
     let paths = MachinePaths::new(name)?;
     let pid = running_pid(&paths);
-    let docker_ready = pid.is_some() && client::docker_ping(&paths.docker_sock);
+    // Only a VMM that is up and serving: launchd queues a connection to a
+    // stopping VMM's socket and starts the machine again for it, and a
+    // status check should not wake the machine.
+    let serving = pid.is_some() && vmm_state(&paths).is_some_and(|s| s.state == "running");
+    let docker_ready = serving && client::docker_ping(&paths.docker_sock);
     let disk_kib = std::fs::metadata(&paths.data_img).ok().map(|m| {
         use std::os::unix::fs::MetadataExt;
         m.blocks() / 2
     });
-    let elastic = pid.and_then(|_| read_json(&paths.elastic_state()));
+    let elastic = read_json(&paths.elastic_state());
     let vm_usage = elastic
         .as_ref()
+        .filter(|_| pid.is_some())
         .and_then(|e| e["vm_pid"].as_u64())
         .and_then(|p| crate::vm::elastic::proc_usage(p as u32));
+    let config = MachineConfig::load(&paths.config)?;
+    let wake_on_socket = config.is_some() && launchd::loaded(&paths);
     let st = Status {
         machine: name.to_string(),
         state: if pid.is_some() {
@@ -400,7 +498,10 @@ pub fn status(name: &str, json_out: bool) -> Result<ExitCode> {
         pid,
         docker_host: format!("unix://{}", paths.docker_sock.display()),
         docker_ready,
-        config: MachineConfig::load(&paths.config)?,
+        idle_stop_secs: config.as_ref().map(|c| c.idle_stop_secs),
+        keeps_awake: config.as_ref().and_then(MachineConfig::keeps_awake),
+        config,
+        wake_on_socket,
         vmm: vmm_state(&paths),
         vmm_rss_kib: pid.and_then(process_rss_kib),
         vm_footprint_kib: vm_usage.map(|u| u.footprint_kib),
@@ -413,7 +514,12 @@ pub fn status(name: &str, json_out: bool) -> Result<ExitCode> {
     if json_out {
         crate::commands::print_json(&st, false)?;
     } else {
-        println!("machine  {} ({})", st.machine, st.state);
+        let wake = if st.state == "stopped" && wake_on_socket {
+            ", wakes on docker.sock"
+        } else {
+            ""
+        };
+        println!("machine  {} ({}{wake})", st.machine, st.state);
         if let Some(pid) = st.pid {
             println!("pid      {pid}");
         }
@@ -434,6 +540,22 @@ pub fn status(name: &str, json_out: bool) -> Result<ExitCode> {
         }
         if let Some(fp) = st.vm_footprint_kib {
             println!("host     {} MiB memory (VM process footprint)", fp / 1024);
+        }
+        match (st.keeps_awake, st.idle_stop_secs) {
+            (Some(why), _) => println!("idle     stays up ({why})"),
+            (None, Some(0)) => println!("idle     never stops"),
+            (None, Some(s)) => println!("idle     stops after {} idle", human_secs(s)),
+            (None, None) => {}
+        }
+        if st.pid.is_none() {
+            if let Some(e) = &st.elastic {
+                if let (Some(by), Some(at)) = (e["stopped_by"].as_str(), e["stopped_at"].as_i64()) {
+                    let at = chrono::DateTime::from_timestamp(at, 0)
+                        .map(|t| t.with_timezone(&chrono::Local).format("%F %T").to_string())
+                        .unwrap_or_default();
+                    println!("last     stopped ({by}) at {at}");
+                }
+            }
         }
     }
     Ok(ExitCode::SUCCESS)
@@ -501,8 +623,9 @@ pub fn rm(name: &str, yes: bool, json_out: bool) -> Result<ExitCode> {
             "`vat machine rm` deletes the data disk (images, volumes, cluster state); pass --yes"
         );
     }
+    launchd::uninstall(&paths)?;
     if running_pid(&paths).is_some() {
-        stop(name, false)?;
+        stop(name, true, false)?;
     }
     if paths.dir.exists() {
         std::fs::remove_dir_all(&paths.dir)?;
@@ -524,5 +647,24 @@ pub fn vmm(name: &str, kernel: PathBuf, initramfs: PathBuf) -> Result<ExitCode> 
 #[cfg(not(all(target_os = "macos", feature = "machine")))]
 pub fn vmm(_name: &str, _kernel: PathBuf, _initramfs: PathBuf) -> Result<ExitCode> {
     bail!("this vat build has no VMM (needs macOS and the `machine` feature)")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn idle_stop_takes_seconds_minutes_hours_or_never() {
+        assert_eq!(parse_idle_stop("30s"), Ok(30));
+        assert_eq!(parse_idle_stop("5m"), Ok(300));
+        assert_eq!(parse_idle_stop("1h"), Ok(3600));
+        assert_eq!(parse_idle_stop("90"), Ok(90));
+        assert_eq!(parse_idle_stop("0"), Ok(0));
+        assert_eq!(parse_idle_stop("never"), Ok(0));
+        assert!(parse_idle_stop("5d").is_err());
+        assert!(parse_idle_stop("m").is_err());
+        assert_eq!(human_secs(300), "5m");
+        assert_eq!(human_secs(45), "45s");
+    }
 }
 // CODEGEN-END

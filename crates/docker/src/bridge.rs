@@ -8,6 +8,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::future::Future;
 use std::path::PathBuf;
 use std::pin::Pin;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -38,6 +39,33 @@ where
     let _ = tokio::io::copy_bidirectional(&mut a, &mut b).await;
 }
 
+/// Client connections in flight on the host sockets; the idle stop waits
+/// for none.
+#[derive(Debug, Clone, Default)]
+pub struct InUse(Arc<AtomicUsize>);
+
+impl InUse {
+    pub fn count(&self) -> usize {
+        self.0.load(Ordering::Relaxed)
+    }
+
+    fn hold(&self) -> Held {
+        self.0.fetch_add(1, Ordering::Relaxed);
+        Held(self.0.clone())
+    }
+}
+
+struct Held(Arc<AtomicUsize>);
+
+impl Drop for Held {
+    fn drop(&mut self) {
+        self.0.fetch_sub(1, Ordering::Relaxed);
+    }
+}
+
+/// How long a client that woke the machine may wait for dockerd.
+const READY_WAIT: Duration = Duration::from_secs(90);
+
 fn bind_unix(path: &PathBuf) -> Result<UnixListener> {
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir)?;
@@ -50,21 +78,39 @@ fn bind_unix(path: &PathBuf) -> Result<UnixListener> {
 /// `/var/run/docker.sock`, so the full Engine API (hijacked attach/exec
 /// streams, BuildKit sessions, events) works unmodified.
 ///
+/// `activated` is the listener launchd passed in (see [`crate::launchd`]);
+/// without one the socket is bound at `path`. Clients are held until `ready`
+/// (dockerd answers), so the one that woke the machine is served, not
+/// dropped.
+///
 /// When `shutdown` flips to true every relayed connection is dropped: dockerd
 /// otherwise waits on open streams (e.g. `docker events`) before exiting.
 pub async fn serve_docker(
+    activated: Option<std::os::unix::net::UnixListener>,
     path: PathBuf,
     dialer: Dialer,
+    ready: tokio::sync::watch::Receiver<bool>,
     shutdown: tokio::sync::watch::Receiver<bool>,
+    in_use: InUse,
 ) -> Result<()> {
-    let listener = bind_unix(&path)?;
+    let listener = match activated {
+        Some(l) => UnixListener::from_std(l)?,
+        None => bind_unix(&path)?,
+    };
     loop {
         let (client, _) = listener.accept().await?;
+        let held = in_use.hold();
         let dialer = dialer.clone();
+        let mut ready = ready.clone();
         let mut shutdown = shutdown.clone();
         tokio::spawn(async move {
-            // Before dockerd is up the dial fails; the client just sees EOF,
-            // which is what readiness probes expect, so stay quiet.
+            let _held = held;
+            if !matches!(
+                tokio::time::timeout(READY_WAIT, ready.wait_for(|r| *r)).await,
+                Ok(Ok(_))
+            ) {
+                return;
+            }
             if let Ok(guest) = dial(&dialer, "unix /var/run/docker.sock").await {
                 tokio::select! {
                     _ = splice(client, guest) => {}
@@ -76,12 +122,14 @@ pub async fn serve_docker(
 }
 
 /// Control socket: the client's first line is a dial header, forwarded as-is.
-pub async fn serve_control(path: PathBuf, dialer: Dialer) -> Result<()> {
+pub async fn serve_control(path: PathBuf, dialer: Dialer, in_use: InUse) -> Result<()> {
     let listener = bind_unix(&path)?;
     loop {
         let (client, _) = listener.accept().await?;
+        let held = in_use.hold();
         let dialer = dialer.clone();
         tokio::spawn(async move {
+            let _held = held;
             let mut reader = BufReader::new(client);
             let mut header = String::new();
             if reader.read_line(&mut header).await.unwrap_or(0) == 0 {
@@ -219,6 +267,13 @@ pub async fn sync_clock(dialer: &Dialer) -> Result<i64> {
     }
 }
 
+/// Whether the guest's dockerd answers `/_ping`.
+pub async fn docker_ready(dialer: &Dialer) -> bool {
+    docker_get(dialer, "/_ping")
+        .await
+        .is_ok_and(|body| body.trim() == "OK")
+}
+
 /// HTTP/1.0 GET against the guest Docker socket; returns the body.
 async fn docker_get(dialer: &Dialer, path: &str) -> Result<String> {
     let mut s = dial(dialer, "unix /var/run/docker.sock").await?;
@@ -263,7 +318,14 @@ fn published_ports(containers_json: &str) -> BTreeMap<u16, String> {
 /// Mirror every published container port onto the host so `docker run -p`
 /// behaves like Docker Desktop: `<publish_addr>:<port>` on macOS reaches the
 /// container. Writes the current mapping to `ports_file` for status.
-pub async fn publish_ports(dialer: Dialer, publish_addr: String, ports_file: PathBuf) {
+///
+/// `running` follows the number of running containers, for the idle stop.
+pub async fn publish_ports(
+    dialer: Dialer,
+    publish_addr: String,
+    ports_file: PathBuf,
+    running: tokio::sync::watch::Sender<usize>,
+) {
     let mut active: HashMap<u16, JoinHandle<()>> = HashMap::new();
     let mut failed: BTreeMap<u16, String> = BTreeMap::new();
     loop {
@@ -275,6 +337,9 @@ pub async fn publish_ports(dialer: Dialer, publish_addr: String, ports_file: Pat
         match docker_get(&dialer, "/containers/json").await {
             Ok(body) => {
                 let want = published_ports(&body);
+                let count = serde_json::from_str::<Vec<serde_json::Value>>(&body)
+                    .map_or(0, |list| list.len());
+                running.send_replace(count);
                 active.retain(|port, task| {
                     let keep = want.contains_key(port);
                     if !keep {

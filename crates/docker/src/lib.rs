@@ -34,6 +34,7 @@ pub mod bridge;
 pub mod client;
 pub mod elastic;
 pub mod engine;
+pub mod launchd;
 #[cfg(all(target_os = "macos", feature = "machine"))]
 pub mod vmm;
 
@@ -172,6 +173,11 @@ pub struct MachineConfig {
     /// Bind address for published container ports on the host.
     #[serde(default = "default_publish_addr")]
     pub publish_addr: String,
+    /// Stop the VM after this long with no containers running and no
+    /// client connected, giving its memory back to macOS; 0 never stops.
+    /// With socket activation the next Docker client boots it again.
+    #[serde(default = "default_idle_stop")]
+    pub idle_stop_secs: u64,
     /// Settings owned by the layers built on the machine (`k8s`,
     /// `k8s_api_port`, `gcp`), kept as raw JSON so this crate doesn't depend
     /// on them; see [`addon`].
@@ -181,6 +187,10 @@ pub struct MachineConfig {
 
 fn default_publish_addr() -> String {
     "127.0.0.1".to_string()
+}
+
+fn default_idle_stop() -> u64 {
+    300
 }
 
 impl Default for MachineConfig {
@@ -197,6 +207,7 @@ impl Default for MachineConfig {
             uplinks: Vec::new(),
             extra_hosts: Vec::new(),
             publish_addr: default_publish_addr(),
+            idle_stop_secs: default_idle_stop(),
             layers: Default::default(),
         }
     }
@@ -252,6 +263,11 @@ impl MachineConfig {
             all.extend(addon.hosts(self));
         }
         all
+    }
+
+    /// Why an installed addon keeps the machine from stopping when idle.
+    pub fn keeps_awake(&self) -> Option<&'static str> {
+        addon::installed().iter().find_map(|a| a.keeps_awake(self))
     }
 
     pub fn save(&self, path: &Path) -> Result<()> {

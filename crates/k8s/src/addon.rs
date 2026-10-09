@@ -43,6 +43,14 @@ impl MachineAddon for K8s {
         Vec::new()
     }
 
+    fn keeps_awake(&self, cfg: &MachineConfig) -> Option<&'static str> {
+        // K3s is a workload of its own, and kubectl's API forward is not
+        // socket-activated.
+        K8sConfig::of(cfg)
+            .is_ok_and(|k| k.enabled)
+            .then_some("K8s is on")
+    }
+
     fn stage(&self, paths: &MachinePaths, cfg: &MachineConfig) -> Result<()> {
         stage_gcp(paths, cfg)?;
         let k3s_flag = paths.guest.join("k3s.enabled");

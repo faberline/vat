@@ -116,7 +116,8 @@ impl Machine {
 impl Drop for Machine {
     fn drop(&mut self) {
         if self._tmp.is_some() {
-            let _ = self.cmd(vat_bin(), &["machine", "stop", "--json"]);
+            // Also unload the launchd job, so no test socket outlives the run.
+            let _ = self.cmd(vat_bin(), &["machine", "stop", "--no-wake", "--json"]);
         }
     }
 }
@@ -306,6 +307,9 @@ fn k8s_persistent_cluster_end_to_end() {
     );
     let node = m.kubectl(&["get", "nodes", "-o", "jsonpath={.items[0].metadata.name}"]);
     assert_eq!(node, "vat");
+    // K3s is a workload of its own: the machine must not stop when idle.
+    let st = m.vat_json(&["machine", "status", "--json"]);
+    assert_eq!(st["keeps_awake"], "K8s is on", "{st}");
 
     // Build through the Engine API; the kubelet sees the image directly.
     let ctx = tempfile::tempdir().expect("build context");

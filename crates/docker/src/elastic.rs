@@ -10,6 +10,9 @@
 //!   never returns guest pages while the VM runs. Its virtio balloon does
 //!   take pages from the guest (measured: 2816 MiB inflated) but the VM
 //!   process's footprint stays byte-identical, so the VMM does not drive it.
+//!   Memory goes back only when the VM stops, so the VMM stops it once idle
+//!   ([`IdleWatch`]) and launchd boots it on the next Docker client
+//!   ([`crate::launchd`]).
 //! - Clock: the guest's clock stands still while the host sleeps; the VMM
 //!   notices the wall/monotonic gap and steps the guest clock.
 
@@ -53,6 +56,43 @@ pub struct ElasticState {
     pub clock_synced_at: Option<i64>,
     pub clock_skew_ms: Option<i64>,
     pub host_sleeps: u64,
+    /// Why and when the VMM last stopped: `idle`, `signal`, or `guest`.
+    pub stopped_by: Option<String>,
+    pub stopped_at: Option<i64>,
+}
+
+/// Decides when an idle machine should stop. Idle means nothing uses it: no
+/// client connection, no running container, no addon keeping it awake. The
+/// clock is monotonic, so time the host spends asleep does not count.
+#[derive(Debug, Clone)]
+pub struct IdleWatch {
+    after: Duration,
+    idle_since: Option<Instant>,
+}
+
+impl IdleWatch {
+    /// Stop after `after` of idleness; zero never stops.
+    pub fn new(after: Duration) -> Self {
+        Self {
+            after,
+            idle_since: None,
+        }
+    }
+
+    pub fn set_after(&mut self, after: Duration) {
+        self.after = after;
+    }
+
+    /// Record whether the machine is in use now; true once it has been idle
+    /// for long enough.
+    pub fn observe(&mut self, busy: bool, now: Instant) -> bool {
+        if busy || self.after.is_zero() {
+            self.idle_since = None;
+            return false;
+        }
+        let since = *self.idle_since.get_or_insert(now);
+        now.duration_since(since) >= self.after
+    }
 }
 
 /// Memory and CPU use of a process.
@@ -134,6 +174,24 @@ mod tests {
         let slept = w.check(wall + d * 602, mono + d * 2);
         assert_eq!(slept, Some(d * 600));
         assert_eq!(w.check(wall + d * 603, mono + d * 3), None);
+    }
+
+    #[test]
+    fn idle_watch_stops_only_after_a_quiet_stretch() {
+        let t = Instant::now();
+        let s = Duration::from_secs(1);
+        let mut w = IdleWatch::new(s * 60);
+        assert!(!w.observe(false, t));
+        assert!(!w.observe(false, t + s * 59));
+        // Any use restarts the count.
+        assert!(!w.observe(true, t + s * 59));
+        assert!(!w.observe(false, t + s * 60));
+        assert!(!w.observe(false, t + s * 119));
+        assert!(w.observe(false, t + s * 120));
+
+        let mut never = IdleWatch::new(Duration::ZERO);
+        assert!(!never.observe(false, t));
+        assert!(!never.observe(false, t + s * 86_400));
     }
 
     #[cfg(target_os = "macos")]

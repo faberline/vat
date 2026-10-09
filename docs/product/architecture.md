@@ -218,6 +218,27 @@ promised before that.
   the VM runs. Its virtio balloon takes pages from the guest (measured: 2816
   MiB inflated) but leaves the VM process footprint unchanged. So the VMM
   does not drive the balloon, and only stopping the VM gives the memory back.
+  The VMM therefore stops the VM once it is idle (see Lifecycle).
+
+**Lifecycle** (`crates/docker/src/launchd.rs`):
+
+- *Socket activation.* `vat machine start` hands the VMM to a per-user
+  launchd job that owns `docker.sock`. With the default home the job lives in
+  `~/Library/LaunchAgents`, so it survives logout; other homes load it for
+  the current session only. While the machine is stopped nothing of vat
+  runs. The first Docker client makes launchd start the VMM, which holds that
+  client until dockerd answers rather than dropping it. When launchd cannot
+  take the job (no GUI session, e.g. over ssh), vat runs the VMM directly as
+  before.
+- *Idle stop.* The VMM stops the VM after `idle_stop_secs` (default 5
+  minutes; `vat machine start --idle-stop`) with no client connection open on
+  `docker.sock` or the control socket and no container running. The next
+  Docker client starts it again; a warm start reaches dockerd in about 1.3 s.
+  An addon can keep the machine up: K3s does while it is enabled, because it
+  is a workload of its own and kubectl's API forward is not socket-activated.
+- *Stop.* `vat machine stop` keeps the socket with launchd.
+  `vat machine stop --no-wake` and `vat machine rm` unload the job, and
+  `docker.sock` goes away with it.
 
 **GPU.** Metal does not pass into a Linux guest, so a Linux container has no
 Apple GPU. A Vulkan (Venus) path inside the machine is explicitly deferred and

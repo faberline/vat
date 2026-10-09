@@ -144,7 +144,8 @@ impl Machine {
 impl Drop for Machine {
     fn drop(&mut self) {
         if self._tmp.is_some() {
-            let _ = self.vat(&["machine", "stop", "--json"]);
+            // Also unload the launchd job, so no test socket outlives the run.
+            let _ = self.vat(&["machine", "stop", "--no-wake", "--json"]);
         }
     }
 }
@@ -488,6 +489,113 @@ fn machine_returns_disk_space_and_follows_the_host_clock() {
     record(&out, &evidence);
     eprintln!(
         "elastic evidence ({}):\n{}",
+        out.display(),
+        serde_json::to_string_pretty(&evidence).unwrap()
+    );
+}
+
+fn alive(pid: u64) -> bool {
+    pid > 0 && unsafe { libc::kill(pid as i32, 0) } == 0
+}
+
+/// An idle machine stops and gives its memory back to macOS; the next Docker
+/// client starts it again through the launchd-held socket, and running
+/// containers keep it up.
+#[test]
+#[ignore = "boots a real VM; run with VAT_MACHINE_E2E_REQUIRED=1 -- --ignored"]
+fn machine_stops_when_idle_and_wakes_on_docker_sock() {
+    if !required() {
+        eprintln!("skipping: set VAT_MACHINE_E2E_REQUIRED=1");
+        return;
+    }
+    let m = Machine::new();
+    let started = m.vat_json(&[
+        "machine",
+        "start",
+        "--json",
+        "--memory",
+        "2048",
+        "--idle-stop",
+        "15s",
+    ]);
+    let status = |m: &Machine| m.vat_json(&["machine", "status", "--json"]);
+    let st = status(&m);
+    assert_eq!(
+        st["wake_on_socket"], true,
+        "launchd does not hold docker.sock: {st}"
+    );
+    assert_eq!(st["idle_stop_secs"], 15);
+    m.docker_ok(&["run", "--rm", "alpine:3.22", "true"]);
+    let vm_pid = status(&m)["elastic"]["vm_pid"].as_u64().expect("vm_pid");
+    let footprint_mib = status(&m)["vm_footprint_kib"].as_u64().unwrap_or(0) / 1024;
+    assert!(alive(vm_pid));
+
+    // Idle: no clients, no containers -> the VM process exits.
+    let t0 = Instant::now();
+    let stopped = loop {
+        let st = status(&m);
+        if st["state"] == "stopped" || t0.elapsed() > Duration::from_secs(90) {
+            break st;
+        }
+        std::thread::sleep(Duration::from_secs(1));
+    };
+    let idle_stop_s = t0.elapsed().as_secs();
+    assert_eq!(
+        stopped["state"], "stopped",
+        "machine did not stop when idle"
+    );
+    assert_eq!(stopped["elastic"]["stopped_by"], "idle");
+    assert_eq!(stopped["wake_on_socket"], true);
+    assert!(
+        !alive(vm_pid),
+        "the VM process (and its memory) outlived the stop"
+    );
+    assert!(
+        m.home.join("run/docker.sock").exists(),
+        "docker.sock went away"
+    );
+
+    // A plain Docker client wakes it; the first request is held, not refused.
+    let t0 = Instant::now();
+    m.docker_ok(&["version", "--format", "{{.Server.Version}}"]);
+    let wake_ms = t0.elapsed().as_millis() as u64;
+    assert_eq!(status(&m)["state"], "running");
+
+    // A running container keeps it up past the idle window.
+    m.docker_ok(&[
+        "run",
+        "-d",
+        "--name",
+        "vat-e2e-awake",
+        "alpine:3.22",
+        "sleep",
+        "600",
+    ]);
+    std::thread::sleep(Duration::from_secs(30));
+    assert_eq!(
+        status(&m)["state"],
+        "running",
+        "stopped with a container running"
+    );
+    m.docker_ok(&["rm", "-f", "vat-e2e-awake"]);
+
+    // --no-wake releases the socket: clients fail instead of booting it.
+    m.vat_json(&["machine", "stop", "--no-wake", "--json"]);
+    assert!(!m.home.join("run/docker.sock").exists());
+    assert_eq!(status(&m)["wake_on_socket"], false);
+    assert!(!m.docker(&["version"]).status.success());
+
+    let evidence = serde_json::json!({
+        "start_timings": started["timings"],
+        "vm_footprint_mib_before_idle_stop": footprint_mib,
+        "idle_stop_after_s": idle_stop_s,
+        "configured_idle_stop_s": 15,
+        "wake_ms": wake_ms,
+    });
+    let out = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("vat-machine-lifecycle-e2e.json");
+    record(&out, &evidence);
+    eprintln!(
+        "lifecycle evidence ({}):\n{}",
         out.display(),
         serde_json::to_string_pretty(&evidence).unwrap()
     );

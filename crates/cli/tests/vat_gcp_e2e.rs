@@ -102,7 +102,8 @@ impl Machine {
 impl Drop for Machine {
     fn drop(&mut self) {
         if self._tmp.is_some() {
-            let _ = self.cmd(vat_bin(), &["machine", "stop", "--json"]);
+            // Also unload the launchd job, so no test socket outlives the run.
+            let _ = self.cmd(vat_bin(), &["machine", "stop", "--no-wake", "--json"]);
         }
     }
 }
