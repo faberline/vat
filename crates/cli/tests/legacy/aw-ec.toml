@@ -1,0 +1,81 @@
+# External contract test registry for vat.
+# Tests configured here are picked up by `aw ec gen --verify` and `aw health --verify-tests`
+# for capability EC gate verification.
+
+[[test_commands]]
+id = "vat-microvm-fail-closed"
+command = "cargo test -p vat --test vat_sandbox_microvm_fail_closed -- --nocapture"
+capability_id = "agent-native-gpu-native-dev-containers"
+claim_id = "microvm-sandbox-backend-for-vat-run"
+description = "Isolation::MicroVm rejects GPU required, missing image, LocalhostOnly egress, and unavailable container CLI"
+
+[[test_commands]]
+id = "vat-microvm-smoke"
+command = "cargo test -p vat --test vat_sandbox_microvm -- --nocapture"
+capability_id = "agent-native-gpu-native-dev-containers"
+claim_id = "microvm-sandbox-backend-for-vat-run"
+description = "Real container run execution end-to-end through Isolation::MicroVm (skips when container CLI not installed)"
+
+[[test_commands]]
+id = "vat-doctor-selected-plan-docker-probe"
+command = "cargo test -p vat --test vat_toml_runner -- --nocapture"
+capability_id = "agent-native-gpu-native-dev-containers"
+claim_id = "microvm-sandbox-backend-for-vat-run"
+description = "Deterministic selected-plan doctor/P1 contract: explicit MicroVm image/preset services perform exactly one read-only container system status probe per invocation plus bounded read-only shared-builder advisory probes, never Docker even when Docker is on PATH. A full Docker probe maps the public services.docker_services availability string to available or unavailable. An Apple-Container-only selected doctor maps it to not_probed and records docker.daemon_probe.state=skipped with the truthful selected-plan reason as provenance; daemon=false is not unavailable evidence because no Docker command ran. An unselected Docker service cannot poison that runner. The builder record is shared_unknown ownership with automatic_cleanup=false, separate configuration/observed stats/global disk, and nonfatal timeout/unknown/probe errors; it never starts/stops/deletes/prunes shared state and never changes doctor runtime success. Unsupported no-OCI-route MicroVm presets and named-volume presets fail closed without Docker fallback. Docker runtime, Auto image, and eligible Auto preset fallback retain Docker probing; a selected machine cluster service reports machine K3s state instead. Direct vat capabilities remains a full Docker probe. Recorded validation: vat_toml_runner passed 26/26; real live builder state is advisory only when the installed Apple Container CLI supports it."
+
+[[test_commands]]
+id = "vat-microvm-lib"
+command = "cargo test -p vat --lib sandbox::microvm::tests -- --nocapture"
+capability_id = "agent-native-gpu-native-dev-containers"
+claim_id = "microvm-sandbox-backend-for-vat-run"
+description = "MicroVm backend unit contract for deterministic Apple Container argv, bounded system-status handling, and fail-closed runtime mechanics. Recorded validation: sandbox::microvm::tests passed 7/7; this unit result does not claim a real shared-builder state unless the installed Apple Container CLI supports it."
+
+[[test_commands]]
+id = "vat-microvm-published-port"
+command = "VAT_MICROVM_LOOPBACK_REQUIRED=1 cargo test -p vat --test vat_microvm_published_port -- --nocapture"
+capability_id = "agent-native-gpu-native-dev-containers"
+claim_id = "microvm-sandbox-backend-for-vat-run"
+description = "Deterministic fake-container regression: published MicroVM ports must complete TCP/HTTP readiness or fail closed with persisted evidence and owned cleanup; a MicroVM preset never invokes Docker and verifies cached or pulled Apple images before run; this EC gate requires loopback sockets"
+
+[[test_commands]]
+id = "vat-microvm-published-port-real-host"
+command = "VAT_MICROVM_E2E_REQUIRED=1 cargo test -p vat --test vat_microvm_published_port -- --ignored --nocapture"
+capability_id = "agent-native-gpu-native-dev-containers"
+claim_id = "microvm-sandbox-backend-for-vat-run"
+description = "Opt-in Apple-container contract: nginx's published host endpoint either completes HTTP readiness or fails closed with inspect/log evidence"
+
+[[test_commands]]
+id = "vat-microvm-preset-redis-real-host"
+command = "VAT_MICROVM_PRESET_E2E_REQUIRED=1 cargo test -p vat --test vat_microvm_published_port apple_container_redis_microvm_preset_contract -- --ignored --nocapture"
+capability_id = "agent-native-gpu-native-dev-containers"
+claim_id = "microvm-sandbox-backend-for-vat-run"
+description = "Opt-in Apple-container preset contract: Redis starts through VAT's MicroVM route, answers RESP PING through its published host port without Docker, and its exact container is absent after cleanup"
+
+[[test_commands]]
+id = "vat-build-container-gated-smoke"
+command = "cargo test -p vat --test vat_build -- --nocapture"
+capability_id = "agent-native-gpu-native-dev-containers"
+claim_id = "vat-build-dockerfile-build-via-container-cli"
+description = "vat build produces a tagged local OCI image visible in container image list (skips when container CLI not installed)"
+
+[[test_commands]]
+id = "vat-build-lean-and-default-compile"
+command = "cargo build -p vat --no-default-features"
+capability_id = "agent-native-gpu-native-dev-containers"
+claim_id = "vat-build-dockerfile-build-via-container-cli"
+description = "default and lean (--no-default-features) build compile after the serde_yaml promotion"
+
+[[test_commands]]
+id = "vat-compose-import-fixtures"
+command = "cargo test -p vat --test vat_compose_import -- --nocapture"
+capability_id = "agent-native-gpu-native-dev-containers"
+claim_id = "vat-compose-bounded-compose-subset-up-down-ps-logs"
+description = "compose import parse/expand shape assertions and per-key hard-reject error text (no container/docker required)"
+
+[[test_commands]]
+id = "vat-compose-full-cycle-gated-smoke"
+command = "cargo test -p vat --test vat_compose -- --nocapture"
+capability_id = "agent-native-gpu-native-dev-containers"
+claim_id = "vat-compose-bounded-compose-subset-up-down-ps-logs"
+description = "Full compose import -> up -d -> ps -> logs -> down cycle against a real Docker backend (skips when docker not available)"
+

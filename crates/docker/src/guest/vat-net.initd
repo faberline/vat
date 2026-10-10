@@ -1,0 +1,14 @@
+#!/sbin/openrc-run
+# Keeps the DHCP lease (first configured in the initramfs) renewed.
+description="vat guest network"
+command=/sbin/udhcpc
+command_args="-i eth0 -f -S -s /usr/share/udhcpc/vat.script"
+command_background=true
+pidfile=/run/vat-net.pid
+depend() { provide net; }
+start_pre() {
+  if [ -e /etc/ssl/.vat-ca-stale ]; then
+    update-ca-certificates >/dev/null 2>&1 && rm -f /etc/ssl/.vat-ca-stale
+  fi
+  return 0
+}

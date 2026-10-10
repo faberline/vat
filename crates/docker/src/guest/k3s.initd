@@ -1,0 +1,9 @@
+#!/sbin/openrc-run
+description="K3s (single node, Docker runtime) for vat"
+command=/usr/local/bin/k3s
+command_args="server $(cat /mnt/vat/guest/k3s.args 2>/dev/null)"
+supervisor=supervise-daemon
+output_log=/var/log/k3s.log
+error_log=/var/log/k3s.log
+rc_ulimit="-n 1048576 -u unlimited"
+depend() { need net docker; after vat-agent; }

@@ -9,3 +9,9 @@ rustflags = [
   "-C", "link-arg=-undefined",
   "-C", "link-arg=dynamic_lookup",
 ]
+
+# Processes cargo runs (tests, `cargo run`) leave Docker endpoint selection to
+# the docker CLI, so a test run never boots the developer's vat machine. An
+# explicit VAT_ENGINE in the environment still wins.
+[env]
+VAT_ENGINE = "external"

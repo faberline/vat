@@ -1,0 +1,134 @@
+[package]
+name = "vat"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "vat — a layered container system for Apple Silicon: Apple-native containers run directly on the machine, a Docker Engine on one shared machine, and K3s with local GCP/GKE."
+
+[lib]
+name = "vat"
+path = "src/lib.rs"
+doctest = false
+
+[[bin]]
+name = "vat"
+path = "src/main.rs"
+
+[features]
+# Each layer's optional surface; default-on so the shipped binary has all of
+# them. `--no-default-features` builds a lean binary whose network and
+# machine verbs bail cleanly.
+default = ["emulator", "self-update", "issue", "machine", "registry", "gcp"]
+# Built-in Rust emulators (layer 3, usable from the host too).
+emulator = ["vat-k8s/emulator", "dep:tokio"]
+# OCI distribution: `vat image pull/push` (layer 1) and the minimal registry
+# server behind the local Artifact Registry (layer 3).
+registry = ["vat-native/registry", "vat-k8s/registry"]
+# self-update / issue — the network paths come from the shared cli-std
+# crate's `online` feature; `dep:tokio` provides the runtime vat's sync dispatch
+# uses to drive cli-std's async `run`.
+self-update = ["cli-std/online", "dep:tokio"]
+issue = ["cli-std/online", "dep:tokio"]
+# The shared Linux machine (layer 2): VMM, vsock bridges, Docker Engine socket.
+machine = ["vat-docker/machine", "vat-k8s/machine", "dep:tokio"]
+# Local GCP inside the machine (layer 3).
+gcp = ["machine", "emulator", "registry", "vat-k8s/gcp"]
+# Deprecated compatibility alias for old feature pins; the CLI verb is `issue`.
+report-issue = ["issue"]
+
+[dependencies]
+vat-core = { workspace = true }
+vat-native = { workspace = true }
+vat-docker = { workspace = true }
+vat-k8s = { workspace = true }
+
+anyhow = { workspace = true }
+blake3 = { workspace = true }
+chrono = { workspace = true }
+clap = { workspace = true, features = ["derive", "color"] }
+libc = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+signal-hook = { workspace = true }
+tempfile = { workspace = true }
+toml = { workspace = true }
+url = { workspace = true }
+walkdir = { workspace = true }
+tokio = { workspace = true, optional = true }
+
+# Shared agent-facing CLI commands (llm / upgrade / issue); offline paths build
+# without features, the `online` HTTPS path is pulled by self-update/issue.
+cli-std = { git = "https://github.com/faberline/core", tag = "v0.4.14", default-features = false }
+
+[dev-dependencies]
+base64 = { workspace = true }
+tokio = { workspace = true }
+tonic = { workspace = true }
+tokio-stream = { workspace = true }
+reqwest = { workspace = true }
+# gRPC-through-MITM e2e (network sandbox v2): a raw h2 client over a CONNECT +
+# TLS(ALPN h2) tunnel, encoding the generated prost messages.
+hyper = { workspace = true, features = ["client", "http2"] }
+hyper-util = { workspace = true, features = ["tokio"] }
+http-body-util = { workspace = true }
+tokio-rustls = { workspace = true }
+rustls-pemfile = "2"
+prost = { workspace = true }
+tower = { version = "0.5", features = ["util"] }
+testcontainers = { version = "0.28", features = ["blocking"] }
+
+# Emulator integration tests need the emulator feature (skipped in a lean build).
+[[test]]
+name = "vat_emulator_auth"
+required-features = ["emulator"]
+
+[[test]]
+name = "vat_emulator_pubsub"
+required-features = ["emulator"]
+
+[[test]]
+name = "vat_emulator_tasks"
+required-features = ["emulator"]
+
+[[test]]
+name = "vat_emulator_scheduler"
+required-features = ["emulator"]
+
+[[test]]
+name = "vat_emulator_workflows"
+required-features = ["emulator"]
+
+[[test]]
+name = "vat_emulator_storage"
+required-features = ["emulator"]
+
+[[test]]
+name = "vat_emulator_httpmock"
+required-features = ["emulator"]
+
+[[test]]
+name = "vat_emulator_openapi"
+required-features = ["emulator"]
+
+[[test]]
+name = "vat_emulator_tasks_grpc"
+required-features = ["emulator"]
+
+[[test]]
+name = "vat_emulator_scheduler_grpc"
+required-features = ["emulator"]
+
+[[test]]
+name = "vat_emulator_httpmock_routing"
+required-features = ["emulator"]
+
+[[test]]
+name = "vat_emulator_httpmock_hermetic"
+required-features = ["emulator"]
+
+[[test]]
+name = "vat_emulator_grpc_mitm_routing"
+required-features = ["emulator"]
