@@ -26,7 +26,7 @@ VERSION="${VAT_VERSION:-latest}"
 TOKEN="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
 
 say() { printf 'vat-install: %s\n' "$*" >&2; }
-die() { say "error: $*"; exit "${2:-1}"; }
+die() { say "error: $1"; exit "${2:-1}"; }
 
 need() {
   command -v "$1" >/dev/null 2>&1 || die "missing required tool: $1" 3
