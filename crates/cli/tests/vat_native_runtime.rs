@@ -504,7 +504,13 @@ fn gpu_visibility_equals_host() {
         String::from_utf8_lossy(&host.stdout).trim(),
         "same Metal device"
     );
-    if host_report["vendor"] == "apple" {
+    // An Apple host normally has a Metal device, but a hosted macOS VM runner
+    // reports vendor "apple" with none. Gate on what the host probe found,
+    // not on the vendor, so equality above stays the real check there.
+    let host_device = String::from_utf8_lossy(&host.stdout);
+    if host_device.trim() == "no-device" {
+        eprintln!("skipping the Metal device presence check: the host itself has no Metal device");
+    } else {
         assert_ne!(inside.trim(), "no-device");
     }
 }

@@ -52,5 +52,7 @@ jobs:
       # `guest_agent_binary_matches_sources` compares
       # guest-agent/dist/SOURCE_SHA256 with the guest-agent sources, so a stale
       # embedded agent fails the PR.
+      # `--no-fail-fast` so one run reports every failing test binary, not
+      # just the first.
       - name: cargo test
-        run: cargo test --workspace --locked
+        run: cargo test --workspace --locked --no-fail-fast

@@ -20,7 +20,7 @@ toolchain pinned by `rust-toolchain.toml`). Run it locally before pushing:
 |---|---|
 | format | `cargo fmt --all --check` |
 | lint | `cargo clippy --workspace --all-targets --locked -- -D warnings` |
-| unit + integration tests, all crates | `cargo test --workspace --locked` |
+| unit + integration tests, all crates | `cargo test --workspace --locked --no-fail-fast` |
 
 Use `--workspace`, not `-p vat`: only the workspace run reaches the other
 crates' tests, including vat-docker's `guest_agent_binary_matches_sources`,
