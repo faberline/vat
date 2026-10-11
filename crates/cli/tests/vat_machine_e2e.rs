@@ -53,7 +53,12 @@ impl Machine {
     }
 
     fn vat(&self, args: &[&str]) -> Output {
-        Command::new(vat_bin())
+        self.vat_with(Path::new(vat_bin()), args)
+    }
+
+    /// Run another vat binary (a different build) against this machine.
+    fn vat_with(&self, bin: &Path, args: &[&str]) -> Output {
+        Command::new(bin)
             .args(args)
             .env("VAT_MACHINE_HOME", &self.home)
             .output()
@@ -61,10 +66,15 @@ impl Machine {
     }
 
     fn vat_json(&self, args: &[&str]) -> Value {
-        let out = self.vat(args);
+        self.vat_json_with(Path::new(vat_bin()), args)
+    }
+
+    fn vat_json_with(&self, bin: &Path, args: &[&str]) -> Value {
+        let out = self.vat_with(bin, args);
         assert!(
             out.status.success(),
-            "vat {args:?} failed\nstdout:\n{}\nstderr:\n{}",
+            "{} {args:?} failed\nstdout:\n{}\nstderr:\n{}",
+            bin.display(),
             String::from_utf8_lossy(&out.stdout),
             String::from_utf8_lossy(&out.stderr)
         );
@@ -596,6 +606,191 @@ fn machine_stops_when_idle_and_wakes_on_docker_sock() {
     record(&out, &evidence);
     eprintln!(
         "lifecycle evidence ({}):\n{}",
+        out.display(),
+        serde_json::to_string_pretty(&evidence).unwrap()
+    );
+}
+
+/// A copy of the vat binary that hashes differently: what a vat upgrade
+/// looks like to the machine. Re-signing under another identifier changes
+/// the bytes and keeps the binary valid (appended bytes would break its
+/// signature, and codesign then refuses to re-sign the VMM copy).
+fn other_build(dir: &Path, n: u32) -> (PathBuf, String) {
+    let bin = dir.join(format!("vat-{n}"));
+    std::fs::copy(vat_bin(), &bin).expect("copy vat");
+    let out = Command::new("codesign")
+        .args(["-s", "-", "-f", "-i", &format!("dev.vat.e2e.upgrade{n}")])
+        .arg(&bin)
+        .output()
+        .expect("run codesign");
+    assert!(
+        out.status.success(),
+        "codesign: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    (bin.clone(), sha256(&bin))
+}
+
+fn sha256(path: &Path) -> String {
+    let out = Command::new("shasum")
+        .args(["-a", "256"])
+        .arg(path)
+        .output()
+        .expect("run shasum");
+    let text = String::from_utf8_lossy(&out.stdout);
+    text.split_whitespace().next().expect("sha").to_string()
+}
+
+/// After a vat upgrade the machine follows the new binary: a stopped machine
+/// is re-staged so the next socket wake runs the new VMM, an idle one is
+/// restarted onto it, and a busy one keeps its containers until it is idle.
+/// `rm` of the last machine leaves nothing behind for launchd to run.
+#[test]
+#[ignore = "boots a real VM; run with VAT_MACHINE_E2E_REQUIRED=1 -- --ignored"]
+fn machine_follows_a_vat_upgrade() {
+    if !required() {
+        eprintln!("skipping: set VAT_MACHINE_E2E_REQUIRED=1");
+        return;
+    }
+    let m = Machine::new();
+    let builds = tempfile::tempdir().expect("tempdir");
+    let t_all = Instant::now();
+    let original = PathBuf::from(vat_bin());
+    let original_sha = sha256(&original);
+    let status = |bin: &Path| m.vat_json_with(bin, &["machine", "status", "--json"]);
+    // Idle as the VMM sees it, then quiet for a few of its ticks so that
+    // the status calls' own connections are not what the next command sees.
+    let wait_idle = |bin: &Path| {
+        let t0 = Instant::now();
+        while status(bin)["elastic"]["idle"] != true {
+            assert!(
+                t0.elapsed() < Duration::from_secs(120),
+                "machine never went idle: {}",
+                status(bin)
+            );
+            std::thread::sleep(Duration::from_millis(500));
+        }
+        std::thread::sleep(Duration::from_secs(2));
+    };
+
+    m.vat_json(&[
+        "machine",
+        "start",
+        "--json",
+        "--memory",
+        "2048",
+        "--idle-stop",
+        "0",
+    ]);
+    let st = status(&original);
+    assert_eq!(st["vmm"]["vat_sha256"], original_sha.as_str(), "{st}");
+    assert_eq!(st["vmm_outdated"], false, "{st}");
+
+    // An upgrade: status re-stages for the next start but never restarts.
+    let (new1, sha1) = other_build(builds.path(), 1);
+    assert_ne!(sha1, original_sha);
+    let pid0 = status(&original)["pid"].as_u64().expect("pid");
+    let st = status(&new1);
+    assert_eq!(st["pid"], pid0, "status restarted the machine");
+    assert_eq!(st["vmm_outdated"], true, "{st}");
+    assert_eq!(st["vmm_staged_sha256"], sha1.as_str(), "{st}");
+    assert_eq!(st["vmm_running_sha256"], original_sha.as_str(), "{st}");
+    let human = m.vat_with(&new1, &["machine", "status"]);
+    assert!(
+        String::from_utf8_lossy(&human.stdout).contains("vmm      outdated (restart to update)"),
+        "{}",
+        String::from_utf8_lossy(&human.stdout)
+    );
+
+    // Idle: start restarts it onto the new build.
+    wait_idle(&new1);
+    let t0 = Instant::now();
+    let started = m.vat_json_with(&new1, &["machine", "start", "--json"]);
+    let idle_restart_ms = t0.elapsed().as_millis() as u64;
+    assert_eq!(started["timings"]["upgraded_from_pid"], pid0, "{started}");
+    let st = status(&new1);
+    let pid1 = st["pid"].as_u64().expect("pid");
+    assert_ne!(pid1, pid0);
+    assert!(!alive(pid0), "the old VMM outlived the restart");
+    assert_eq!(st["vmm"]["vat_sha256"], sha1.as_str(), "{st}");
+    assert_eq!(st["vmm_outdated"], false, "{st}");
+    m.docker_ok(&["version", "--format", "{{.Server.Version}}"]);
+
+    // Busy: a running container keeps the old build up; nothing is killed.
+    let (new2, sha2) = other_build(builds.path(), 2);
+    m.docker_ok(&[
+        "run",
+        "-d",
+        "--name",
+        "vat-e2e-upgrade",
+        "alpine:3.22",
+        "sleep",
+        "600",
+    ]);
+    let busy = m.vat_with(&new2, &["machine", "start"]);
+    assert!(busy.status.success());
+    assert!(
+        String::from_utf8_lossy(&busy.stderr).contains("older vat build"),
+        "no restart hint: {}",
+        String::from_utf8_lossy(&busy.stderr)
+    );
+    let started = m.vat_json_with(&new2, &["machine", "start", "--json"]);
+    assert_eq!(started["timings"]["vmm_outdated"], true, "{started}");
+    let st = status(&new2);
+    assert_eq!(st["pid"], pid1, "a busy machine was restarted");
+    assert_eq!(st["vmm_outdated"], true, "{st}");
+    assert_eq!(st["vmm_staged_sha256"], sha2.as_str(), "{st}");
+    assert_eq!(
+        m.docker_ok(&["inspect", "-f", "{{.State.Running}}", "vat-e2e-upgrade"]),
+        "true"
+    );
+    m.docker_ok(&["rm", "-f", "vat-e2e-upgrade"]);
+    wait_idle(&new2);
+    let started = m.vat_json_with(&new2, &["machine", "start", "--json"]);
+    assert_eq!(started["timings"]["upgraded_from_pid"], pid1, "{started}");
+    let st = status(&new2);
+    assert_eq!(st["vmm"]["vat_sha256"], sha2.as_str(), "{st}");
+    assert_eq!(st["vmm_outdated"], false, "{st}");
+
+    // Stopped: the upgrade is staged silently, and a plain Docker client
+    // wakes the new build through launchd.
+    m.vat_json_with(&new2, &["machine", "stop", "--json"]);
+    let (new3, sha3) = other_build(builds.path(), 3);
+    let st = status(&new3);
+    assert_eq!(st["state"], "stopped", "{st}");
+    assert_eq!(st["wake_on_socket"], true, "{st}");
+    assert_eq!(st["vmm_staged_sha256"], sha3.as_str(), "{st}");
+    assert_eq!(st["vmm_outdated"], false, "{st}");
+    let t0 = Instant::now();
+    m.docker_ok(&["version", "--format", "{{.Server.Version}}"]);
+    let wake_ms = t0.elapsed().as_millis() as u64;
+    let st = status(&new3);
+    assert_eq!(st["state"], "running", "{st}");
+    assert_eq!(st["vmm"]["vat_sha256"], sha3.as_str(), "{st}");
+    assert_eq!(st["vmm"]["vat_version"], env!("CARGO_PKG_VERSION"), "{st}");
+    assert_eq!(st["vmm_outdated"], false, "{st}");
+
+    // The last machine's rm leaves no job, socket, or VMM binary.
+    if m._tmp.is_some() {
+        m.vat_json_with(&new3, &["machine", "rm", "--yes", "--json"]);
+        let st = status(&new3);
+        assert_eq!(st["state"], "absent", "{st}");
+        assert_eq!(st["wake_on_socket"], false, "{st}");
+        assert!(!m.home.join("run/docker.sock").exists());
+        assert!(!m.home.join("machine/bin").exists());
+        assert!(!m.docker(&["version"]).status.success());
+    }
+
+    let evidence = serde_json::json!({
+        "builds": [original_sha, sha1, sha2, sha3],
+        "idle_restart_ms": idle_restart_ms,
+        "wake_ms": wake_ms,
+        "total_s": t_all.elapsed().as_secs(),
+    });
+    let out = PathBuf::from(env!("CARGO_TARGET_TMPDIR")).join("vat-machine-upgrade-e2e.json");
+    record(&out, &evidence);
+    eprintln!(
+        "upgrade evidence ({}):\n{}",
         out.display(),
         serde_json::to_string_pretty(&evidence).unwrap()
     );

@@ -59,6 +59,16 @@ pub struct ElasticState {
     /// Why and when the VMM last stopped: `idle`, `signal`, or `guest`.
     pub stopped_by: Option<String>,
     pub stopped_at: Option<i64>,
+    /// The VMM that wrote this file, so a reader can tell a live view from
+    /// the last run's.
+    #[serde(default)]
+    pub vmm_pid: Option<u32>,
+    /// Nothing uses the machine (see [`IdleWatch`]), and why not otherwise.
+    /// A missing field (an older VMM) reads as busy.
+    #[serde(default)]
+    pub idle: bool,
+    #[serde(default)]
+    pub busy: Option<String>,
 }
 
 /// Decides when an idle machine should stop. Idle means nothing uses it: no

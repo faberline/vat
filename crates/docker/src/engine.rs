@@ -5,12 +5,13 @@
 //! An explicit `DOCKER_HOST` or `DOCKER_CONTEXT` always wins, and
 //! `VAT_ENGINE=external` opts out entirely.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 use anyhow::{bail, Context, Result};
 
-use super::{client, MachinePaths, DEFAULT_MACHINE};
+use super::stage::{self, Repair};
+use super::{client, MachineConfig, MachinePaths, DEFAULT_MACHINE};
 
 /// Opt-out switch: `VAT_ENGINE=external` leaves Docker endpoint selection to
 /// the docker CLI (contexts, Docker Desktop, colima, ...).
@@ -78,12 +79,37 @@ pub fn ensure_running() -> Result<()> {
         return Ok(());
     }
     let sock = socket_path()?;
+    // Before any ping: pinging a stopped machine wakes whatever launchd has
+    // staged, which may be an older vat build.
+    if created() {
+        let paths = MachinePaths::new(DEFAULT_MACHINE)?;
+        let cfg = MachineConfig::load(&paths.config).ok().flatten();
+        if let Ok(obs) = stage::Observed::read(&paths, cfg.as_ref()) {
+            match obs.plan(true) {
+                Repair::Nothing => {}
+                Repair::Defer => {
+                    if !obs.staged.matches(&obs.sha256) {
+                        start(&sock)?;
+                    }
+                    eprintln!("vat: {}", stage::OUTDATED_BUSY);
+                    return Ok(());
+                }
+                // Re-stages, then restarts an idle VMM or boots a stopped one.
+                Repair::Restage | Repair::Restart => return start(&sock),
+            }
+        }
+    }
     if client::docker_ping(&sock) {
         return Ok(());
     }
     if !created() {
         bail!("vat's Docker engine is not set up yet; run `vat machine start` once (or set VAT_ENGINE=external)");
     }
+    start(&sock)
+}
+
+/// `vat machine start` the default machine and check that it answers.
+fn start(sock: &Path) -> Result<()> {
     let exe = std::env::current_exe().context("resolve the vat binary")?;
     let out = Command::new(exe)
         .args(["machine", "start", "--json"])
@@ -94,11 +120,11 @@ pub fn ensure_running() -> Result<()> {
         .context("start the vat machine")?;
     if !out.status.success() {
         bail!(
-            "vat's Docker engine is stopped and `vat machine start` failed:\n{}",
+            "`vat machine start` failed for vat's Docker engine:\n{}",
             String::from_utf8_lossy(&out.stderr).trim()
         );
     }
-    if !client::docker_ping(&sock) {
+    if !client::docker_ping(sock) {
         bail!("vat machine started but {} does not answer", sock.display());
     }
     Ok(())

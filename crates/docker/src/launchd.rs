@@ -146,6 +146,12 @@ pub fn loaded(paths: &MachinePaths) -> bool {
     launchctl(&["print", &target]).is_ok_and(|o| o.status.success())
 }
 
+/// Whether the installed job is `plist`, so [`install`] would not reload it
+/// (reloading stops a running VMM).
+pub fn is_current(paths: &MachinePaths, plist: &str) -> bool {
+    plist_path(paths).is_some_and(|p| std::fs::read_to_string(p).is_ok_and(|old| old == plist))
+}
+
 /// Load (or reload, when it changed) the job. Returns `false` when launchd
 /// cannot take it, e.g. over ssh without a GUI session; the caller then runs
 /// the VMM directly.

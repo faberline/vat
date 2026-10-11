@@ -191,8 +191,17 @@ pub fn ensure_data_disk(paths: &MachinePaths, cfg: &MachineConfig) -> Result<()>
     Ok(())
 }
 
-/// Write the guest scripts and per-start configuration into the state share.
+/// Write the guest scripts and per-start configuration into the state share,
+/// and drop the reports the guest wrote during its previous boot.
 pub fn write_guest_files(paths: &MachinePaths, cfg: &MachineConfig) -> Result<()> {
+    stage_guest_files(paths, cfg)?;
+    clear_guest_reports(paths);
+    Ok(())
+}
+
+/// Write the guest scripts and per-start configuration into the state share.
+/// A running guest keeps going: it reads them when it boots.
+pub fn stage_guest_files(paths: &MachinePaths, cfg: &MachineConfig) -> Result<()> {
     std::fs::create_dir_all(&paths.guest)?;
     let mut version = Sha256::new();
     for (name, body, exec) in GUEST_FILES {
@@ -237,11 +246,15 @@ pub fn write_guest_files(paths: &MachinePaths, cfg: &MachineConfig) -> Result<()
     for addon in super::addon::installed() {
         addon.stage(paths, cfg)?;
     }
-    // Guest-written files from the previous boot are stale now.
+    Ok(())
+}
+
+/// Forget what the guest reported (status heartbeat, boot phase): stale once
+/// it boots again.
+pub fn clear_guest_reports(paths: &MachinePaths) {
     for stale in [paths.guest_status(), paths.guest_boot()] {
         let _ = std::fs::remove_file(stale);
     }
-    Ok(())
 }
 
 /// The Alpine mirror for boot assets and guest packages: `VAT_ALPINE_MIRROR`,

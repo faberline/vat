@@ -6,6 +6,11 @@
 //! to launchd as a socket-activated job (or spawns it detached when launchd
 //! cannot take it), and waits until `dockerd` answers on the host socket.
 //! Every verb has a `--json` form for agents.
+//!
+//! After a vat upgrade, launchd would keep waking the VMM and guest files the
+//! previous vat staged, so machine verbs [`refresh`] them first: a stopped
+//! machine is re-staged silently, an idle one restarted onto the new build,
+//! and a busy one keeps running until its next start (see [`vm::stage`]).
 
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -17,6 +22,7 @@ use serde::Serialize;
 use serde_json::{json, Value};
 
 use crate::k3s::K8sConfig;
+use crate::vm::stage::{self, Job, Observed, Repair};
 use crate::vm::{self, assets, client, launchd, MachineConfig, MachinePaths, VmmState};
 
 /// Options for `vat machine start`.
@@ -33,11 +39,6 @@ pub struct StartArgs {
     pub timeout_s: u64,
     pub json: bool,
 }
-
-const ENTITLEMENTS: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0"><dict><key>com.apple.security.virtualization</key><true/></dict></plist>
-"#;
 
 pub(crate) fn read_json(path: &Path) -> Option<Value> {
     std::fs::read(path)
@@ -75,36 +76,63 @@ pub(crate) fn running_pid(paths: &MachinePaths) -> Option<u32> {
     (st.state != "stopped" && vm::pid_alive(st.pid)).then_some(st.pid)
 }
 
-/// Keep `~/.vat/machine/bin/vat-vmm` identical to this binary and signed with
-/// the virtualization entitlement (unsigned binaries cannot create VMs).
-fn ensure_vmm_binary(paths: &MachinePaths) -> Result<PathBuf> {
-    let exe = std::env::current_exe().context("locate the vat binary")?;
-    let dest = paths.bin_dir.join("vat-vmm");
-    let stamp = paths.bin_dir.join("vat-vmm.sha256");
-    let want = assets::sha256_file(&exe)?;
-    if dest.is_file() && std::fs::read_to_string(&stamp).ok().as_deref() == Some(want.as_str()) {
-        return Ok(dest);
+/// SIGTERM the VMM and wait for it to exit, killing it after 40s. Returns
+/// whether it had to be killed.
+fn terminate(pid: u32) -> bool {
+    unsafe { libc::kill(pid as i32, libc::SIGTERM) };
+    let deadline = Instant::now() + Duration::from_secs(40);
+    while vm::pid_alive(pid) && Instant::now() < deadline {
+        std::thread::sleep(Duration::from_millis(100));
     }
-    std::fs::create_dir_all(&paths.bin_dir)?;
-    let ent = paths.bin_dir.join("vat-vmm.entitlements");
-    std::fs::write(&ent, ENTITLEMENTS)?;
-    let tmp = paths.bin_dir.join("vat-vmm.part");
-    std::fs::copy(&exe, &tmp).with_context(|| format!("copy {}", exe.display()))?;
-    let out = Command::new("codesign")
-        .args(["-s", "-", "-f", "--entitlements"])
-        .arg(&ent)
-        .arg(&tmp)
-        .output()
-        .context("run codesign")?;
-    if !out.status.success() {
-        bail!(
-            "codesign failed: {}",
-            String::from_utf8_lossy(&out.stderr).trim()
-        );
+    let forced = vm::pid_alive(pid);
+    if forced {
+        unsafe { libc::kill(pid as i32, libc::SIGKILL) };
     }
-    std::fs::rename(&tmp, &dest)?;
-    std::fs::write(&stamp, &want)?;
-    Ok(dest)
+    forced
+}
+
+/// Bring what launchd runs for machine `name` up to this vat build. A
+/// stopped machine is re-staged; an idle VMM on an older build is restarted
+/// when `restart_idle` (for commands about to use the machine); a busy one
+/// keeps running and is re-staged for its next start. Returns whether a VMM
+/// still runs an older build.
+pub(crate) fn refresh(name: &str, restart_idle: bool) -> Result<bool> {
+    if !cfg!(target_os = "macos") {
+        return Ok(false);
+    }
+    let paths = MachinePaths::new(name)?;
+    let Some(cfg) = MachineConfig::load(&paths.config)? else {
+        return Ok(false);
+    };
+    match Observed::read(&paths, Some(&cfg))?.plan(restart_idle) {
+        Repair::Nothing => return Ok(false),
+        Repair::Restart => {
+            // boot() decides again under its lock.
+            let b = boot(&StartArgs {
+                name: name.to_string(),
+                timeout_s: 900,
+                json: true,
+                ..Default::default()
+            })?;
+            return Ok(b.vmm_outdated);
+        }
+        Repair::Restage | Repair::Defer => {}
+    }
+    let _boot_lock = lock_boot(&paths)?;
+    let obs = Observed::read(&paths, Some(&cfg))?;
+    if !obs.staged.matches(&obs.sha256) {
+        let live = obs.running.is_some();
+        stage::restage(&paths, &cfg, &obs.sha256, live, Job::Refresh)?;
+    }
+    Ok(obs.outdated())
+}
+
+/// [`refresh`] for commands that work either way: a failure is a warning.
+pub(crate) fn refresh_or_warn(name: &str, restart_idle: bool) -> bool {
+    refresh(name, restart_idle).unwrap_or_else(|err| {
+        eprintln!("vat machine: could not update the machine to this vat build: {err:#}");
+        false
+    })
 }
 
 fn tail(path: &Path, lines: usize) -> String {
@@ -124,6 +152,8 @@ pub(crate) struct Booted {
     pub cfg: MachineConfig,
     pub pid: u32,
     pub timings: Value,
+    /// The VMM runs an older vat build: it was busy, so it was left running.
+    pub vmm_outdated: bool,
 }
 
 /// Create or boot the machine and wait for dockerd, without printing.
@@ -173,6 +203,7 @@ pub(crate) fn boot(args: &StartArgs) -> Result<Booted> {
     // starter must see the first one's VMM instead of racing it for the disk.
     std::fs::create_dir_all(&paths.dir)?;
     let _boot_lock = lock_boot(&paths)?;
+    let mut upgraded_from = None;
     if let Some(pid) = running_pid(&paths) {
         if changed && !first_create {
             bail!(
@@ -184,29 +215,49 @@ pub(crate) fn boot(args: &StartArgs) -> Result<Booted> {
             cfg.save(&paths.config)?;
             unsafe { libc::kill(pid as i32, libc::SIGHUP) };
         }
-        let ready = client::docker_ping(&paths.docker_sock);
-        return Ok(Booted {
-            paths,
-            cfg,
-            pid,
-            timings: json!({ "already_running": true, "docker_ready": ready }),
-        });
+        let obs = Observed::read(&paths, Some(&cfg))?;
+        if obs.plan(true) == Repair::Restart {
+            if !args.json {
+                eprintln!("vat machine: restarting the idle machine onto this vat build");
+            }
+            terminate(pid);
+            upgraded_from = Some(pid);
+        } else {
+            if !obs.staged.matches(&obs.sha256) {
+                stage::restage(&paths, &cfg, &obs.sha256, true, Job::Refresh)?;
+            }
+            let outdated = obs.outdated();
+            if outdated && !args.json {
+                eprintln!("vat machine: {}", stage::OUTDATED_BUSY);
+            }
+            let ready = client::docker_ping(&paths.docker_sock);
+            return Ok(Booted {
+                paths,
+                cfg,
+                pid,
+                timings: json!({
+                    "already_running": true,
+                    "docker_ready": ready,
+                    "vmm_outdated": outdated,
+                }),
+                vmm_outdated: outdated,
+            });
+        }
     }
 
     cfg.save(&paths.config)?;
-    let boot = assets::ensure_boot_assets(&paths)?;
     assets::ensure_data_disk(&paths, &cfg)?;
-    assets::write_guest_files(&paths, &cfg)?;
-    let vmm = ensure_vmm_binary(&paths)?;
+    let sha256 = stage::self_sha256(&paths)?;
+    let staged = stage::restage(&paths, &cfg, &sha256, false, Job::Install)?;
     let prepare_ms = t0.elapsed().as_millis() as u64;
 
     let _ = std::fs::remove_file(&paths.vmm_state);
     std::fs::File::create(&paths.vmm_log)?;
-    let pid = if launchd::install(&paths, &launchd::plist(&paths, &boot, &vmm))? {
+    let pid = if staged.launchd {
         launchd::kickstart(&paths)?;
         wait_vmm_pid(&paths, Duration::from_secs(10))?
     } else {
-        spawn_vmm(&paths, &vmm, &boot)?
+        spawn_vmm(&paths, &staged.vmm, &staged.boot)?
     };
 
     if args.no_wait {
@@ -214,7 +265,8 @@ pub(crate) fn boot(args: &StartArgs) -> Result<Booted> {
             paths,
             cfg,
             pid,
-            timings: json!({ "prepare_ms": prepare_ms }),
+            timings: json!({ "prepare_ms": prepare_ms, "upgraded_from_pid": upgraded_from }),
+            vmm_outdated: false,
         });
     }
     let boot_t0 = Instant::now();
@@ -266,10 +318,12 @@ pub(crate) fn boot(args: &StartArgs) -> Result<Booted> {
             "vm_start_ms": vm_start_ms,
             "docker_ready_ms": docker_ready_ms,
             "first_boot_provisioned": provisioned,
+            "upgraded_from_pid": upgraded_from,
         }),
         paths,
         cfg,
         pid,
+        vmm_outdated: false,
     })
 }
 
@@ -387,6 +441,7 @@ pub fn stop(name: &str, no_wake: bool, json_out: bool) -> Result<ExitCode> {
     }
     let wakes = !no_wake && launchd::loaded(&paths);
     let Some(pid) = running_pid(&paths) else {
+        refresh_or_warn(name, false);
         return emit(
             json_out,
             json!({ "machine": name, "state": "stopped", "was_running": false, "wake_on_socket": wakes }),
@@ -394,15 +449,10 @@ pub fn stop(name: &str, no_wake: bool, json_out: bool) -> Result<ExitCode> {
         );
     };
     let t0 = Instant::now();
-    unsafe { libc::kill(pid as i32, libc::SIGTERM) };
-    let deadline = t0 + Duration::from_secs(40);
-    while vm::pid_alive(pid) && Instant::now() < deadline {
-        std::thread::sleep(Duration::from_millis(100));
-    }
-    let forced = vm::pid_alive(pid);
-    if forced {
-        unsafe { libc::kill(pid as i32, libc::SIGKILL) };
-    }
+    let forced = terminate(pid);
+    let stop_ms = t0.elapsed().as_millis() as u64;
+    // Stopped now: the next start or wake runs this vat build.
+    refresh_or_warn(name, false);
     emit(
         json_out,
         json!({
@@ -410,7 +460,7 @@ pub fn stop(name: &str, no_wake: bool, json_out: bool) -> Result<ExitCode> {
             "state": "stopped",
             "was_running": true,
             "forced": forced,
-            "stop_ms": t0.elapsed().as_millis() as u64,
+            "stop_ms": stop_ms,
             "wake_on_socket": wakes,
         }),
         if wakes {
@@ -447,6 +497,14 @@ struct Status {
     docker_ready: bool,
     config: Option<MachineConfig>,
     vmm: Option<VmmState>,
+    /// The running VMM is from another vat build than this CLI (it was busy
+    /// when the CLI changed); restarting the machine updates it.
+    vmm_outdated: bool,
+    /// The vat build of this CLI, of the VMM copy a boot or wake runs, and
+    /// of the running VMM.
+    vat_sha256: Option<String>,
+    vmm_staged_sha256: Option<String>,
+    vmm_running_sha256: Option<String>,
     vmm_rss_kib: Option<u64>,
     /// The Virtualization.framework process that holds guest memory: its
     /// physical footprint (what macOS counts) and CPU time.
@@ -468,6 +526,7 @@ struct Status {
 
 pub fn status(name: &str, json_out: bool) -> Result<ExitCode> {
     let paths = MachinePaths::new(name)?;
+    refresh_or_warn(name, false);
     let pid = running_pid(&paths);
     // Only a VMM that is up and serving: launchd queues a connection to a
     // stopping VMM's socket and starts the machine again for it, and a
@@ -486,6 +545,10 @@ pub fn status(name: &str, json_out: bool) -> Result<ExitCode> {
         .and_then(|p| crate::vm::elastic::proc_usage(p as u32));
     let config = MachineConfig::load(&paths.config)?;
     let wake_on_socket = config.is_some() && launchd::loaded(&paths);
+    let build = config
+        .as_ref()
+        .and_then(|c| Observed::read(&paths, Some(c)).ok());
+    let vmm = vmm_state(&paths);
     let st = Status {
         machine: name.to_string(),
         state: if pid.is_some() {
@@ -502,7 +565,11 @@ pub fn status(name: &str, json_out: bool) -> Result<ExitCode> {
         keeps_awake: config.as_ref().and_then(MachineConfig::keeps_awake),
         config,
         wake_on_socket,
-        vmm: vmm_state(&paths),
+        vmm_outdated: build.as_ref().is_some_and(Observed::outdated),
+        vat_sha256: build.as_ref().map(|b| b.sha256.clone()),
+        vmm_staged_sha256: build.as_ref().and_then(|b| b.staged.vmm.clone()),
+        vmm_running_sha256: pid.and(vmm.as_ref()).and_then(|v| v.vat_sha256.clone()),
+        vmm,
         vmm_rss_kib: pid.and_then(process_rss_kib),
         vm_footprint_kib: vm_usage.map(|u| u.footprint_kib),
         vm_cpu_ms: vm_usage.map(|u| u.cpu_ms),
@@ -522,6 +589,9 @@ pub fn status(name: &str, json_out: bool) -> Result<ExitCode> {
         println!("machine  {} ({}{wake})", st.machine, st.state);
         if let Some(pid) = st.pid {
             println!("pid      {pid}");
+        }
+        if st.vmm_outdated {
+            println!("vmm      outdated (restart to update)");
         }
         println!(
             "docker   {} ({})",
@@ -578,6 +648,7 @@ pub fn exec(name: &str, command: Vec<String>, json_out: bool) -> Result<ExitCode
         bail!("usage: vat machine exec -- <command> [args...]");
     }
     let paths = MachinePaths::new(name)?;
+    refresh_or_warn(name, true);
     let script = command
         .iter()
         .map(|a| shell_quote(a))
@@ -624,11 +695,27 @@ pub fn rm(name: &str, yes: bool, json_out: bool) -> Result<ExitCode> {
         );
     }
     launchd::uninstall(&paths)?;
-    if running_pid(&paths).is_some() {
-        stop(name, true, false)?;
+    if let Some(pid) = running_pid(&paths) {
+        terminate(pid);
     }
     if paths.dir.exists() {
         std::fs::remove_dir_all(&paths.dir)?;
+    }
+    // Then what only machines use, so that removing the last one leaves
+    // nothing for launchd or a Docker client to run. Downloaded assets stay
+    // cached.
+    let _ = std::fs::remove_file(&paths.docker_sock);
+    let _ = std::fs::remove_file(&paths.control_sock);
+    let _ = std::fs::remove_dir(&paths.run_dir);
+    if let Some(run) = paths
+        .run_dir
+        .parent()
+        .filter(|_| paths.name != vm::DEFAULT_MACHINE)
+    {
+        let _ = std::fs::remove_dir(run);
+    }
+    if !stage::other_machines(&paths) && paths.bin_dir.exists() {
+        std::fs::remove_dir_all(&paths.bin_dir)?;
     }
     emit(
         json_out,

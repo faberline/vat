@@ -11,6 +11,7 @@ use crate::vm::{MachineConfig, MachinePaths, DEFAULT_MACHINE};
 
 fn load() -> Result<(MachinePaths, Option<MachineConfig>)> {
     let paths = MachinePaths::new(DEFAULT_MACHINE)?;
+    machine::refresh_or_warn(DEFAULT_MACHINE, false);
     let cfg = MachineConfig::load(&paths.config)?;
     Ok((paths, cfg))
 }
