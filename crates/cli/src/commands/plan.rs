@@ -411,20 +411,9 @@ fn exported_env_keys(service: &ServiceConfig) -> Vec<String> {
         let upper = service.id.to_uppercase().replace(['-', '.'], "_");
         keys.insert(format!("VAT_SERVICE_{upper}_KUBECONFIG"));
     } else {
-        if service.ready_http.is_some() && service.export.is_empty() {
-            let upper = service.id.to_uppercase().replace(['-', '.'], "_");
-            keys.insert(format!("VAT_SERVICE_{upper}_URL"));
-        }
-        for (key, template) in &service.export {
-            if template.contains("{host}") || template.contains("{port}") {
-                keys.insert(key.clone());
-            } else if service.ready_http.is_some() {
-                keys.insert(template.clone());
-            }
-        }
-        if command_service_needs_port(service) {
-            add_endpoint_env_keys(&mut keys, &service.id);
-        }
+        // Same builder the runtime uses; the port value only affects values.
+        let port = command_service_needs_port(service).then_some(0);
+        keys.extend(crate::commands::run::export_command_service_env(service, port).into_keys());
     }
     keys.into_iter().collect()
 }

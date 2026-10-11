@@ -1491,7 +1491,7 @@ fn compose_service_ids(vat_toml: &Path) -> Result<Vec<String>> {
     // it can launch anything.
     let content = fs::read_to_string(vat_toml)
         .with_context(|| format!("read materialized config {}", vat_toml.display()))?;
-    let config: crate::config::VatConfig = toml::from_str(&content)
+    let config = crate::config::parse_str(&content)
         .with_context(|| format!("parse materialized config {}", vat_toml.display()))?;
     Ok(config
         .services

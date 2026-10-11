@@ -370,14 +370,27 @@ fn exec_direct(args: DirectArgs, cancellation: &RunCancellation) -> Result<ExitC
         }
     };
 
-    // Best-effort: a nearby vat.toml's `[network].egress` still applies to a
-    // direct `vat run -- cmd` (the path that actually sandbox-wraps the command).
-    let egress = std::env::current_dir()
-        .ok()
-        .and_then(|cwd| config::load_nearest(&cwd).ok())
-        .and_then(|c| c.network)
-        .map(|n| n.egress)
-        .unwrap_or_default();
+    // A nearby vat.toml's `[network].egress` still applies to a direct
+    // `vat run -- cmd` (the path that actually sandbox-wraps the command). Only
+    // the egress key matters here, so the file is parsed but not validated;
+    // a parse failure (such as an unknown key) fails the run rather than
+    // silently falling back to an open egress policy.
+    let nearest = match std::env::current_dir() {
+        Ok(cwd) => config::find_nearest(&cwd)?,
+        Err(_) => None,
+    };
+    let egress = match nearest {
+        Some(path) => {
+            let text = std::fs::read_to_string(&path)
+                .with_context(|| format!("read {}", path.display()))?;
+            config::parse_str(&text)
+                .with_context(|| format!("{} (read for its [network].egress)", path.display()))?
+                .network
+                .map(|n| n.egress)
+                .unwrap_or_default()
+        }
+        None => crate::spec::EgressPolicy::default(),
+    };
     let spec = EnvSpec {
         base: Some(spec_base),
         isolation: args.isolation,
@@ -4778,23 +4791,29 @@ fn add_service_endpoint_env(
     env.insert(format!("VAT_SERVICE_{upper}_PORT"), port.to_string());
 }
 
-fn export_command_service_env(
+/// Env a cmd service exports to its dependents. `vat plan` derives its
+/// `exported_env` from this same function, so the two cannot disagree.
+///
+/// `{host}`/`{port}` templates are expanded whatever the readiness probe
+/// (ready_http, ready_cmd, the default TCP probe, or none); only the
+/// `VAT_SERVICE_<ID>_URL` fallback and bare aliases need a ready_http URL, and
+/// config validation rejects a bare alias without one.
+pub(crate) fn export_command_service_env(
     service: &ServiceConfig,
     port: Option<u16>,
 ) -> BTreeMap<String, String> {
     let mut env = BTreeMap::new();
-    if let Some(ready_http) = &service.ready_http {
-        if service.export.is_empty() {
+    if service.export.is_empty() {
+        if let Some(ready_http) = &service.ready_http {
             let upper = service.id.to_uppercase().replace(['-', '.'], "_");
             env.insert(format!("VAT_SERVICE_{upper}_URL"), ready_http.clone());
-        } else {
-            for (key, template) in &service.export {
-                if template.contains("{host}") || template.contains("{port}") {
-                    env.insert(key.clone(), substitute_port(template, port));
-                } else {
-                    env.insert(template.clone(), ready_http.clone());
-                }
-            }
+        }
+    }
+    for (key, template) in &service.export {
+        if config::is_export_template(template) {
+            env.insert(key.clone(), substitute_port(template, port));
+        } else if let Some(ready_http) = &service.ready_http {
+            env.insert(template.clone(), ready_http.clone());
         }
     }
     if let Some(port) = port {
