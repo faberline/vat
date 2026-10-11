@@ -6,6 +6,7 @@
 //! - Isolation::MicroVm without spec.microvm_image set
 //! - Isolation::MicroVm with EgressPolicy::LocalhostOnly
 //! - Isolation::MicroVm when container CLI is not available
+//!
 //! AC4 (the second, independent fail-closed layer — the run.rs
 //! `gpu_satisfied()` preflight helper) is covered by a unit test colocated
 //! with that private helper: `commands::run::tests::

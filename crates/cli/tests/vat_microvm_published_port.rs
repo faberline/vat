@@ -668,14 +668,14 @@ fn run_microvm_preset_without_docker_fallback(image_missing: bool) {
 
     let container_calls =
         fs::read_to_string(&fake_container_log).expect("read fake container command log");
-    let inspect = format!("image inspect redis:7");
+    let inspect = "image inspect redis:7";
     assert!(
-        container_calls.contains(&inspect),
+        container_calls.contains(inspect),
         "MicroVM preset must inspect the Apple Container image store, calls:\n{container_calls}"
     );
     if image_missing {
         let pull = "image pull redis:7";
-        let inspect_at = container_calls.find(&inspect).expect("image inspect call");
+        let inspect_at = container_calls.find(inspect).expect("image inspect call");
         let pull_at = container_calls.find(pull).expect("image pull call");
         let run_at = container_calls
             .find("run --rm --name")

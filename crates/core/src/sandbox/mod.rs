@@ -27,7 +27,7 @@ use std::path::Path;
 use crate::spec::{EgressPolicy, EnvSpec, Isolation};
 
 /// An isolation backend resolves the user's command into the *actual* program
-/// + argv to exec (e.g. seatbelt wraps it in `sandbox-exec`). The caller then
+/// and argv to exec (e.g. seatbelt wraps it in `sandbox-exec`). The caller then
 /// runs that resolved command inside the vat workspace with the spec env.
 pub trait Sandbox {
     /// Short stable name, surfaced in events/state (`"process"`, `"seatbelt"`).

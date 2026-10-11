@@ -491,6 +491,7 @@ cmd = ["true"]
                 .read(true)
                 .write(true)
                 .create(true)
+                .truncate(false)
                 .open(&lock_path)
                 .expect("open compose startup lock");
             let locked = unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) };

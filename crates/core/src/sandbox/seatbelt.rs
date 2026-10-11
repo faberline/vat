@@ -124,6 +124,14 @@ pub fn native_container_profile(
     profile
 }
 
+/// Minimal PATH lookup (no extra deps).
+fn which(bin: &str) -> Option<std::path::PathBuf> {
+    let path = std::env::var_os("PATH")?;
+    std::env::split_paths(&path)
+        .map(|dir| dir.join(bin))
+        .find(|candidate| candidate.is_file())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -186,13 +194,5 @@ mod tests {
         assert!(p.contains("(deny network*)"));
         assert!(!p.contains("allow network"));
     }
-}
-
-/// Minimal PATH lookup (no extra deps).
-fn which(bin: &str) -> Option<std::path::PathBuf> {
-    let path = std::env::var_os("PATH")?;
-    std::env::split_paths(&path)
-        .map(|dir| dir.join(bin))
-        .find(|candidate| candidate.is_file())
 }
 // CODEGEN-END
