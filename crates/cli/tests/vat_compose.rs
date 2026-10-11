@@ -1055,7 +1055,8 @@ cmd = ["true"]
             .unwrap();
         assert!(
             !retry.status.success(),
-            "the deliberately failing retried service must not report a false startup success"
+            "the deliberately failing retried service must not report a false startup success; stdout: {}",
+            String::from_utf8_lossy(&retry.stdout)
         );
         let retry_stderr = String::from_utf8_lossy(&retry.stderr);
         assert!(

@@ -501,13 +501,22 @@ fn up_cmd(project: Option<String>, detach: bool) -> Result<ExitCode> {
         }
         // Within the same bounded handoff window, keep watching a service set
         // that is still starting: one that fails fast is reported as a
-        // startup failure instead of a false `starting` success. The claim is
-        // released meanwhile so the child and `compose ps` are not blocked.
+        // startup failure instead of a false `starting` success. `Stopping`
+        // is the transient window between a service or runner failing and
+        // the VAT recording its terminal state; settling it here keeps that
+        // failure from being reported as a successful `stopping` launch. The
+        // claim is released meanwhile so the child and `compose ps` are not
+        // blocked.
+        let unsettled = |startup: &DetachedStartup| {
+            matches!(
+                startup,
+                DetachedStartup::Starting | DetachedStartup::Stopping
+            )
+        };
         let mut startup = reconcile_detached_startup(&record)?;
-        if matches!(startup, DetachedStartup::Starting) && Instant::now() < handoff_deadline {
+        if unsettled(&startup) && Instant::now() < handoff_deadline {
             drop(final_claim);
-            while matches!(startup, DetachedStartup::Starting) && Instant::now() < handoff_deadline
-            {
+            while unsettled(&startup) && Instant::now() < handoff_deadline {
                 std::thread::sleep(Duration::from_millis(200));
                 startup = reconcile_detached_startup(&record)?;
             }
