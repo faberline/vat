@@ -21,8 +21,8 @@ use crate::spec::{GpuRequest, Isolation};
 #[command(
     name = "vat",
     version = crate::VERSION,
-    about = "agent-native, GPU-native dev containers (no VM: the Apple GPU just works)",
-    long_about = "agent-native, GPU-native dev containers (no VM: the Apple GPU just works)\n\nRun `vat llm` for the compact agent-facing usage contract, including when to use vat.toml, how to inspect evidence, and what Docker-like assumptions do not apply."
+    about = "agent-native local runtime for Apple Silicon macOS: native containers with the Apple GPU (no VM), Docker in one shared Linux machine, and local GKE",
+    long_about = "agent-native local runtime for Apple Silicon macOS: native containers with the Apple GPU (no VM), Docker in one shared Linux machine, and local GKE\n\nRun `vat llm` for the compact agent-facing usage contract, including when to use vat.toml, how to inspect evidence, and what Docker-like assumptions do not apply."
 )]
 struct Cli {
     #[command(subcommand)]

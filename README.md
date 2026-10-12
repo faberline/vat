@@ -246,7 +246,10 @@ it. The pieces, bottom up:
   loopback. `stop` powers the guest off cleanly, `status --json` reports guest
   memory, VMM RSS, and disk allocation, and `exec`/`logs`/`env`/`rm` round out
   the lifecycle. Cold start provisions packages once; later starts reuse the
-  disk.
+  disk. A per-user launchd job keeps `~/.vat/run/docker.sock`, so a Docker
+  client wakes a stopped machine; the machine stops itself after 5 idle
+  minutes to give its memory back, trims its disk, follows the host clock
+  across sleep, and is restarted onto a new vat build once it is idle.
 - *Docker Engine.* The guest runs a real dockerd; the VMM forwards its socket
   to `~/.vat/run/docker.sock` over vsock. Docker compatibility is Docker's
   own: BuildKit builds, Compose v2, user networks with service-name DNS,
@@ -550,13 +553,13 @@ The command an agent calls to understand a vat. One document, no log-scraping:
 | `vat run -- <cmd>` | Clone a base, run one direct command, record the result. `--base DIR`, `--from VAT`, `--isolation none\|seatbelt`, `--gpu auto\|required\|none`, `--json`. |
 | `vat capabilities --json` | Full host capability discovery: report COW clone method, isolation backends, Docker provider/daemon state, service-provider capabilities, and an Apple Container shared-builder advisory. It retains the normal Docker daemon probe regardless of a later selected plan. `services.docker_services` is an explicit availability string: a full Docker probe yields `available` or `unavailable`. The advisory is bounded and read-only: `builder status` yields `ownership=shared_unknown` and `automatic_cleanup=false`; parseable configuration is distinct from optional live `observed_stats`, and optional `system df` is `global_apple_container` host evidence rather than VAT-owned disk. Unsupported, malformed, or timed-out status/stats/df appear as advisory unknown/probe errors without failing capability discovery; VAT never starts, stops, deletes, or prunes the builder/cache. A live builder state is reported only when the installed Apple Container CLI supports and returns it. |
 | `vat plan [runner-id...] --json` | Print the selected configured run topology without creating a vat, starting services, or running tests. |
-| `vat doctor [runner-id...] --json` | Run cheap read-only preflight checks with capability discovery scoped to the selected topology. A selected explicit MicroVm/Apple-Container-only plan performs exactly one read-only `container system status` probe per doctor invocation and projects that result to its selected MicroVm services; it never executes Docker even when it is on `PATH`. In that deliberate no-probe state, `services.docker_services` is `not_probed`, while `docker.daemon_probe.state=skipped` with `Docker daemon probe skipped for Apple-Container-only selected plan` supplies provenance. `docker.daemon=false` is not Docker-unavailable evidence because no Docker command ran. An unselected Docker service cannot poison that runner. The selected plan also reports the shared-builder advisory, but its unknown/timeout/probe errors never change runtime success. Doctor neither autostarts Apple Container nor falls back to Docker: unsupported MicroVm presets with no declared OCI route and MicroVm preset named volumes fail closed. Docker-runtime services, Auto image services, eligible Auto preset Docker fallbacks, and selected clusters retain the normal Docker daemon probe, yielding `services.docker_services=available|unavailable`; a cluster requires its Docker backend. |
-| `vat doctor --host-only [--json]` | Configuration-free read-only host preflight. It does not read `vat.toml`, select a runner, create a workspace, or start services. It reports copy-on-write, requested isolation availability, host GPU visibility, Apple Container, Docker daemon, and independent (non-OrbStack) `kubectl` evidence. Missing optional substrates are reported as `unavailable` observations; the command itself completes successfully with `next: vat capabilities --json`. |
+| `vat doctor [runner-id...] --json` | Run cheap read-only preflight checks with capability discovery scoped to the selected topology. A selected explicit MicroVm/Apple-Container-only plan performs exactly one read-only `container system status` probe per doctor invocation and projects that result to its selected MicroVm services; it never executes Docker even when it is on `PATH`. In that deliberate no-probe state, `services.docker_services` is `not_probed`, while `docker.daemon_probe.state=skipped` with `Docker daemon probe skipped for Apple-Container-only selected plan` supplies provenance. `docker.daemon=false` is not Docker-unavailable evidence because no Docker command ran. An unselected Docker service cannot poison that runner. The selected plan also reports the shared-builder advisory, but its unknown/timeout/probe errors never change runtime success. Doctor neither autostarts Apple Container nor falls back to Docker: unsupported MicroVm presets with no declared OCI route and MicroVm preset named volumes fail closed. Docker-runtime services, Auto image services, and eligible Auto preset Docker fallbacks retain the normal Docker daemon probe (vat's machine socket by default), yielding `services.docker_services=available|unavailable`. A plan with no Docker runtime skips it with `Docker daemon probe skipped because selected plan has no Docker runtime`. A `cluster = "machine"` service needs no host Docker daemon: it reports an informational `machine_k8s` check (`machine K3s ready`, or the current state and that the run starts it via `vat k8s up`), which fails only when the machine state cannot be read. |
+| `vat doctor --host-only [--json]` | Configuration-free read-only host preflight. It does not read `vat.toml`, select a runner, create a workspace, or start services. It reports copy-on-write, requested isolation availability, host GPU visibility, Apple Container, Docker daemon (vat's machine socket by default), and the machine's K3s state as a `kubernetes`/`machine_k8s` check whose message names the state and that `vat k8s up` starts it. Missing optional substrates are reported as `unavailable` observations; the command itself completes successfully with `next: vat capabilities --json`. |
 | `vat llm [--topic <t>] [--format md\|json]` | Print offline agent-facing docs. Default `outline`; use `--topic guide` for the detailed vat.toml/service/evidence/boundary guide. |
 | `vat upgrade` | Self-update to the latest `vat@*` GitHub release (`--check` to report only, `--version <tag>` to pin). One of the three mandatory CLI-convention verbs (`llm`/`upgrade`/`issue`), via the shared `cli-std` crate. |
 | `vat issue search\|view\|create` | Search, read, and file diagnostics-rich GitHub issues under `app:vat`; `issue create --dry-run --title <t>` previews version + target + OS/arch diagnostics without submitting. |
 | `vat machine start [--cpus N] [--memory MiB] [--disk GiB] [--k8s BOOL] [--idle-stop DUR] [--no-wait] [--timeout S] [--json]` | Boot the shared Linux machine on Virtualization.framework (creating its data disk on first use, provisioning the Alpine guest once) and wait for dockerd on `~/.vat/run/docker.sock`. A launchd job keeps that socket. Once the machine has had no containers and no clients for `--idle-stop` (default `5m`; `0` = never; stays up while K8s is on), it stops to give its memory back, and the next Docker client starts it again. vat's own child processes default `DOCKER_HOST` to that socket; export `DOCKER_HOST=unix://$HOME/.vat/run/docker.sock` yourself to use the stock `docker` CLI. An explicit `DOCKER_HOST`/`DOCKER_CONTEXT` or `VAT_ENGINE=external` opts out. |
-| `vat machine stop\|status\|exec\|env\|logs\|rm` | `stop` powers the guest off cleanly (reports `forced` when it had to kill), and Docker clients still wake the machine unless you pass `--no-wake`; `status --json` reports state, guest health, published ports, guest memory, VMM RSS, and disk allocation; `exec -- <cmd>` runs `sh -c` in the guest and forwards the exit code; `env` prints `DOCKER_HOST`; `logs [--vmm] [--lines N]` shows the console or VMM log; `rm [--yes]` deletes the machine and its data disk. |
+| `vat machine stop\|status\|exec\|env\|logs\|rm` | `stop` powers the guest off cleanly (reports `forced` when it had to kill), and Docker clients still wake the machine unless you pass `--no-wake`; `status --json` reports `state`, guest health, published ports, guest memory, VMM RSS, disk allocation, `wake_on_socket` (whether launchd holds `docker.sock`), `idle_stop_secs`, `keeps_awake` (why it will not idle-stop, e.g. `K8s is on`), `elastic` (`stopped_by`, `clock_skew_ms`, busy/idle), and which vat build it runs: `vmm` (`vat_version`, `vat_sha256`, `staged_sha256`), `vmm_outdated`, `vat_sha256`, `vmm_staged_sha256`, `vmm_running_sha256`. After a vat upgrade a stopped machine is re-staged silently; an idle one is restarted onto the new build by `start`, `exec`, `vat k8s up`, or vat's own Docker users; a busy one keeps running and prints a hint. `exec -- <cmd>` runs `sh -c` in the guest and forwards the exit code; `env` prints `DOCKER_HOST`; `logs [--vmm] [--lines N]` shows the console or VMM log. `rm --yes` deletes the machine and its data disk (images, volumes, cluster state), unloads its launchd job, removes `docker.sock`, `vat.sock`, and an empty `~/.vat/run`, and, for the last machine, the staged VMM in `~/.vat/machine/bin`; see [Uninstall](#uninstall). |
 | `vat build [--file F] [--context DIR] [--tag REF] [--build-arg K=V] [--json]` | Build a Dockerfile through vat's Docker Engine (the machine, booted on demand), tagging `<context-basename>:latest` by default. Honors the same `DOCKER_HOST`/`DOCKER_CONTEXT`/`VAT_ENGINE=external` opt-out. |
 | `vat k8s up [--api-port P] [--timeout S] [--json]` | Enable the persistent single-node K3s cluster in the shared machine (booting the machine when stopped), wait for the API and node, write `~/.vat/kube/config` (context `vat`), and install the pinned kubectl at `~/.vat/bin/kubectl`. `--api-port` picks the host API port (default 6443; remembered). K3s runs with `--docker` on the machine's dockerd, so images built against `~/.vat/run/docker.sock` are visible to pods without a push. |
 | `vat k8s status\|kubeconfig\|down [--json]` / `vat k8s kubectl -- <args>` | Report cluster state, API forwarding, kubeconfig, and kubectl; refresh and print the kubeconfig path; disable K3s and stop its pods (cluster state stays on the machine disk); or run the pinned kubectl against the cluster. |
@@ -966,11 +969,59 @@ target = "http://127.0.0.1:8123"   # or a local emulator's host:port
 
 [`Sandbox`]: crates/core/src/sandbox/mod.rs
 
+## Upgrading to 0.5.0
+
+0.5.0 breaks 0.4.x in six places. [CHANGELOG.md](CHANGELOG.md) has the
+details and the migration steps:
+
+- Releases are Apple Silicon macOS only. There are no Linux tarballs, and
+  `install.sh` exits 2 on Linux and Intel macOS.
+- Unknown `vat.toml` keys are errors. Run `vat plan` in each project and fix
+  every key it reports (the error suggests the closest accepted key).
+  `ready_tcp` is not a key: drop it or use `ready_cmd`.
+- `export` `{host}`/`{port}` templates on a `cmd` service now work with
+  `ready_cmd` as well. A bare-alias `export` without `ready_http` is an error.
+- `vat cluster` and the kind/k3d/minikube backends are gone. Use
+  `vat k8s up` and `cluster = "machine"`.
+- The `docker` shim is gone. Use the stock `docker` CLI with
+  `export DOCKER_HOST="unix://$HOME/.vat/run/docker.sock"`.
+- vat's own Docker users (`vat build`, `runtime = "docker"` and `auto` image
+  services, compose runners) use that socket instead of the host's daemon.
+  An explicit `DOCKER_HOST`/`DOCKER_CONTEXT` or `VAT_ENGINE=external` keeps
+  your own daemon.
+
+## Uninstall
+
+`vat machine rm --yes` deletes the shared Linux machine and everything
+launchd knows about it:
+
+- its data disk, with every image, volume, and K3s cluster;
+- the LaunchAgent `dev.vat.machine.default` and its plist in
+  `~/Library/LaunchAgents`;
+- `~/.vat/run/docker.sock`, `vat.sock`, and the then-empty `~/.vat/run`;
+- the staged VMM in `~/.vat/machine/bin`, once no machine is left.
+
+Without `--yes` it refuses. After it, no Docker client can wake the machine
+again. The rest of vat's state is plain files that `rm` leaves in place:
+
+```bash
+vat machine rm --yes
+rm -rf ~/.vat                  # boot-asset cache, native images, kubeconfig, vended kubectl
+rm -rf <repo>/.vat             # per-repo vats and run evidence (or $VAT_HOME)
+rm "$(command -v vat)"         # ~/.local/bin/vat from install.sh, ~/.cargo/bin/vat from build.sh
+```
+
+`vat machine rm` stops vat's K3s. It does not touch `~/.kube/config` or the
+`docker` CLI. If you ran `vat native users setup`, delete the hidden
+`_vat1`…`_vatN` users and the `_vat` group as root with `dscl . -delete`.
+`vat native users ls` lists them.
+
 ## Supporting documents
 
 | Document | What it answers |
 |---|---|
 | [STATUS.md](STATUS.md) | Which surfaces are Supported, Limited, or Not supported today, with the gate or E2E that proves each row. |
+| [CHANGELOG.md](CHANGELOG.md) | Breaking changes and upgrade steps per release. |
 | [ROADMAP.md](ROADMAP.md) | The owner-confirmed milestones for the three pillars (M1–M5, all landed, with the evidence that closed each), the uncommitted later outcomes, and the non-goals. |
 | [docs/product/architecture.md](docs/product/architecture.md) | How the native runtime, the shared Linux machine, the Docker Engine socket, persistent K3s, and the machine's local GCP services fit together, including the decided and open spikes. |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | How to change vat and which gate a change must pass. |
