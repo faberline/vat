@@ -96,6 +96,18 @@ pub fn pick(spec: &EnvSpec) -> Result<Box<dyn Sandbox>, String> {
                         .to_string(),
                 );
             };
+            // A config that can never succeed is reported before a host
+            // environment problem, so the answer does not depend on the host.
+            if matches!(spec.egress, EgressPolicy::LocalhostOnly) {
+                return Err(
+                    "isolation=micro_vm cannot yet enforce egress=localhost-only: the guest \
+                     127.0.0.1 never reaches the host; the host is only reachable via a \
+                     per-network container VM gateway IP that ordinary applications do not know \
+                     to target (confirmed by the Phase 0 spike #1472). Use --isolation seatbelt, \
+                     or switch --network to open or deny."
+                        .to_string(),
+                );
+            }
             if !microvm::available() {
                 return Err(
                     "isolation=micro_vm requested but `container` CLI is not installed; \
@@ -103,22 +115,12 @@ pub fn pick(spec: &EnvSpec) -> Result<Box<dyn Sandbox>, String> {
                         .to_string(),
                 );
             }
-            match spec.egress {
-                EgressPolicy::Open | EgressPolicy::Deny => Ok(Box::new(microvm::MicroVmBackend {
-                    egress: spec.egress,
-                    env: spec.env.clone(),
-                    workdir: spec.workdir.clone(),
-                    image,
-                })),
-                EgressPolicy::LocalhostOnly => Err(
-                    "isolation=micro_vm cannot yet enforce egress=localhost-only: the guest \
-                     127.0.0.1 never reaches the host; the host is only reachable via a \
-                     per-network container VM gateway IP that ordinary applications do not know \
-                     to target (confirmed by the Phase 0 spike #1472). Use --isolation seatbelt, \
-                     or switch --network to open or deny."
-                        .to_string(),
-                ),
-            }
+            Ok(Box::new(microvm::MicroVmBackend {
+                egress: spec.egress,
+                env: spec.env.clone(),
+                workdir: spec.workdir.clone(),
+                image,
+            }))
         }
     }
 }
