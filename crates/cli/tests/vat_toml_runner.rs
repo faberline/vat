@@ -2099,4 +2099,194 @@ fn llm_guide_mentions_core_agent_contract() {
         );
     }
 }
+
+/// faberline/vat#37: a cmd service's `{host}`/`{port}` export templates reach
+/// the runner whatever its readiness key, and `vat plan --json` lists exactly
+/// the variables the run exports.
+#[test]
+fn cmd_service_exports_match_plan_for_every_readiness_kind() {
+    if !python3_available() {
+        return;
+    }
+    let project = tempfile::tempdir().unwrap();
+    let vat_home = tempfile::tempdir().unwrap();
+    let dump_dir = tempfile::tempdir().unwrap();
+    let dump = dump_dir.path().join("env.json");
+    let server = r#"cmd = ["python3", "-m", "http.server", "{port}", "--bind", "127.0.0.1"]"#;
+    std::fs::write(
+        project.path().join("vat.toml"),
+        format!(
+            r#"
+version = 1
+default_runner = "probe"
+
+[workspace]
+keep = "never"
+
+[[services]]
+id = "nats"
+{server}
+ready_cmd = ["python3", "-c", "import socket; socket.create_connection(('{{host}}', {{port}}), 1)"]
+export = {{ NATS_URL = "nats://{{host}}:{{port}}", FOO_URL = "foo://{{host}}:{{port}}" }}
+timeout_s = 20
+
+[[services]]
+id = "httpsvc"
+{server}
+ready_http = "http://127.0.0.1:{{port}}/"
+export = {{ HTTPSVC_URL = "http://{{host}}:{{port}}", HTTPSVC_ALT = "alt://{{host}}:{{port}}" }}
+timeout_s = 20
+
+[[services]]
+id = "tcpsvc"
+{server}
+export = {{ TCPSVC_ADDR = "{{host}}:{{port}}" }}
+timeout_s = 20
+
+[[runners]]
+id = "probe"
+requires = ["nats", "httpsvc", "tcpsvc"]
+cmd = ["python3", "-c", "import json, os, sys; json.dump(dict(os.environ), open(sys.argv[1], 'w'))", "{dump}"]
+"#,
+            dump = dump.display()
+        ),
+    )
+    .unwrap();
+
+    let plan = Command::new(vat_bin())
+        .current_dir(project.path())
+        .args(["plan", "--json"])
+        .output()
+        .unwrap();
+    assert!(
+        plan.status.success(),
+        "{}",
+        String::from_utf8_lossy(&plan.stderr)
+    );
+    let plan: Value = serde_json::from_slice(&plan.stdout).unwrap();
+    let planned = |id: &str| -> Vec<String> {
+        let service = plan["services"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|service| service["id"] == id)
+            .unwrap_or_else(|| panic!("plan lists service {id}"));
+        let mut keys: Vec<String> = service["exported_env"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|key| key.as_str().unwrap().to_string())
+            .collect();
+        keys.sort();
+        keys
+    };
+    assert_eq!(
+        planned("nats"),
+        [
+            "FOO_URL",
+            "NATS_URL",
+            "VAT_SERVICE_NATS_HOST",
+            "VAT_SERVICE_NATS_PORT"
+        ]
+    );
+    assert_eq!(
+        planned("httpsvc"),
+        [
+            "HTTPSVC_ALT",
+            "HTTPSVC_URL",
+            "VAT_SERVICE_HTTPSVC_HOST",
+            "VAT_SERVICE_HTTPSVC_PORT"
+        ]
+    );
+    assert_eq!(
+        planned("tcpsvc"),
+        [
+            "TCPSVC_ADDR",
+            "VAT_SERVICE_TCPSVC_HOST",
+            "VAT_SERVICE_TCPSVC_PORT"
+        ]
+    );
+
+    let output = Command::new(vat_bin())
+        .current_dir(project.path())
+        .env("VAT_HOME", vat_home.path())
+        .arg("run")
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "stdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let env: Value = serde_json::from_str(&std::fs::read_to_string(&dump).unwrap()).unwrap();
+    for id in ["nats", "httpsvc", "tcpsvc"] {
+        for key in planned(id) {
+            assert!(
+                env[&key].is_string(),
+                "plan lists {key} for {id} but the runner did not receive it"
+            );
+        }
+    }
+    let port = |id: &str| {
+        env[format!("VAT_SERVICE_{id}_PORT")]
+            .as_str()
+            .unwrap()
+            .to_string()
+    };
+    assert_eq!(
+        env["NATS_URL"],
+        format!("nats://127.0.0.1:{}", port("NATS"))
+    );
+    assert_eq!(env["FOO_URL"], format!("foo://127.0.0.1:{}", port("NATS")));
+    assert_eq!(
+        env["HTTPSVC_ALT"],
+        format!("alt://127.0.0.1:{}", port("HTTPSVC"))
+    );
+    assert_eq!(env["TCPSVC_ADDR"], format!("127.0.0.1:{}", port("TCPSVC")));
+}
+
+/// faberline/vat#36: a typo in a service key fails `vat plan` and `vat doctor`
+/// instead of silently dropping the readiness gate.
+#[test]
+fn unknown_service_key_fails_plan_and_doctor() {
+    let project = tempfile::tempdir().unwrap();
+    std::fs::write(
+        project.path().join("vat.toml"),
+        r#"
+version = 1
+default_runner = "nats-smoke"
+
+[[services]]
+id = "nats"
+cmd = ["nats-server", "-p", "{port}"]
+ready_htp = "http://127.0.0.1:{port}/healthz"
+
+[[runners]]
+id = "nats-smoke"
+requires = ["nats"]
+cmd = ["true"]
+"#,
+    )
+    .unwrap();
+    for args in [&["plan", "--json"][..], &["doctor"][..]] {
+        let output = Command::new(vat_bin())
+            .current_dir(project.path())
+            .args(args)
+            .output()
+            .unwrap();
+        assert!(!output.status.success(), "{args:?} must fail");
+        let all = format!(
+            "{}{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(
+            all.contains("unknown key `ready_htp` in [[services]] id=`nats`")
+                && all.contains("did you mean `ready_http`?"),
+            "{args:?}: {all}"
+        );
+    }
+}
+
 // CODEGEN-END

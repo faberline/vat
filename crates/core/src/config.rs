@@ -17,6 +17,7 @@ pub const FILE_NAME: &str = "vat.toml";
 
 /// Parsed project-level vat contract.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct VatConfig {
     pub version: u32,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -49,6 +50,7 @@ pub struct VatConfig {
 /// Transparent service routing for a run: known hosts the proxy should send to a
 /// local emulator/mock instead of the real upstream.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct NetworkConfig {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub routes: Vec<RouteConfig>,
@@ -60,6 +62,7 @@ pub struct NetworkConfig {
 /// One host-routing rule: requests to `host` are served by `target` (a local base
 /// URL) instead of being forwarded upstream.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct RouteConfig {
     pub host: String,
     pub target: String,
@@ -67,6 +70,7 @@ pub struct RouteConfig {
 
 /// Workspace defaults for one test run.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct WorkspaceConfig {
     #[serde(default = "default_dot")]
     pub base: PathBuf,
@@ -102,6 +106,7 @@ pub enum RetentionPolicy {
 
 /// Setup command executed before services start.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct SetupStep {
     pub id: String,
     pub cmd: Vec<String>,
@@ -111,6 +116,7 @@ pub struct SetupStep {
 
 /// Named volume mount from a compose service's volumes list.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct VolumeMount {
     /// Volume name (from compose service volumes list).
     pub name: String,
@@ -120,6 +126,7 @@ pub struct VolumeMount {
 
 /// Run-scoped service required by a runner.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ServiceConfig {
     pub id: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -201,6 +208,7 @@ pub struct ServiceConfig {
 
 /// Endpoint for an externally managed service.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ExternalServiceConfig {
     pub host: String,
     pub port: u16,
@@ -399,6 +407,7 @@ fn default_service_timeout() -> u64 {
 /// service plus its dependency set to a first-class runner target while reusing
 /// the existing service lifecycle.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ScenarioConfig {
     pub id: String,
     pub app: String,
@@ -422,6 +431,7 @@ pub enum ScenarioNetworkMode {
 
 /// Named runner an agent can invoke via `vat run <id>`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct RunnerConfig {
     pub id: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -435,15 +445,23 @@ pub struct RunnerConfig {
 
 /// Load the nearest `vat.toml` from `start` or one of its ancestors.
 pub fn load_nearest(start: &Path) -> Result<VatConfig> {
+    match find_nearest(start)? {
+        Some(path) => load_file(&path),
+        None => bail!("no {FILE_NAME} found from {}", start.display()),
+    }
+}
+
+/// Path of the nearest `vat.toml` from `start` or one of its ancestors, if any.
+pub fn find_nearest(start: &Path) -> Result<Option<PathBuf>> {
     let mut dir = std::fs::canonicalize(start)
         .with_context(|| format!("resolve config search dir {}", start.display()))?;
     loop {
         let candidate = dir.join(FILE_NAME);
         if candidate.exists() {
-            return load_file(&candidate);
+            return Ok(Some(candidate));
         }
         if !dir.pop() {
-            bail!("no {FILE_NAME} found from {}", start.display());
+            return Ok(None);
         }
     }
 }
@@ -452,7 +470,7 @@ pub fn load_nearest(start: &Path) -> Result<VatConfig> {
 pub fn load_file(path: &Path) -> Result<VatConfig> {
     let bytes = std::fs::read(path).with_context(|| format!("read {}", path.display()))?;
     let text = std::str::from_utf8(&bytes).context("vat.toml is not valid UTF-8")?;
-    let mut cfg: VatConfig = toml::from_str(text).context("parse vat.toml")?;
+    let mut cfg = parse_str(text)?;
     if cfg.version != 1 {
         bail!("unsupported vat.toml version {}; expected 1", cfg.version);
     }
@@ -465,6 +483,204 @@ pub fn load_file(path: &Path) -> Result<VatConfig> {
     cfg.digest = digest_bytes(&bytes);
     validate(&cfg)?;
     Ok(cfg)
+}
+
+/// Deserialize `vat.toml` text without validating it.
+///
+/// Every table rejects keys vat does not know. A misspelled key is never
+/// ignored: a dropped `ready_http` would silently remove a readiness gate.
+/// The error names the key, the table it sits in, and the accepted keys.
+pub fn parse_str(text: &str) -> Result<VatConfig> {
+    match toml::from_str::<VatConfig>(text) {
+        Ok(cfg) => Ok(cfg),
+        Err(err) => match describe_unknown_key(text, err.message()) {
+            Some(message) => Err(anyhow::Error::new(err).context(message)),
+            None => Err(anyhow::Error::new(err).context("parse vat.toml")),
+        },
+    }
+}
+
+/// Explain an `unknown field` deserialization error in vat.toml terms, or
+/// `None` when `message` is some other parse failure.
+fn describe_unknown_key(text: &str, message: &str) -> Option<String> {
+    let (key, accepted) = parse_unknown_field(message)?;
+    let location = toml::from_str::<toml::Table>(text)
+        .ok()
+        .and_then(|table| locate_unknown_key(&table, &key))
+        .unwrap_or_else(|| "vat.toml".to_string());
+    let mut out = format!("unknown key `{key}` in {location}");
+    if key == "ready_tcp" {
+        out.push_str(
+            "; TCP readiness is not a key: a cmd service with a `{port}` already waits for \
+             its port to accept connections, or use ready_cmd for a custom probe",
+        );
+    } else if let Some(suggestion) = did_you_mean(&key, &accepted) {
+        out.push_str(&format!("; did you mean `{suggestion}`?"));
+    }
+    if !accepted.is_empty() {
+        let list = accepted
+            .iter()
+            .map(|name| format!("`{name}`"))
+            .collect::<Vec<_>>()
+            .join(", ");
+        out.push_str(&format!(" (accepted keys: {list})"));
+    }
+    Some(out)
+}
+
+/// Split serde's `unknown field `x`, expected one of `a`, `b`` message into
+/// the offending key and the accepted keys.
+fn parse_unknown_field(message: &str) -> Option<(String, Vec<String>)> {
+    let rest = message.strip_prefix("unknown field `")?;
+    let (key, rest) = rest.split_once('`')?;
+    let accepted = rest
+        .split('`')
+        .skip(1)
+        .step_by(2)
+        .map(str::to_string)
+        .collect();
+    Some((key.to_string(), accepted))
+}
+
+/// Name the table holding the first unknown `key`, such as
+/// "[[services]] id=`nats`". Nested tables are checked before their parents
+/// so the innermost owner is reported.
+fn locate_unknown_key(root: &toml::Table, key: &str) -> Option<String> {
+    fn rejects<T: serde::de::DeserializeOwned>(value: &toml::Value, key: &str) -> bool {
+        match value.clone().try_into::<T>() {
+            Ok(_) => false,
+            Err(err) => parse_unknown_field(err.message()).is_some_and(|(found, _)| found == key),
+        }
+    }
+    fn entries<'a>(
+        root: &'a toml::Table,
+        name: &str,
+    ) -> impl Iterator<Item = (String, &'a toml::Value)> {
+        let header = format!("[[{name}]]");
+        root.get(name)
+            .and_then(toml::Value::as_array)
+            .into_iter()
+            .flatten()
+            .enumerate()
+            .map(move |(index, item)| {
+                let label = match item.get("id").and_then(toml::Value::as_str) {
+                    Some(id) => format!("{header} id=`{id}`"),
+                    None => format!("{header} #{}", index + 1),
+                };
+                (label, item)
+            })
+    }
+
+    for (label, item) in entries(root, "services") {
+        if let Some(external) = item.get("external") {
+            if rejects::<ExternalServiceConfig>(external, key) {
+                return Some(format!("`external` of {label}"));
+            }
+        }
+        if let Some(volumes) = item.get("volumes").and_then(toml::Value::as_array) {
+            if volumes
+                .iter()
+                .any(|volume| rejects::<VolumeMount>(volume, key))
+            {
+                return Some(format!("`volumes` of {label}"));
+            }
+        }
+        if rejects::<ServiceConfig>(item, key) {
+            return Some(label);
+        }
+    }
+    for (label, item) in entries(root, "setup") {
+        if rejects::<SetupStep>(item, key) {
+            return Some(label);
+        }
+    }
+    for (label, item) in entries(root, "runners") {
+        if rejects::<RunnerConfig>(item, key) {
+            return Some(label);
+        }
+    }
+    for (label, item) in entries(root, "scenarios") {
+        if rejects::<ScenarioConfig>(item, key) {
+            return Some(label);
+        }
+    }
+    if let Some(network) = root.get("network") {
+        if let Some(network) = network.as_table() {
+            for (label, item) in entries(network, "routes") {
+                if rejects::<RouteConfig>(item, key) {
+                    return Some(label.replace("[[routes]]", "[[network.routes]]"));
+                }
+            }
+        }
+        if rejects::<NetworkConfig>(network, key) {
+            return Some("[network]".to_string());
+        }
+    }
+    if let Some(workspace) = root.get("workspace") {
+        if rejects::<WorkspaceConfig>(workspace, key) {
+            return Some("[workspace]".to_string());
+        }
+    }
+    if root.contains_key(key) {
+        return Some("the top level of vat.toml".to_string());
+    }
+    None
+}
+
+/// The accepted key closest to a misspelled `key`, when it is close enough to
+/// be a plausible typo.
+fn did_you_mean<'a>(key: &str, accepted: &'a [String]) -> Option<&'a str> {
+    let limit = (key.chars().count() / 3).clamp(1, 3);
+    accepted
+        .iter()
+        .map(|name| (edit_distance(key, name), name))
+        .filter(|(distance, _)| *distance <= limit)
+        .min_by_key(|(distance, _)| *distance)
+        .map(|(_, name)| name.as_str())
+}
+
+fn edit_distance(a: &str, b: &str) -> usize {
+    let b: Vec<char> = b.chars().collect();
+    let mut row: Vec<usize> = (0..=b.len()).collect();
+    for (i, ca) in a.chars().enumerate() {
+        let mut diagonal = row[0];
+        row[0] = i + 1;
+        for (j, cb) in b.iter().enumerate() {
+            let above = row[j + 1];
+            row[j + 1] = if ca == *cb {
+                diagonal
+            } else {
+                1 + diagonal.min(above).min(row[j])
+            };
+            diagonal = above;
+        }
+    }
+    row[b.len()]
+}
+
+/// Whether an `export` value is a `{host}`/`{port}` template rather than a
+/// bare alias naming the variable that receives the service's default URL.
+pub fn is_export_template(value: &str) -> bool {
+    value.contains("{host}") || value.contains("{port}")
+}
+
+/// A cmd service's only default URL is its `ready_http`, so a bare-alias
+/// export without one has nothing to export. Reject it rather than drop it.
+fn validate_command_service_exports(service: &ServiceConfig) -> Result<()> {
+    if service.ready_http.is_some() {
+        return Ok(());
+    }
+    for (key, value) in &service.export {
+        if !is_export_template(value) {
+            bail!(
+                "service `{}` export `{key} = \"{value}\"` has no `{{host}}`/`{{port}}` template, \
+                 so it is a bare alias that exports `{value}` as the ready_http URL, but the service \
+                 has no ready_http; use a template such as `{key} = \"http://{{host}}:{{port}}\"`",
+                service.id
+            );
+        }
+    }
+    Ok(())
 }
 
 /// Validate ids, command arrays, and runner service references.
@@ -503,6 +719,7 @@ pub fn validate(cfg: &VatConfig) -> Result<()> {
             1 => {
                 if has_cmd {
                     validate_cmd("service", &service.id, &service.cmd)?;
+                    validate_command_service_exports(service)?;
                 } else if has_image {
                     validate_image_service(service)?;
                 } else if has_cluster {
@@ -1633,6 +1850,139 @@ network = "hermetic"
         // Non-GCP / no stable public host → None.
         assert_eq!(ServicePreset::Postgres.preset_gcp_host(), None);
         assert_eq!(ServicePreset::HttpMock.preset_gcp_host(), None);
+    }
+
+    fn parse_error(text: &str) -> String {
+        format!("{:#}", parse_str(text).unwrap_err())
+    }
+
+    const RUNNER: &str = "\n[[runners]]\nid = \"e2e\"\ncmd = [\"true\"]\n";
+
+    #[test]
+    fn unknown_service_key_names_key_service_and_suggestion() {
+        let err = parse_error(&format!(
+            "version = 1\n[[services]]\nid = \"nats\"\ncmd = [\"nats-server\", \"-p\", \"{{port}}\"]\n\
+             ready_htp = \"http://127.0.0.1:{{port}}/healthz\"\n{RUNNER}"
+        ));
+        assert!(
+            err.contains("unknown key `ready_htp` in [[services]] id=`nats`"),
+            "{err}"
+        );
+        assert!(err.contains("did you mean `ready_http`?"), "{err}");
+        assert!(err.contains("accepted keys: `id`"), "{err}");
+        // The underlying TOML error still points at the line.
+        assert!(err.contains("line 5"), "{err}");
+    }
+
+    #[test]
+    fn unknown_key_without_close_match_has_no_suggestion() {
+        let err = parse_error(&format!(
+            "version = 1\n[[services]]\nid = \"nats\"\ncmd = [\"x\"]\n\
+             this_key_is_definitely_not_real = \"banana\"\n{RUNNER}"
+        ));
+        assert!(
+            err.contains("unknown key `this_key_is_definitely_not_real` in [[services]] id=`nats`"),
+            "{err}"
+        );
+        assert!(!err.contains("did you mean"), "{err}");
+    }
+
+    #[test]
+    fn ready_tcp_is_rejected_with_a_pointer_to_supported_probes() {
+        let err = parse_error(&format!(
+            "version = 1\n[[services]]\nid = \"nats\"\ncmd = [\"x\", \"{{port}}\"]\n\
+             ready_tcp = \"{{host}}:{{port}}\"\n{RUNNER}"
+        ));
+        assert!(
+            err.contains("unknown key `ready_tcp` in [[services]] id=`nats`"),
+            "{err}"
+        );
+        assert!(err.contains("ready_cmd"), "{err}");
+    }
+
+    #[test]
+    fn unknown_keys_are_located_in_every_table() {
+        let svc = "[[services]]\nid = \"db\"\ncmd = [\"x\"]\n";
+        for (body, expected) in [
+            (format!("bogus = 1\n{svc}"), "unknown key `bogus` in the top level of vat.toml"),
+            (format!("[workspace]\nkep = \"never\"\n{svc}"), "unknown key `kep` in [workspace]"),
+            (format!("[network]\negres = \"deny\"\n{svc}"), "unknown key `egres` in [network]"),
+            (
+                format!("{svc}[[network.routes]]\nhost = \"a\"\ntarget = \"b\"\nport = 1\n"),
+                "unknown key `port` in [[network.routes]] #1",
+            ),
+            (
+                format!("[[setup]]\nid = \"install\"\ncmd = [\"x\"]\nwhen_ = \"x\"\n{svc}"),
+                "unknown key `when_` in [[setup]] id=`install`",
+            ),
+            (
+                "[[services]]\nid = \"pg\"\nexternal = { host = \"pg\", port = 5432, user = \"x\" }\n"
+                    .to_string(),
+                "unknown key `user` in `external` of [[services]] id=`pg`",
+            ),
+            (
+                format!("{svc}[[scenarios]]\nid = \"s\"\napp = \"db\"\nrunner = \"e2e\"\nnet = 1\n"),
+                "unknown key `net` in [[scenarios]] id=`s`",
+            ),
+        ] {
+            let err = parse_error(&format!("version = 1\n{body}{RUNNER}"));
+            assert!(err.contains(expected), "{body}\n=> {err}");
+        }
+        let err =
+            parse_error("version = 1\n[[runners]]\nid = \"e2e\"\ncmd = [\"true\"]\ntimeout = 5\n");
+        assert!(
+            err.contains("unknown key `timeout` in [[runners]] id=`e2e`"),
+            "{err}"
+        );
+        assert!(err.contains("did you mean `timeout_s`?"), "{err}");
+    }
+
+    #[test]
+    fn skipped_internal_fields_are_not_accepted_as_keys() {
+        let err = parse_error(&format!("version = 1\ndigest = \"x\"\n{RUNNER}"));
+        assert!(err.contains("unknown key `digest`"), "{err}");
+    }
+
+    #[test]
+    fn retired_cluster_knobs_still_parse_and_fail_validation() {
+        let cfg = parse_str(&format!(
+            "version = 1\n[[services]]\nid = \"svc\"\ncluster = \"machine\"\nnodes = 2\n{RUNNER}"
+        ))
+        .unwrap();
+        let err = validate(&cfg).unwrap_err().to_string();
+        assert!(err.contains("single node"), "{err}");
+    }
+
+    #[test]
+    fn suggestion_picks_the_closest_accepted_key() {
+        let accepted: Vec<String> = ["ready_http", "ready_cmd", "requires"]
+            .into_iter()
+            .map(String::from)
+            .collect();
+        assert_eq!(did_you_mean("ready_htp", &accepted), Some("ready_http"));
+        assert_eq!(did_you_mean("ready_cdm", &accepted), Some("ready_cmd"));
+        assert_eq!(did_you_mean("banana", &accepted), None);
+        assert_eq!(edit_distance("kitten", "sitting"), 3);
+    }
+
+    #[test]
+    fn cmd_service_bare_alias_export_requires_ready_http() {
+        let mut svc = bare_service("svc");
+        svc.cmd = vec!["server".into(), "{port}".into()];
+        svc.ready_cmd = vec!["probe".into()];
+        svc.export
+            .insert("NATS_URL".into(), "nats://{host}:{port}".into());
+        validate(&cfg_with_service(svc.clone())).unwrap();
+
+        svc.export.insert("APP_URL".into(), "APP_URL".into());
+        let err = validate(&cfg_with_service(svc.clone()))
+            .unwrap_err()
+            .to_string();
+        assert!(err.contains("export `APP_URL = \"APP_URL\"`"), "{err}");
+        assert!(err.contains("has no ready_http"), "{err}");
+
+        svc.ready_http = Some("http://127.0.0.1:{port}/".into());
+        validate(&cfg_with_service(svc)).unwrap();
     }
 }
 // CODEGEN-END
