@@ -194,7 +194,7 @@ pub fn parse(path: &Path) -> Result<ComposeFile> {
                     }
                 }
                 ComposeEnv::Map(map) => {
-                    for (_, v) in map {
+                    for v in map.values() {
                         if v.is_none() {
                             bail!(
                                 "compose file `{}` service `{}` uses unsupported key `environment` -- map entry with null value not supported; remove it or edit the generated vat.toml directly after `vat compose import`",
@@ -208,20 +208,15 @@ pub fn parse(path: &Path) -> Result<ComposeFile> {
         }
 
         // Validate depends_on: no service_healthy condition.
-        if let Some(ref deps) = service.depends_on {
-            match deps {
-                ComposeDependsOn::Map(map) => {
-                    for (_, entry) in map {
-                        if entry.condition.as_deref() == Some("service_healthy") {
-                            bail!(
-                                "compose file `{}` service `{}` uses unsupported key `depends_on` -- service_healthy condition not supported; remove it or edit the generated vat.toml directly after `vat compose import`",
-                                file.source_path.display(),
-                                service_id
-                            );
-                        }
-                    }
+        if let Some(ComposeDependsOn::Map(map)) = service.depends_on.as_ref() {
+            for entry in map.values() {
+                if entry.condition.as_deref() == Some("service_healthy") {
+                    bail!(
+                        "compose file `{}` service `{}` uses unsupported key `depends_on` -- service_healthy condition not supported; remove it or edit the generated vat.toml directly after `vat compose import`",
+                        file.source_path.display(),
+                        service_id
+                    );
                 }
-                _ => {}
             }
         }
 
@@ -404,11 +399,14 @@ pub fn expand(
     Ok(services)
 }
 
+/// `(context, dockerfile, build args)` resolved for one compose `build:` entry.
+type ComposeBuildPaths = (PathBuf, PathBuf, Vec<(String, String)>);
+
 fn compose_build_paths(
     file: &ComposeFile,
     service_id: &str,
     build: &ComposeBuild,
-) -> Result<(PathBuf, PathBuf, Vec<(String, String)>)> {
+) -> Result<ComposeBuildPaths> {
     let source_dir = file
         .source_path
         .parent()

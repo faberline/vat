@@ -1,4 +1,4 @@
-# Build `vat` binaries for all supported targets.
+# Build the `vat` release binary.
 #
 # Triggers:
 #   - push of a tag matching `vat@*`   → build + attach to GitHub release
@@ -6,9 +6,10 @@
 #   - workflow_dispatch                → build artifacts only (manual smoke)
 #
 # Targets:
-#   - aarch64-apple-darwin      (Apple Silicon,      macos-14 native)
-#   - x86_64-unknown-linux-gnu  (most Linux servers, ubuntu-latest native)
-#   - aarch64-unknown-linux-gnu (Linux on ARM,       ubuntu-latest cross)
+#   - aarch64-apple-darwin (Apple Silicon, macos-14 native)
+#
+# vat supports Apple Silicon macOS only (STATUS.md `VAT-S-HOST-LINUX`), so
+# there are no Linux targets; install.sh refuses Linux with exit code 2.
 name: vat-release
 
 on:
@@ -30,31 +31,16 @@ jobs:
         include:
           - target: aarch64-apple-darwin
             os: macos-14
-            cross: false
-          - target: x86_64-unknown-linux-gnu
-            os: ubuntu-latest
-            cross: false
-          - target: aarch64-unknown-linux-gnu
-            os: ubuntu-latest
-            cross: true
 
     steps:
       - uses: actions/checkout@v4
 
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
-
-      - name: Install cross-compilation toolchain (Linux aarch64)
-        if: matrix.cross
+      # Installs the toolchain pinned in rust-toolchain.toml.
+      - name: Install pinned Rust toolchain
         run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu
-          mkdir -p .cargo
-          cat >> .cargo/config.toml <<'EOF'
-          [target.aarch64-unknown-linux-gnu]
-          linker = "aarch64-linux-gnu-gcc"
-          EOF
+          rustup toolchain install
+          rustup target add ${{ matrix.target }}
+          rustc --version
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -82,11 +68,7 @@ jobs:
           mkdir -p out
           tarball="out/${name}.tar.gz"
           tar -C pkg -czf "${tarball}" "${name}"
-          if command -v shasum >/dev/null; then
-            shasum -a 256 "${tarball}" | awk '{print $1}' > "${tarball}.sha256"
-          else
-            sha256sum "${tarball}" | awk '{print $1}' > "${tarball}.sha256"
-          fi
+          shasum -a 256 "${tarball}" | awk '{print $1}' > "${tarball}.sha256"
           echo "tarball=${tarball}" >> "${GITHUB_OUTPUT}"
           echo "sha=${tarball}.sha256" >> "${GITHUB_OUTPUT}"
 
@@ -129,10 +111,22 @@ jobs:
           body: |
             `vat` release built from tag ${{ github.ref_name }}.
 
+            Supported host: Apple Silicon macOS (`aarch64-apple-darwin`) only.
+            There are no Linux or Intel macOS builds.
+
+            ## Migration notes
+
+            <!-- MIGRATION NOTES: the release is published from the workflow
+                 file at the tagged commit, so edit this block in the commit
+                 you tag. Replace this comment with the breaking changes and
+                 upgrade steps for the release (see STATUS.md and the
+                 milestone's issues), or write "None." -->
+            See STATUS.md at this tag for the supported surface.
+
             ## Install
 
             ```sh
             curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/${{ github.ref_name }}/install.sh | sh
             ```
 
-            Or pick a target tarball below and extract it manually.
+            Or download `vat-aarch64-apple-darwin.tar.gz` below and extract it manually.

@@ -15,10 +15,18 @@ fn container_available() -> bool {
     sandbox::microvm::available()
 }
 
+/// A real `container run` needs a running container system, not just the CLI
+/// on PATH: a hosted macOS VM runner cannot nest Virtualization.framework.
+fn container_system_running() -> bool {
+    container_available() && sandbox::microvm::system_up()
+}
+
 #[test]
 fn microvm_end_to_end_smoke_test() {
-    if !container_available() {
-        eprintln!("container CLI not installed; skipping microvm smoke test");
+    if !container_system_running() {
+        eprintln!(
+            "container CLI not installed or container system not running; skipping microvm smoke test"
+        );
         return;
     }
 

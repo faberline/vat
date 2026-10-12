@@ -93,7 +93,7 @@ pub fn exec(args: Args) -> Result<ExitCode> {
 fn build_report(args: &Args) -> Result<GcReport> {
     let store_root = paths::vats_dir()?;
     let mut vats = store::list()?;
-    vats.sort_by(|a, b| b.meta.updated_at.cmp(&a.meta.updated_at));
+    vats.sort_by_key(|vat| std::cmp::Reverse(vat.meta.updated_at));
     let protected = vats
         .iter()
         .take(args.keep_last)

@@ -56,11 +56,9 @@ fn runner_mode_seatbelt_egress_allows_localhost_denies_external() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let port = listener.local_addr().unwrap().port();
     thread::spawn(move || {
-        for stream in listener.incoming() {
-            if let Ok(mut s) = stream {
-                let mut buf = [0u8; 1];
-                let _ = s.read(&mut buf);
-            }
+        for mut s in listener.incoming().flatten() {
+            let mut buf = [0u8; 1];
+            let _ = s.read(&mut buf);
         }
     });
 
@@ -152,11 +150,9 @@ fn runner_mode_seatbelt_egress_deny_denies_loopback_and_external() {
     let listener = TcpListener::bind("127.0.0.1:0").unwrap();
     let port = listener.local_addr().unwrap().port();
     thread::spawn(move || {
-        for stream in listener.incoming() {
-            if let Ok(mut s) = stream {
-                let mut buf = [0u8; 1];
-                let _ = s.read(&mut buf);
-            }
+        for mut s in listener.incoming().flatten() {
+            let mut buf = [0u8; 1];
+            let _ = s.read(&mut buf);
         }
     });
 
@@ -247,12 +243,10 @@ fn runner_mode_seatbelt_egress_deny_still_serves_vat_services() {
     let connections = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
     let connections_writer = connections.clone();
     thread::spawn(move || {
-        for stream in listener.incoming() {
-            if let Ok(mut s) = stream {
-                connections_writer.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-                let mut buf = [0u8; 1];
-                let _ = s.read(&mut buf);
-            }
+        for mut s in listener.incoming().flatten() {
+            connections_writer.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            let mut buf = [0u8; 1];
+            let _ = s.read(&mut buf);
         }
     });
 

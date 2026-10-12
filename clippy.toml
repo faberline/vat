@@ -1,4 +1,4 @@
-# Clippy configuration for data-bridge
+# Clippy configuration for the vat workspace
 # Docs: https://doc.rust-lang.org/nightly/clippy/
 
 # Maximum number of function arguments (default is 7)

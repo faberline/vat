@@ -214,7 +214,7 @@ pub fn write_guest_files(paths: &MachinePaths, cfg: &MachineConfig) -> Result<()
     )?;
     write_atomic(
         &paths.guest.join("version"),
-        hex(&version.finalize())[..16].as_bytes(),
+        &hex(&version.finalize()).as_bytes()[..16],
     )?;
     let mut mounts = String::new();
     for m in &cfg.host_mounts {

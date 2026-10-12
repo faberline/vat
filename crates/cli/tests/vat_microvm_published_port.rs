@@ -5,11 +5,12 @@
 //! requiring Apple Container on every developer or CI host. The ignored test
 //! is the opt-in real-host contract gate.
 
-use std::ffi::OsString;
+use std::ffi::{CString, OsString};
 use std::fs;
 use std::io::{ErrorKind, Read, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
-use std::os::unix::fs::PermissionsExt;
+use std::os::unix::ffi::OsStrExt;
+use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus, Stdio};
 use std::sync::{Mutex, OnceLock};
@@ -117,10 +118,9 @@ case "${1:-}" in
       shift
     done
     if [ -n "${VAT_FAKE_CONTAINER_RUN_FAILURE_GATE:-}" ]; then
-      while [ ! -e "$VAT_FAKE_CONTAINER_RUN_FAILURE_GATE" ]; do
-        /bin/sleep 0.01
-      done
-      /bin/sleep 0.05
+      # The gate is a FIFO: block (builtins only, no process spawn) until
+      # the test releases it, then fail immediately.
+      read -r gate < "$VAT_FAKE_CONTAINER_RUN_FAILURE_GATE" || true
       exit 17
     fi
     if [ "${VAT_FAKE_CONTAINER_RUN_DELAYED_FAILURE:-}" = "1" ]; then
@@ -146,13 +146,13 @@ case "${1:-}" in
     ;;
   inspect)
     if [ "${VAT_FAKE_CONTAINER_INSPECT_HANG:-}" = "1" ]; then
-      exec /bin/sleep 5
+      exec /bin/sleep 30
     fi
     echo "guest_ip=10.0.0.2 guest_port=80"
     ;;
   rm)
     if [ "${VAT_FAKE_CONTAINER_RM_HANG:-}" = "1" ]; then
-      exec /bin/sleep 5
+      exec /bin/sleep 30
     fi
     if [ "${VAT_FAKE_CONTAINER_RM_FAILURE:-}" = "1" ]; then
       exit 23
@@ -500,9 +500,14 @@ fn loopback_listener(test: &str) -> Option<TcpListener> {
     }
 }
 
+/// Only a failing test waits out this deadline, so it is generous: a loaded
+/// runner can take several seconds to reach VAT's first readiness connect, and
+/// a listener that gives up early turns that into a spurious refused endpoint.
+const READINESS_CONNECT_DEADLINE: Duration = Duration::from_secs(15);
+
 fn accept_before_deadline(listener: &TcpListener, test: &str) -> std::io::Result<TcpStream> {
     listener.set_nonblocking(true)?;
-    let deadline = Instant::now() + Duration::from_secs(4);
+    let deadline = Instant::now() + READINESS_CONNECT_DEADLINE;
     loop {
         match listener.accept() {
             Ok((stream, _)) => return Ok(stream),
@@ -521,8 +526,8 @@ fn accept_before_deadline(listener: &TcpListener, test: &str) -> std::io::Result
 }
 
 /// The MicroVM readiness probe deliberately accepts an idle, open TCP stream.
-/// Keep the stale listener alive long enough for a failed `container run` child
-/// to exit while VAT is probing it.
+/// Keep the listener's first accepted connection open for `duration` and drop a
+/// marker file once VAT has connected.
 fn hold_connection_open_and_signal(
     listener: TcpListener,
     test: &'static str,
@@ -536,6 +541,69 @@ fn hold_connection_open_and_signal(
         thread::sleep(duration);
         Ok(())
     })
+}
+
+/// Stage a stale listener that only appears after the fake `container run`
+/// child is parked on `gate` (a FIFO), and release the child the moment VAT's
+/// readiness connection is accepted.
+///
+/// VAT's idle TCP probe treats a quiet connection as usable after 150ms and
+/// then re-checks the child. The child must therefore exit inside that window.
+/// Binding only after the child is parked keeps shell startup out of the window,
+/// so the only latency left is a FIFO write and a builtin `read` returning.
+fn stale_listener_releasing_failed_child(
+    listener: TcpListener,
+    test: &'static str,
+    gate: PathBuf,
+    duration: Duration,
+) -> thread::JoinHandle<Result<(), String>> {
+    let address = listener.local_addr().expect("stale listener address");
+    // Until the child is parked, VAT's probes must be refused, not queued.
+    drop(listener);
+    thread::spawn(move || {
+        let deadline = Instant::now() + READINESS_CONNECT_DEADLINE;
+        // A non-blocking writer open fails with ENXIO until a reader exists.
+        let mut gate_writer = loop {
+            match fs::OpenOptions::new()
+                .write(true)
+                .custom_flags(libc::O_NONBLOCK)
+                .open(&gate)
+            {
+                Ok(file) => break file,
+                Err(err) if err.raw_os_error() == Some(libc::ENXIO) => {
+                    if Instant::now() >= deadline {
+                        return Err(format!(
+                            "{test}: fake `container run` never parked on the gate"
+                        ));
+                    }
+                    thread::sleep(Duration::from_millis(5));
+                }
+                Err(err) => return Err(format!("{test}: open gate: {err}")),
+            }
+        };
+        let listener = TcpListener::bind(address)
+            .map_err(|err| format!("{test}: rebind stale listener on {address}: {err}"))?;
+        let _stream = accept_before_deadline(&listener, test).map_err(|err| err.to_string())?;
+        gate_writer
+            .write_all(b"exit\n")
+            .map_err(|err| format!("{test}: release gate: {err}"))?;
+        drop(gate_writer);
+        thread::sleep(duration);
+        Ok(())
+    })
+}
+
+fn make_fifo(path: &Path) {
+    let c_path = CString::new(path.as_os_str().as_bytes()).expect("FIFO path");
+    // SAFETY: `c_path` is a valid NUL-terminated path for the call's duration.
+    let rc = unsafe { libc::mkfifo(c_path.as_ptr(), 0o600) };
+    assert_eq!(
+        rc,
+        0,
+        "mkfifo {}: {}",
+        path.display(),
+        std::io::Error::last_os_error()
+    );
 }
 
 /// A real-host cleanup assertion must not turn a broken runtime into an
@@ -668,14 +736,14 @@ fn run_microvm_preset_without_docker_fallback(image_missing: bool) {
 
     let container_calls =
         fs::read_to_string(&fake_container_log).expect("read fake container command log");
-    let inspect = format!("image inspect redis:7");
+    let inspect = "image inspect redis:7";
     assert!(
-        container_calls.contains(&inspect),
+        container_calls.contains(inspect),
         "MicroVM preset must inspect the Apple Container image store, calls:\n{container_calls}"
     );
     if image_missing {
         let pull = "image pull redis:7";
-        let inspect_at = container_calls.find(&inspect).expect("image inspect call");
+        let inspect_at = container_calls.find(inspect).expect("image inspect call");
         let pull_at = container_calls.find(pull).expect("image pull call");
         let run_at = container_calls
             .find("run --rm --name")
@@ -999,6 +1067,7 @@ fn stale_published_listener_cannot_mask_a_failed_microvm_child() {
     let fake_log = fake_bin.path().join("container.log");
     let failure_gate = fake_bin.path().join("run-failure.gate");
     fake_container_path(fake_bin.path());
+    make_fifo(&failure_gate);
 
     let Some(listener) = loopback_listener("stale published listener regression") else {
         return;
@@ -1007,10 +1076,10 @@ fn stale_published_listener_cannot_mask_a_failed_microvm_child() {
         .local_addr()
         .expect("stale listener address")
         .port();
-    // The fake runtime waits for this listener to accept VAT's readiness
+    // The fake runtime parks until this listener accepts VAT's readiness
     // connection, then exits during the deliberately idle TCP probe. A stale
     // host listener must therefore not make the MicroVM appear ready.
-    let stale_server = hold_connection_open_and_signal(
+    let stale_server = stale_listener_releasing_failed_child(
         listener,
         "stale published listener regression",
         failure_gate.clone(),
@@ -1120,8 +1189,10 @@ fn hung_microvm_cleanup_is_bounded_and_persists_terminal_evidence() {
         !output.status.success(),
         "cleanup fixture unexpectedly succeeded"
     );
+    // The fake delete hangs for 30s; VAT's teardown bound is ~2s. Half the
+    // hang proves the bound without racing it on a loaded runner.
     assert!(
-        elapsed < Duration::from_secs(4),
+        elapsed < Duration::from_secs(15),
         "a hung `container rm -f` blocked failure persistence for {elapsed:?}"
     );
     let events = jsonl(&output.stdout);
@@ -1564,8 +1635,10 @@ fn published_endpoint_diagnostic_timeout_still_persists_and_cleans_up() {
         !output.status.success(),
         "diagnostic fixture unexpectedly succeeded"
     );
+    // The fake inspect hangs for 30s; VAT's diagnostic budget is 1s. Half the
+    // hang proves the bound without racing it on a loaded runner.
     assert!(
-        elapsed < Duration::from_secs(4),
+        elapsed < Duration::from_secs(15),
         "a hung inspect blocked fail-closed cleanup for {elapsed:?}"
     );
     let events = jsonl(&output.stdout);

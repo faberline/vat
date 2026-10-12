@@ -1,0 +1,58 @@
+# PR gate for the vat workspace.
+#
+# Runs on Apple Silicon (macos-14) because vat is an Apple Silicon macOS
+# product: vat-docker links Virtualization.framework through objc2 and the
+# native runtime relies on APFS clonefile and seatbelt.
+#
+# The VM E2Es (vat_machine_e2e, vat_k8s_e2e, vat_gcp_e2e) are `#[ignore]` and
+# stay local: GitHub's macOS runners are themselves VMs and cannot nest
+# Virtualization.framework guests. See CONTRIBUTING.md.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check:
+    name: fmt, clippy, test (aarch64-apple-darwin)
+    runs-on: macos-14
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      # Installs the toolchain pinned in rust-toolchain.toml (with clippy and
+      # rustfmt) instead of whatever stable the runner image carries.
+      - name: Install pinned Rust toolchain
+        run: |
+          rustup toolchain install
+          rustc --version
+          cargo clippy --version
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: cargo fmt
+        run: cargo fmt --all --check
+
+      - name: cargo clippy
+        run: cargo clippy --workspace --all-targets --locked -- -D warnings
+
+      # `--workspace`, not `-p vat`: vat-docker's
+      # `guest_agent_binary_matches_sources` compares
+      # guest-agent/dist/SOURCE_SHA256 with the guest-agent sources, so a stale
+      # embedded agent fails the PR.
+      # `--no-fail-fast` so one run reports every failing test binary, not
+      # just the first.
+      - name: cargo test
+        run: cargo test --workspace --locked --no-fail-fast

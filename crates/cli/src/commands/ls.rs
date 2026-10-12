@@ -14,7 +14,7 @@ use crate::store;
 pub fn exec(json: bool) -> Result<ExitCode> {
     let mut vats = store::list()?;
     // Newest first.
-    vats.sort_by(|a, b| b.meta.created_at.cmp(&a.meta.created_at));
+    vats.sort_by_key(|v| std::cmp::Reverse(v.meta.created_at));
 
     if json {
         let states: Vec<_> = vats

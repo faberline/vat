@@ -26,7 +26,7 @@ VERSION="${VAT_VERSION:-latest}"
 TOKEN="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
 
 say() { printf 'vat-install: %s\n' "$*" >&2; }
-die() { say "error: $*"; exit "${2:-1}"; }
+die() { say "error: $1"; exit "${2:-1}"; }
 
 need() {
   command -v "$1" >/dev/null 2>&1 || die "missing required tool: $1" 3
@@ -64,16 +64,25 @@ auth_curl() {
 os_raw="$(uname -s)"
 arch_raw="$(uname -m)"
 
+# vat supports Apple Silicon macOS only; releases publish a single
+# aarch64-apple-darwin binary. Refuse everything else before downloading.
 case "${os_raw}" in
   Darwin) os=apple-darwin ;;
-  Linux)  os=unknown-linux-gnu ;;
-  *)      die "unsupported OS: ${os_raw}" 2 ;;
+  Linux)  die "vat supports Apple Silicon macOS only; there is no Linux build (Linux workloads run inside \`vat machine\` on a Mac)" 2 ;;
+  *)      die "unsupported OS: ${os_raw} (vat supports Apple Silicon macOS only)" 2 ;;
 esac
 
 case "${arch_raw}" in
-  x86_64|amd64)        arch=x86_64 ;;
-  arm64|aarch64)       arch=aarch64 ;;
-  *)                   die "unsupported arch: ${arch_raw}" 2 ;;
+  arm64|aarch64) arch=aarch64 ;;
+  x86_64)
+    # A shell running under Rosetta reports x86_64 on Apple Silicon.
+    if [ "$(sysctl -n hw.optional.arm64 2>/dev/null || echo 0)" = "1" ]; then
+      arch=aarch64
+    else
+      die "unsupported arch: ${arch_raw} (vat supports Apple Silicon macOS only)" 2
+    fi
+    ;;
+  *) die "unsupported arch: ${arch_raw} (vat supports Apple Silicon macOS only)" 2 ;;
 esac
 
 target="${arch}-${os}"
