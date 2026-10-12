@@ -135,6 +135,7 @@ pub fn ensure_up(args: &UpArgs) -> Result<UpReport> {
     let t0 = Instant::now();
     let deadline = t0 + Duration::from_secs(args.timeout_s);
     let paths = MachinePaths::new(DEFAULT_MACHINE)?;
+    machine::refresh_or_warn(DEFAULT_MACHINE, true);
     // Fetch kubectl while the machine boots; both can take a while cold.
     let kubectl_fetch = std::thread::spawn(k8s::ensure_kubectl);
     let mut enabled_live = false;
@@ -309,6 +310,7 @@ pub fn probe() -> Result<Probe> {
 
 pub fn status(json_out: bool) -> Result<ExitCode> {
     let paths = MachinePaths::new(DEFAULT_MACHINE)?;
+    machine::refresh_or_warn(DEFAULT_MACHINE, false);
     let cfg = MachineConfig::load(&paths.config)?;
     let Probe {
         enabled,
@@ -350,6 +352,7 @@ pub fn status(json_out: bool) -> Result<ExitCode> {
 /// Refresh the host kubeconfig from the running cluster and report it.
 pub fn kubeconfig(json_out: bool) -> Result<ExitCode> {
     let paths = MachinePaths::new(DEFAULT_MACHINE)?;
+    machine::refresh_or_warn(DEFAULT_MACHINE, false);
     let cfg = MachineConfig::load(&paths.config)?.unwrap_or_default();
     let path = if machine::running_pid(&paths).is_some() && guest_k8s_ready(&paths) {
         k8s::sync_kubeconfig(&paths, &cfg)?
@@ -391,6 +394,7 @@ pub fn kubectl(args: Vec<String>) -> Result<ExitCode> {
 /// Disable K3s. Cluster state stays on the data disk for the next `up`.
 pub fn down(json_out: bool) -> Result<ExitCode> {
     let paths = MachinePaths::new(DEFAULT_MACHINE)?;
+    machine::refresh_or_warn(DEFAULT_MACHINE, false);
     let Some(mut cfg) = MachineConfig::load(&paths.config)? else {
         bail!("no machine; nothing to disable");
     };

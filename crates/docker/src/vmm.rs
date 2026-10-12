@@ -390,6 +390,9 @@ async fn clock_sync(dialer: &Dialer, es: &mut ElasticState) {
 pub fn run(name: &str, assets: BootAssets) -> Result<()> {
     let t0 = Instant::now();
     let paths = MachinePaths::new(name)?;
+    // First thing: the stamps describe the binary and files launchd just
+    // started, until a vat upgrade re-stages them.
+    let staged = super::stage::Staged::read(&paths);
     let mut cfg = MachineConfig::load(&paths.config)?
         .with_context(|| format!("machine {name} is not configured"))?;
     if cfg.mac.is_none() {
@@ -409,6 +412,9 @@ pub fn run(name: &str, assets: BootAssets) -> Result<()> {
             vm_start_ms,
             rosetta,
             state: state.to_string(),
+            vat_version: Some(env!("CARGO_PKG_VERSION").to_string()),
+            vat_sha256: staged.vmm.clone(),
+            staged_sha256: staged.machine.clone(),
         };
         let _ = super::write_atomic(
             &paths.vmm_state,
@@ -549,6 +555,9 @@ pub fn run(name: &str, assets: BootAssets) -> Result<()> {
         let mut next_clock_sync = Instant::now() + Duration::from_secs(30);
         let mut es = ElasticState {
             vm_pid,
+            vmm_pid: Some(std::process::id()),
+            idle: false,
+            busy: Some("starting".to_string()),
             ..Default::default()
         };
         let mut idle = IdleWatch::new(Duration::from_secs(cfg.idle_stop_secs));
@@ -618,7 +627,10 @@ pub fn run(name: &str, assets: BootAssets) -> Result<()> {
                             Some(why) => eprintln!("vmm: busy: {why}"),
                             None => eprintln!("vmm: idle"),
                         }
+                        es.idle = why.is_none();
+                        es.busy = why.clone();
                         busy_why = why;
+                        save(&es);
                     }
                     if idle.observe(busy_why.is_some(), Instant::now()) {
                         eprintln!("vmm: idle; stopping to give memory back to macOS");
@@ -631,6 +643,8 @@ pub fn run(name: &str, assets: BootAssets) -> Result<()> {
         if stopped_by != "guest" {
             record("stopping", vm_start_ms);
         }
+        es.idle = false;
+        es.busy = Some("stopping".to_string());
         es.stopped_by = Some(stopped_by.to_string());
         es.stopped_at = Some(chrono::Utc::now().timestamp());
         save(&es);

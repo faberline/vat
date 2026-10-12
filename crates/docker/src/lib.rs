@@ -14,11 +14,13 @@
 //!   run/vat.sock             control socket: "<dial header>\n" then raw bytes
 //!   machine/assets/          kernel, Alpine minirootfs, generated initramfs
 //!   machine/bin/vat-vmm      signed copy of vat holding the virtualization entitlement
+//!   machine/bin/vat-vmm.sha256  the vat build it was copied from (see [`stage`])
 //!   machine/default/
 //!     config.json            cpus / memory / disk / MAC / options
 //!     data.img               sparse persistent root disk (ext4 inside)
 //!     share/                 virtiofs tag "vat": guest scripts + status written by the guest
 //!     console.log, vmm.log, vmm.json
+//!     staged.sha256          the vat build its guest files and job came from
 //! ```
 //!
 //! The guest side lives in `guest/` and is copied into the state share on
@@ -35,6 +37,7 @@ pub mod client;
 pub mod elastic;
 pub mod engine;
 pub mod launchd;
+pub mod stage;
 #[cfg(all(target_os = "macos", feature = "machine"))]
 pub mod vmm;
 
@@ -82,7 +85,11 @@ pub struct MachinePaths {
 
 impl MachinePaths {
     pub fn new(name: &str) -> Result<Self> {
-        let home = home()?;
+        Ok(Self::at(&home()?, name))
+    }
+
+    /// The paths of machine `name` under the machine home `home`.
+    pub fn at(home: &Path, name: &str) -> Self {
         let machine_root = home.join("machine");
         let dir = machine_root.join(name);
         let share = dir.join("share");
@@ -93,7 +100,7 @@ impl MachinePaths {
         } else {
             home.join("run").join(name)
         };
-        Ok(Self {
+        Self {
             name: name.to_string(),
             assets: machine_root.join("assets"),
             bin_dir: machine_root.join("bin"),
@@ -108,7 +115,7 @@ impl MachinePaths {
             share,
             dir,
             run_dir,
-        })
+        }
     }
 
     /// Guest-written heartbeat (`vat-guest agent`).
@@ -284,6 +291,23 @@ pub struct VmmState {
     pub vm_start_ms: u64,
     pub rosetta: bool,
     pub state: String,
+    /// The vat release, and the SHA-256 stamps of the binary and of the
+    /// guest files and job this VMM was started from ([`stage::Staged`]).
+    /// Absent for a VMM older than these fields, which reads as outdated.
+    #[serde(default)]
+    pub vat_version: Option<String>,
+    #[serde(default)]
+    pub vat_sha256: Option<String>,
+    #[serde(default)]
+    pub staged_sha256: Option<String>,
+}
+
+impl VmmState {
+    /// Whether this VMM runs the vat build `sha256` with guest files and a
+    /// job staged from it too.
+    pub fn runs(&self, sha256: &str) -> bool {
+        self.vat_sha256.as_deref() == Some(sha256) && self.staged_sha256.as_deref() == Some(sha256)
+    }
 }
 
 pub fn write_atomic(path: &Path, bytes: &[u8]) -> Result<()> {
