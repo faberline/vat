@@ -11,6 +11,19 @@
 ## Capability Map
 
 - [README](README.md): capability source of truth and product contract.
+- [STATUS.md](STATUS.md): support matrix; what each surface does today and the gate that proves it.
+- [CHANGELOG.md](CHANGELOG.md): breaking changes and upgrade steps per release.
+- Offline usage contract: `vat llm` (`--topic guide` for the full guide).
+
+## Machine, Docker, and K8s
+
+- Host: Apple Silicon macOS only. Linux workloads run in one shared Linux machine (`vat machine`), never on a Linux host.
+- Docker: `vat machine start`, then `export DOCKER_HOST="unix://$HOME/.vat/run/docker.sock"` for the stock `docker` CLI, Compose v2, Testcontainers, and SDKs. vat's own Docker users default to that socket; an explicit `DOCKER_HOST`/`DOCKER_CONTEXT` or `VAT_ENGINE=external` opts out.
+- Lifecycle: launchd keeps `docker.sock`, so a Docker client wakes a stopped machine. It stops itself after `idle_stop_secs` (default 300; `vat machine start --idle-stop DUR`, `0` = never) unless busy. `vat machine stop` keeps the wake; `vat machine stop --no-wake` drops it.
+- Inspect: `vat machine status --json` reports `state`, `docker_ready`, `wake_on_socket`, `idle_stop_secs`, `keeps_awake`, `elastic` (`stopped_by`, `idle`, `busy`, `clock_skew_ms`), `vmm_outdated`, `vmm_staged_sha256`, `vmm_running_sha256`, `ports`, and `data_disk_allocated_kib`.
+- Other verbs: `vat machine exec -- <cmd>`, `vat machine env`, `vat machine logs [--vmm]`, `vat machine rm --yes` (deletes the data disk, the launchd job, and the sockets).
+- Kubernetes: `vat k8s up` starts the persistent single-node K3s and writes `~/.vat/kube/config` (context `vat`); `vat k8s kubectl -- <args>` runs the pinned kubectl. In `vat.toml`, use `cluster = "machine"`.
+- Local GCP: `vat gcp status --json`; `vat gcp env` prints the emulator hosts that host processes share with pods.
 
 ## Agent Workflow
 

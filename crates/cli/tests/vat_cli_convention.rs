@@ -47,7 +47,16 @@ fn documented_agent_commands_match_help() {
     let help = String::from_utf8_lossy(&out.stdout);
     let readme = include_str!("../../../README.md");
 
-    for command in ["build", "compose", "machine", "k8s"] {
+    for command in [
+        "build",
+        "compose",
+        "image",
+        "container",
+        "native",
+        "gcp",
+        "machine",
+        "k8s",
+    ] {
         assert!(
             help.lines()
                 .any(|line| line.trim_start().starts_with(command)),
