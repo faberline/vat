@@ -1,6 +1,6 @@
 # PR gate for the vat workspace.
 #
-# Runs on Apple Silicon (macos-14) because vat is an Apple Silicon macOS
+# Runs on Apple Silicon (macos-15) because vat is an Apple Silicon macOS
 # product: vat-docker links Virtualization.framework through objc2 and the
 # native runtime relies on APFS clonefile and seatbelt.
 #
@@ -27,7 +27,7 @@ env:
 jobs:
   check:
     name: fmt, clippy, test (aarch64-apple-darwin)
-    runs-on: macos-14
+    runs-on: macos-15
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4

@@ -6,7 +6,7 @@
 #   - workflow_dispatch                → build artifacts only (manual smoke)
 #
 # Targets:
-#   - aarch64-apple-darwin (Apple Silicon, macos-14 native)
+#   - aarch64-apple-darwin (Apple Silicon, macos-15 native)
 #
 # vat supports Apple Silicon macOS only (STATUS.md `VAT-S-HOST-LINUX`), so
 # there are no Linux targets; install.sh refuses Linux with exit code 2.
@@ -30,7 +30,7 @@ jobs:
       matrix:
         include:
           - target: aarch64-apple-darwin
-            os: macos-14
+            os: macos-15
 
     steps:
       - uses: actions/checkout@v4
